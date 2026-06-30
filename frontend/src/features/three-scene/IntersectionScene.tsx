@@ -1,0 +1,202 @@
+import React, { Suspense } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, PerspectiveCamera, Environment, Text } from '@react-three/drei';
+import { Road } from './Road';
+import { Vehicle } from './Vehicle';
+import { Pedestrian } from './Pedestrian';
+import { Obstacle } from './Obstacle';
+import { TrajectoryLine } from './TrajectoryLine';
+import { ReplayFrame } from '@/types/event';
+
+interface SceneData {
+  vehicles: {
+    id: string;
+    position: { x: number; y: number; z: number };
+    heading: number;
+    isEgo?: boolean;
+    predictedPath?: { x: number; y: number; z: number }[];
+    riskLevel?: 'low' | 'medium' | 'high' | 'critical';
+  }[];
+  pedestrians: {
+    id: string;
+    position: { x: number; y: number; z: number };
+    heading: number;
+    isOccluded: boolean;
+    riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  }[];
+  obstacles: {
+    id: string;
+    position: { x: number; y: number; z: number };
+    size: { width: number; height: number; depth: number };
+    type: 'parked_car' | 'bus' | 'truck' | 'wall' | 'pillar';
+  }[];
+}
+
+interface IntersectionSceneProps {
+  sceneData?: SceneData;
+  replayFrame?: ReplayFrame;
+  height?: number | string;
+  showLabel?: boolean;
+}
+
+function SceneContent({ sceneData, showLabel }: { sceneData: SceneData; showLabel: boolean }) {
+  return (
+    <>
+      <ambientLight intensity={0.4} />
+      <directionalLight position={[20, 30, 10]} intensity={0.8} castShadow />
+      <pointLight position={[0, 15, 0]} intensity={0.6} color="#00d4ff" />
+
+      <Road />
+
+      {sceneData.vehicles.map((v) => (
+        <React.Fragment key={v.id}>
+          <Vehicle
+            position={v.position}
+            heading={v.heading}
+            isEgo={v.isEgo}
+            riskLevel={v.riskLevel}
+          />
+          {v.predictedPath && v.predictedPath.length > 1 && (
+            <TrajectoryLine points={v.predictedPath} color="#00ff88" />
+          )}
+        </React.Fragment>
+      ))}
+
+      {sceneData.pedestrians.map((p) => (
+        <Pedestrian
+          key={p.id}
+          position={p.position}
+          heading={p.heading}
+          isOccluded={p.isOccluded}
+          riskLevel={p.riskLevel}
+        />
+      ))}
+
+      {sceneData.obstacles.map((o) => (
+        <Obstacle key={o.id} position={o.position} size={o.size} type={o.type} />
+      ))}
+
+      {showLabel && (
+        <Text
+          position={[0, 8, 0]}
+          fontSize={0.8}
+          color="#00d4ff"
+          anchorX="center"
+          anchorY="middle"
+        >
+          V2X 路口场景
+        </Text>
+      )}
+
+      {/* Ground grid */}
+      <gridHelper args={[60, 60, '#1a1a2e', '#1a1a2e']} position={[0, -0.02, 0]} />
+    </>
+  );
+}
+
+const defaultSceneData: SceneData = {
+  vehicles: [
+    {
+      id: 'ego',
+      position: { x: -10, y: 0, z: 0 },
+      heading: 90,
+      isEgo: true,
+      riskLevel: 'medium',
+      predictedPath: [
+        { x: -8, y: 0, z: 0 },
+        { x: -5, y: 0, z: 0 },
+        { x: -2, y: 0, z: 0.3 },
+        { x: 1, y: 0, z: 0.6 },
+      ],
+    },
+    {
+      id: 'v2',
+      position: { x: 0, y: 0, z: -12 },
+      heading: 0,
+      riskLevel: 'low',
+    },
+  ],
+  pedestrians: [
+    {
+      id: 'p1',
+      position: { x: 5, y: 0, z: -3 },
+      heading: 0,
+      isOccluded: true,
+      riskLevel: 'critical',
+    },
+    {
+      id: 'p2',
+      position: { x: -3, y: 0, z: 7 },
+      heading: 180,
+      isOccluded: false,
+      riskLevel: 'low',
+    },
+  ],
+  obstacles: [
+    {
+      id: 'obs1',
+      position: { x: 6, y: 0, z: -5 },
+      size: { width: 4, height: 2, depth: 2 },
+      type: 'parked_car',
+    },
+  ],
+};
+
+function replayFrameToSceneData(frame: ReplayFrame): SceneData {
+  return {
+    vehicles: frame.vehicles.map((v) => ({
+      id: v.id,
+      position: v.position,
+      heading: v.heading,
+      isEgo: true,
+      predictedPath: v.predictedPath,
+      riskLevel: frame.brakeActive ? 'critical' : 'medium',
+    })),
+    pedestrians: frame.pedestrians.map((p) => ({
+      id: p.id,
+      position: p.position,
+      heading: p.heading,
+      isOccluded: p.isOccluded,
+      riskLevel: p.riskLevel,
+    })),
+    obstacles: frame.obstacles.map((o) => ({
+      id: o.id,
+      position: o.position,
+      size: o.size,
+      type: o.type,
+    })),
+  };
+}
+
+export const IntersectionScene: React.FC<IntersectionSceneProps> = ({
+  sceneData,
+  replayFrame,
+  height = 500,
+  showLabel = false,
+}) => {
+  let data: SceneData;
+  if (replayFrame) {
+    data = replayFrameToSceneData(replayFrame);
+  } else {
+    data = sceneData || defaultSceneData;
+  }
+
+  return (
+    <div style={{ height, width: '100%', borderRadius: 8, overflow: 'hidden' }}>
+      <Canvas shadows>
+        <PerspectiveCamera makeDefault position={[25, 20, 25]} fov={50} />
+        <OrbitControls
+          enableDamping
+          dampingFactor={0.05}
+          minDistance={10}
+          maxDistance={60}
+          maxPolarAngle={Math.PI / 2.2}
+        />
+        <Suspense fallback={null}>
+          <SceneContent sceneData={data} showLabel={showLabel} />
+        </Suspense>
+        <fog attach="fog" args={['#0a0e1a', 40, 80]} />
+      </Canvas>
+    </div>
+  );
+};

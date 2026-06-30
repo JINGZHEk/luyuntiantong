@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p docs)",
+      "Bash(mkdir -p src/roadside_perception)",
+      "Bash(mkdir -p src/vehicle_decision)",
+      "Bash(mkdir -p src/cloud_twin)",
+      "Bash(mkdir -p src/communication)"
+    ]
+  }
+}

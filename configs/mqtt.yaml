@@ -1,0 +1,21 @@
+broker:
+  host: localhost
+  port: 1883
+  websocket_port: 9001
+  keepalive: 60
+  qos: 1
+
+topics:
+  prefix: v2x
+  scene_id: scene_001
+  roadside_perception: v2x/{scene_id}/roadside/{node_id}/perception
+  roadside_heartbeat: v2x/{scene_id}/roadside/{node_id}/heartbeat
+  vehicle_status: v2x/{scene_id}/vehicle/{vehicle_id}/status
+  vehicle_decision: v2x/{scene_id}/vehicle/{vehicle_id}/decision
+  cloud_event: v2x/{scene_id}/cloud/event
+  cloud_command: v2x/{scene_id}/cloud/command
+
+client:
+  reconnect_delay: 1
+  reconnect_max_delay: 30
+  reconnect_exponential: true

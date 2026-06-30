@@ -1,0 +1,27 @@
+node_id: roadside_001
+scene_id: scene_001
+
+detection:
+  model: yolov8n
+  confidence_threshold: 0.4
+  iou_threshold: 0.5
+  target_classes: [person, car, truck, bicycle]
+  input_size: 640
+
+prediction:
+  history_length: 10
+  predict_steps: 30
+  predict_horizon_sec: 3.0
+  smoothing_alpha: 0.3
+
+occlusion:
+  area_ratio_threshold: 0.6
+  levels:
+    none: 0
+    light: 1
+    moderate: 2
+    heavy: 3
+
+replay:
+  fps: 10
+  data_dir: data/mini_split/replay

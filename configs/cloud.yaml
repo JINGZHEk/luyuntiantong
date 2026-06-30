@@ -1,0 +1,20 @@
+scene_id: scene_001
+
+api:
+  host: 0.0.0.0
+  port: 8000
+  cors_origins: ["http://localhost:5173", "http://localhost:3000"]
+
+database:
+  type: sqlite
+  path: data/v2x_cloud.db
+  wal_mode: true
+
+event_detection:
+  ttc_threshold: 2.0
+  require_occlusion: true
+  cooldown_sec: 5.0
+
+websocket:
+  heartbeat_interval: 5
+  max_connections: 50

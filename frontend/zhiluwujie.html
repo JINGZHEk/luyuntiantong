@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智路无界 - V2X数字孪生交通全景平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap');
+        
+        :root {
+            --neon-cyan: #00f3ff;
+            --neon-blue: #0088ff;
+            --neon-red: #ff2a55;
+            --neon-green: #00ffaa;
+            --bg-dark: #030712;
+            --panel-bg: rgba(3, 11, 25, 0.7);
+        }
+
+        body { margin: 0; overflow: hidden; background-color: var(--bg-dark); color: var(--neon-cyan); font-family: 'PingFang SC', 'Rajdhani', sans-serif; user-select: none; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; }
+        
+        /* 全局扫描线 */
+        body::after {
+            content: ""; position: absolute; inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 999; background-size: 100% 2px, 3px 100%; pointer-events: none; opacity: 0.3;
+        }
+
+        /* 启动屏样式 */
+        #boot-screen {
+            position: absolute; inset: 0; z-index: 100; background: radial-gradient(circle at center, #0a1128 0%, #000000 100%);
+            display: flex; flex-direction: column; justify-content: center; items-center; transition: opacity 1s ease, backdrop-filter 1s ease;
+        }
+        .cyber-btn {
+            background: transparent; border: 1px solid var(--neon-cyan); color: var(--neon-cyan);
+            padding: 15px 40px; font-size: 1.2rem; font-family: 'Rajdhani', sans-serif; letter-spacing: 4px;
+            text-transform: uppercase; cursor: pointer; position: relative; overflow: hidden;
+            transition: all 0.3s ease; box-shadow: 0 0 15px rgba(0, 243, 255, 0.2) inset;
+        }
+        .cyber-btn:hover { background: var(--neon-cyan); color: #000; box-shadow: 0 0 30px rgba(0, 243, 255, 0.8); }
+        .cyber-btn::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); transition: left 0.5s ease; }
+        .cyber-btn:hover::before { left: 100%; }
+
+        /* HUD UI */
+        #ui-layer { position: absolute; inset: 0; z-index: 10; pointer-events: none; opacity: 0; transition: opacity 2s ease; }
+        .pointer-events-auto { pointer-events: auto; }
+        
+        .glass-panel {
+            background: var(--panel-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 243, 255, 0.2); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6); position: relative;
+        }
+        .glass-panel::before { content: ''; position: absolute; top: -1px; left: -1px; width: 15px; height: 15px; border-top: 2px solid var(--neon-cyan); border-left: 2px solid var(--neon-cyan); }
+        .glass-panel::after { content: ''; position: absolute; bottom: -1px; right: -1px; width: 15px; height: 15px; border-bottom: 2px solid var(--neon-cyan); border-right: 2px solid var(--neon-cyan); }
+
+        /* 雷达系统 */
+        #radar-container { position: relative; width: 160px; height: 160px; border-radius: 50%; border: 1px solid rgba(0, 243, 255, 0.4); background: radial-gradient(circle, rgba(0, 243, 255, 0.1) 0%, transparent 70%); overflow: hidden; }
+        .radar-grid { position: absolute; inset: 0; border-radius: 50%; border: 1px dashed rgba(0, 243, 255, 0.2); transform: scale(0.5); }
+        .radar-cross { position: absolute; inset: 0; }
+        .radar-cross::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: rgba(0, 243, 255, 0.3); }
+        .radar-cross::after { content: ''; position: absolute; left: 50%; top: 0; height: 100%; width: 1px; background: rgba(0, 243, 255, 0.3); }
+        .radar-scan { position: absolute; top: 50%; left: 50%; width: 100%; height: 100%; background: conic-gradient(from 0deg, transparent 70%, rgba(0, 243, 255, 0.5) 100%); transform-origin: 0 0; animation: scan 3s linear infinite; }
+        @keyframes scan { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .radar-dot { position: absolute; width: 4px; height: 4px; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 4px currentColor; transition: all 0.1s; }
+
+        /* 数据跳动条 */
+        .bar-chart { display: flex; align-items: flex-end; height: 40px; gap: 2px; }
+        .bar { width: 6px; background: var(--neon-blue); transition: height 0.2s ease; }
+        
+        /* 侧边栏菜单 */
+        .side-menu-item { border-left: 2px solid transparent; transition: all 0.2s; cursor: pointer; }
+        .side-menu-item.active { border-left-color: var(--neon-cyan); background: linear-gradient(90deg, rgba(0,243,255,0.1) 0%, transparent 100%); color: #fff; }
+        .side-menu-item:hover { background: rgba(0,243,255,0.05); }
+
+        /* 浮动标签 */
+        .entity-label { position: absolute; transform: translate(-50%, -100%); pointer-events: none; z-index: 5; transition: all 0.1s; white-space: nowrap; }
+    </style>
+</head>
+<body>
+
+    <!-- 3D 渲染画布 -->
+    <div id="canvas-container"></div>
+
+    <!-- 启动引导屏 -->
+    <div id="boot-screen" class="flex flex-col items-center justify-center">
+        <div class="mb-10 text-center">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="var(--neon-cyan)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 animate-pulse"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            <h1 class="text-5xl font-bold text-white tracking-[0.2em] mb-2 drop-shadow-[0_0_15px_rgba(0,243,255,0.8)]" style="font-family: 'Rajdhani'">智路无界</h1>
+            <p class="text-cyan-400 tracking-widest text-sm uppercase">V2X Digital Twin Traffic Network</p>
+        </div>
+        <div class="w-96 font-mono text-xs text-cyan-600/70 mb-8 space-y-1 h-32 overflow-hidden relative" id="boot-logs">
+            <!-- 日志通过JS动态生成 -->
+        </div>
+        <button id="start-btn" class="cyber-btn hidden">接入孪生系统</button>
+    </div>
+
+    <!-- 实体浮动标签容器 -->
+    <div id="labels-container"></div>
+
+    <!-- 核心 HUD 面板 -->
+    <div id="ui-layer" class="p-6 flex flex-col justify-between h-screen w-screen">
+        <!-- 顶部信息栏 -->
+        <div class="flex justify-between items-start pointer-events-auto">
+            <!-- 左上：系统大盘 -->
+            <div class="glass-panel p-4 rounded w-80">
+                <div class="flex items-center gap-3 border-b border-cyan-500/30 pb-2 mb-3">
+                    <div class="bg-cyan-500/20 p-1.5 rounded"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></div>
+                    <h2 class="font-bold text-lg text-white tracking-widest">全局路网监控中心</h2>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-xs font-mono">
+                    <div>
+                        <p class="text-cyan-600">云端算力负载</p>
+                        <p class="text-lg text-white mt-1" id="ui-cpu">78<span class="text-[10px] text-cyan-400"> %</span></p>
+                    </div>
+                    <div>
+                        <p class="text-cyan-600">接入终端数 (V+I)</p>
+                        <p class="text-lg text-white mt-1" id="ui-nodes">142<span class="text-[10px] text-cyan-400"> nodes</span></p>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-cyan-500/20">
+                    <p class="text-cyan-600 text-xs mb-2">全网数据吞吐量 (TB/s)</p>
+                    <div class="bar-chart" id="throughput-chart">
+                        <!-- 柱状图由JS生成 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右上：雷达与态势 -->
+            <div class="glass-panel p-4 rounded flex flex-col items-end">
+                <div class="flex items-center gap-2 mb-3 w-full justify-between">
+                    <span class="text-xs font-bold text-cyan-400 tracking-widest uppercase">Global Radar</span>
+                    <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                </div>
+                <div id="radar-container">
+                    <div class="radar-grid"></div>
+                    <div class="radar-cross"></div>
+                    <div class="radar-scan"></div>
+                    <!-- 雷达点由JS注入 -->
+                    <div id="radar-dots"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 中部功能区 -->
+        <div class="flex-1 flex items-center justify-between pointer-events-auto my-4">
+            <!-- 左侧边栏：功能矩阵 -->
+            <div class="glass-panel py-4 w-48 rounded flex flex-col gap-1 text-sm font-bold tracking-wider text-cyan-300/60">
+                <div class="side-menu-item active py-3 px-5 flex items-center gap-3">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
+                    单车聚焦模式
+                </div>
+                <div class="side-menu-item py-3 px-5 flex items-center gap-3">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l2-9 5 18 3-9h6"></path></svg>
+                    全路网流量析
+                </div>
+                <div class="side-menu-item py-3 px-5 flex items-center gap-3">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                    V2I 基础设施
+                </div>
+                <div class="side-menu-item py-3 px-5 flex items-center gap-3">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    算法参数配置
+                </div>
+            </div>
+
+            <!-- 核心警报面板 (仅在突发事件时高亮) -->
+            <div id="alert-panel" class="glass-panel p-5 rounded-lg w-[400px] transition-all duration-500 self-end">
+                <div class="flex items-center justify-between mb-2 border-b border-white/10 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span id="alert-icon" class="w-3 h-3 rounded-full bg-cyan-400"></span>
+                        <h3 class="font-bold text-white tracking-widest text-sm" id="alert-title">协同驾驶意图 (EGO-01)</h3>
+                    </div>
+                    <span id="sys-phase" class="text-xs px-2 py-0.5 rounded bg-cyan-900/50 text-cyan-200 border border-cyan-500/50 font-bold">L4 自动巡航</span>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-2 text-center mb-3">
+                    <div class="bg-black/40 p-2 rounded border border-white/5">
+                        <p class="text-[10px] text-cyan-600 mb-1">当前车速</p>
+                        <p class="font-mono text-lg font-bold text-white"><span id="hud-speed">45</span> <span class="text-[10px] text-gray-400">km/h</span></p>
+                    </div>
+                    <div class="bg-black/40 p-2 rounded border border-white/5">
+                        <p class="text-[10px] text-cyan-600 mb-1">碰撞时间 (TTC)</p>
+                        <p class="font-mono text-lg font-bold text-cyan-400" id="hud-ttc">> 5.0s</p>
+                    </div>
+                    <div class="bg-black/40 p-2 rounded border border-white/5">
+                        <p class="text-[10px] text-cyan-600 mb-1">干预风险系数</p>
+                        <p class="font-mono text-lg font-bold text-cyan-400 drop-shadow-[0_0_5px_currentColor]" id="risk-metric">0%</p>
+                    </div>
+                </div>
+
+                <div class="h-1.5 w-full bg-gray-900 rounded-full overflow-hidden mb-3">
+                    <div id="risk-bar" class="h-full bg-cyan-400 transition-all duration-300" style="width: 0%;"></div>
+                </div>
+
+                <!-- 实时日志 -->
+                <div class="bg-black/60 p-2 rounded text-[11px] font-mono h-24 overflow-hidden relative">
+                    <div class="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent h-[200%] w-full animate-[scan_2s_linear_infinite] pointer-events-none"></div>
+                    <div id="log-container" class="flex flex-col justify-end h-full space-y-1 relative z-10 text-gray-300">
+                        <!-- JS 注入 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部时间轴 (装饰) -->
+        <div class="flex justify-center items-center pointer-events-auto pb-2">
+            <div class="flex flex-col items-center gap-2 w-1/2">
+                <span class="text-[10px] text-cyan-600 tracking-[0.3em] font-bold">DIGITAL TWIN SIMULATION TIMELINE</span>
+                <div id="timeline" class="flex gap-1 w-full">
+                    <!-- JS 生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+        // ==========================================
+        // 系统配置与主题
+        // ==========================================
+        const THEME = {
+            bg: 0x030712, road: 0x080c16, grid: 0x0a1930,
+            cyan: 0x00f3ff, blue: 0x0088ff, red: 0xff2a55, green: 0x00ffaa, orange: 0xffaa00
+        };
+
+        const STATE = {
+            isBooted: false,
+            time: 0,
+            scenarioTime: 0,
+            scenarioDuration: 12,
+            egoPhase: 'CRUISE', // CRUISE, DETECT, WARN, BRAKE, PASS
+            egoSpeed: 45, // km/h
+            egoZ: 80,
+            pedX: 22,
+            riskLevel: 0
+        };
+
+        const SCENARIO_EVENTS = {
+            pedStart: 3.0,
+            rsuDetect: 4.5,
+            v2xWarn: 5.0,
+            brakeStart: 5.5,
+            stopTime: 7.5,
+            safeCross: 9.5
+        };
+
+        // DOM 元素引用
+        const els = {
+            bootScreen: document.getElementById('boot-screen'),
+            bootLogs: document.getElementById('boot-logs'),
+            startBtn: document.getElementById('start-btn'),
+            uiLayer: document.getElementById('ui-layer'),
+            labelsContainer: document.getElementById('labels-container'),
+            cpu: document.getElementById('ui-cpu'),
+            throughput: document.getElementById('throughput-chart'),
+            radarDots: document.getElementById('radar-dots'),
+            phase: document.getElementById('sys-phase'),
+            alertPanel: document.getElementById('alert-panel'),
+            alertTitle: document.getElementById('alert-title'),
+            alertIcon: document.getElementById('alert-icon'),
+            speed: document.getElementById('hud-speed'),
+            ttc: document.getElementById('hud-ttc'),
+            riskMetric: document.getElementById('risk-metric'),
+            riskBar: document.getElementById('risk-bar'),
+            logContainer: document.getElementById('log-container'),
+            timeline: document.getElementById('timeline')
+        };
+
+        // ==========================================
+        // 启动动画逻辑
+        // ==========================================
+        const bootMessages = [
+            "Initializing V2X Edge Server...",
+            "Loading Base Map Geometry [OK]",
+            "Connecting to Cloud Neural Network...",
+            "Establishing 5G/C-V2X Links [OK]",
+            "Spawning AI Traffic Agents...",
+            "Loading Scenario: Intersectional Occlusion (Ghost Probe)",
+            "System Ready. Awaiting User Action."
+        ];
+        
+        let msgIdx = 0;
+        const bootInterval = setInterval(() => {
+            if (msgIdx < bootMessages.length) {
+                const p = document.createElement('p');
+                p.innerText = `> ${bootMessages[msgIdx]}`;
+                els.bootLogs.appendChild(p);
+                els.bootLogs.scrollTop = els.bootLogs.scrollHeight;
+                msgIdx++;
+            } else {
+                clearInterval(bootInterval);
+                els.startBtn.classList.remove('hidden');
+            }
+        }, 400);
+
+        els.startBtn.addEventListener('click', () => {
+            els.bootScreen.style.opacity = '0';
+            els.bootScreen.style.pointerEvents = 'none';
+            setTimeout(() => {
+                els.uiLayer.style.opacity = '1';
+                STATE.isBooted = true;
+                // 相机运镜动画：从宏观到微观
+                animateCamera();
+            }, 1000);
+        });
+
+        // ==========================================
+        // 3D 场景初始化
+        // ==========================================
+        const container = document.getElementById('canvas-container');
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(THEME.bg, 0.008);
+        scene.background = new THREE.Color(THEME.bg);
+
+        // 初始相机在很高的位置，启动后拉近
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 500);
+        camera.position.set(100, 100, 100); 
+
+        const composer = new EffectComposer(renderer);
+        composer.addPass(new RenderPass(scene, camera));
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.1);
+        composer.addPass(bloomPass);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0, 0);
+        controls.enableDamping = true;
+        controls.maxPolarAngle = Math.PI / 2 - 0.05;
+        controls.maxDistance = 200;
+
+        // 灯光
+        scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+        const dirLight = new THREE.DirectionalLight(0xaaccff, 1.5);
+        dirLight.position.set(50, 100, 20);
+        scene.add(dirLight);
+
+        // ==========================================
+        // 场景构建：路网与建筑 (十字路口)
+        // ==========================================
+        const roadWidth = 24;
+        const groundGroup = new THREE.Group();
+        
+        // 基础网格
+        const grid = new THREE.GridHelper(400, 100, THEME.grid, THEME.grid);
+        grid.position.y = -0.1;
+        grid.material.opacity = 0.5;
+        grid.material.transparent = true;
+        groundGroup.add(grid);
+
+        // 沥青路面十字架
+        const roadMat = new THREE.MeshStandardMaterial({ color: THEME.road, roughness: 0.9, depthWrite: false });
+        const roadZ = new THREE.Mesh(new THREE.PlaneGeometry(roadWidth, 400), roadMat);
+        roadZ.rotation.x = -Math.PI / 2;
+        groundGroup.add(roadZ);
+        const roadX = new THREE.Mesh(new THREE.PlaneGeometry(400, roadWidth), roadMat);
+        roadX.rotation.x = -Math.PI / 2;
+        roadX.position.y = 0.01;
+        groundGroup.add(roadX);
+
+        // 路网装饰线 (发光边缘)
+        function createLine(geom, color, opacity=0.8) {
+            return new THREE.Line(geom, new THREE.LineBasicMaterial({ color, transparent: true, opacity }));
+        }
+        const edgePointsZ1 = [new THREE.Vector3(-roadWidth/2, 0.02, -200), new THREE.Vector3(-roadWidth/2, 0.02, 200)];
+        const edgePointsZ2 = [new THREE.Vector3(roadWidth/2, 0.02, -200), new THREE.Vector3(roadWidth/2, 0.02, 200)];
+        groundGroup.add(createLine(new THREE.BufferGeometry().setFromPoints(edgePointsZ1), THEME.cyan, 0.5));
+        groundGroup.add(createLine(new THREE.BufferGeometry().setFromPoints(edgePointsZ2), THEME.cyan, 0.5));
+
+        // 斑马线
+        const crosswalkMat = new THREE.MeshBasicMaterial({ color: 0x555555 });
+        for(let i=0; i<8; i++) {
+            const zW = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 8), crosswalkMat);
+            zW.rotation.x = -Math.PI/2; zW.position.set(-10 + i*2.8, 0.03, roadWidth/2 + 2);
+            groundGroup.add(zW);
+        }
+        scene.add(groundGroup);
+
+        // 赛博建筑群生成
+        const buildings = new THREE.Group();
+        const bMats = [
+            new THREE.MeshStandardMaterial({ color: 0x050a15, roughness: 0.2 }),
+            new THREE.MeshStandardMaterial({ color: 0x081020, roughness: 0.3 })
+        ];
+        function addBlock(cx, cz) {
+            for(let i=0; i<5; i++) {
+                const w = 10 + Math.random()*15; const d = 10 + Math.random()*15; const h = 20 + Math.random()*60;
+                const x = cx + (Math.random()-0.5)*40; const z = cz + (Math.random()-0.5)*40;
+                if(Math.abs(x) < roadWidth/2 + 10 && Math.abs(z) < roadWidth/2 + 10) continue; // 避开路口
+                const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bMats[Math.floor(Math.random()*2)]);
+                b.position.set(x, h/2, z);
+                
+                // 建筑线框
+                const edges = new THREE.EdgesGeometry(b.geometry);
+                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: THEME.cyan, transparent: true, opacity: 0.1 }));
+                line.position.copy(b.position);
+                buildings.add(b); buildings.add(line);
+            }
+        }
+        addBlock(-60, -60); addBlock(60, -60); addBlock(-60, 60); addBlock(60, 60);
+        scene.add(buildings);
+
+        // ==========================================
+        // 实体对象创建工厂
+        // ==========================================
+
+        // RSU 路侧单元
+        function createRSU(x, z) {
+            const group = new THREE.Group(); group.position.set(x, 0, z);
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 12, 8).translate(0,6,0), new THREE.MeshStandardMaterial({color: 0x222}));
+            const head = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1, 1).translate(0, 12.5, 0), new THREE.MeshStandardMaterial({color: THEME.cyan, emissive: THEME.cyan, emissiveIntensity: 1}));
+            
+            // 扫描范围指示圈
+            const ringMat = new THREE.MeshBasicMaterial({color: THEME.cyan, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false});
+            const ring = new THREE.Mesh(new THREE.CylinderGeometry(25, 25, 0.1, 32).translate(0, 0.5, 0), ringMat);
+            group.add(pole, head, ring);
+            scene.add(group);
+            return { group, ringMat };
+        }
+        const rsus = [ createRSU(-15, 15), createRSU(15, -15) ];
+
+        // 车辆模型工厂
+        function buildVehicle(colorHex, isEgo=false) {
+            const group = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.2, 5).translate(0, 0.8, 0), new THREE.MeshStandardMaterial({color: colorHex, roughness: 0.2}));
+            const glass = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.6, 2.8).translate(0, 1.6, -0.2), new THREE.MeshStandardMaterial({color: 0x000, roughness: 0.1}));
+            group.add(body, glass);
+
+            if(isEgo) {
+                // 主车专属：Lidar 和 发光框
+                const lidar = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.3).translate(0, 2.0, -0.5), new THREE.MeshBasicMaterial({color: THEME.cyan}));
+                const aura = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2, 5.4).translate(0, 1.2, 0), new THREE.MeshBasicMaterial({color: THEME.cyan, wireframe: true, transparent: true, opacity: 0.4}));
+                group.add(lidar, aura);
+                group.userData.auraMat = aura.material;
+                // V2X 通信射线
+                const v2xLine = createLine(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,2,0), new THREE.Vector3(-15,12,15)]), THEME.blue, 0);
+                v2xLine.material.dashSize = 1; v2xLine.material.gapSize = 1;
+                group.add(v2xLine);
+                group.userData.v2xLine = v2xLine;
+            }
+            return group;
+        }
+
+        // 大货车 (盲区制造者)
+        const truck = new THREE.Group(); truck.position.set(6, 0, 15);
+        truck.add(new THREE.Mesh(new THREE.BoxGeometry(3.5, 3.5, 8).translate(0, 2.5, 1), new THREE.MeshStandardMaterial({color: 0x111}))); // 货箱
+        truck.add(new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.5, 2.5).translate(0, 2, -4), new THREE.MeshStandardMaterial({color: 0x334455}))); // 车头
+        // 盲区指示
+        const blindZone = new THREE.Mesh(new THREE.BoxGeometry(10, 0.1, 8).translate(5, 0.1, 0), new THREE.MeshBasicMaterial({color: THEME.red, transparent: true, opacity: 0.1, depthWrite: false}));
+        truck.add(blindZone);
+        scene.add(truck);
+
+        // 主车 (Ego)
+        const egoCar = buildVehicle(0x111111, true);
+        scene.add(egoCar);
+
+        // 背景车流网络
+        const trafficCars = [];
+        const laneX = [-6, 6]; const laneZ = [-6, 6];
+        for(let i=0; i<8; i++) {
+            const tCar = buildVehicle(0x333333);
+            const isVertical = i % 2 === 0;
+            const lane = isVertical ? laneX[i%2] : laneZ[i%2];
+            const pos = (Math.random() * 200 - 100);
+            if(isVertical) {
+                tCar.position.set(lane, 0, pos);
+                if(lane > 0) tCar.rotation.y = Math.PI; // 向下开
+            } else {
+                tCar.position.set(pos, 0, lane);
+                tCar.rotation.y = lane < 0 ? Math.PI/2 : -Math.PI/2;
+            }
+            tCar.userData = { isVertical, speed: 20 + Math.random()*20, lane };
+            scene.add(tCar);
+            trafficCars.push(tCar);
+        }
+
+        // 行人 (鬼探头目标)
+        const pedestrian = new THREE.Group();
+        const pedBody = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.8).translate(0,0.9,0), new THREE.MeshStandardMaterial({color: 0xffccaa}));
+        const pedWarn = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 0.1).translate(0,0.1,0), new THREE.MeshBasicMaterial({color: THEME.red, transparent: true, opacity: 0, depthWrite: false}));
+        pedestrian.add(pedBody, pedWarn);
+        scene.add(pedestrian);
+
+
+        // ==========================================
+        // UI 生成与更新辅助
+        // ==========================================
+
+        // 生成底部时间轴 UI
+        for(let i=0; i<40; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'flex-1 h-1 bg-cyan-900/40 rounded-sm transition-all';
+            els.timeline.appendChild(bar);
+        }
+        
+        // 生成吞吐量图表 UI
+        for(let i=0; i<25; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            bar.style.height = `${Math.random() * 100}%`;
+            els.throughput.appendChild(bar);
+        }
+
+        // 创建 2D 浮动标签
+        function createLabel(text, theme='cyan') {
+            const el = document.createElement('div');
+            el.className = `entity-label font-mono text-[10px] px-2 py-0.5 rounded border backdrop-blur-sm bg-${theme}-900/60 border-${theme}-500/50 text-${theme}-200`;
+            el.innerText = text;
+            els.labelsContainer.appendChild(el);
+            return el;
+        }
+        const egoLabel = createLabel('EGO-01 [CRUISE]', 'cyan');
+        const truckLabel = createLabel('OBJ-TRK [STATIC]', 'gray');
+        const pedLabel = createLabel('VRU-01 [WARN]', 'red'); pedLabel.style.display = 'none';
+
+        function updateLabelPos(worldPos, htmlElement) {
+            if(htmlElement.style.display === 'none') return;
+            const pos = worldPos.clone().project(camera);
+            const x = (pos.x * .5 + .5) * window.innerWidth;
+            const y = (pos.y * -.5 + .5) * window.innerHeight;
+            if(pos.z > 1) { htmlElement.style.opacity = 0; return; } // 背面剔除
+            htmlElement.style.opacity = 1;
+            htmlElement.style.left = `${x}px`;
+            htmlElement.style.top = `${y}px`;
+        }
+
+        function addLog(msg, type='info') {
+            const colors = { info: 'text-cyan-400', warn: 'text-orange-400', danger: 'text-red-400 font-bold', success: 'text-green-400' };
+            const p = document.createElement('p');
+            p.className = `${colors[type]} slide-up whitespace-nowrap`;
+            p.innerHTML = `<span class="opacity-50">[${STATE.scenarioTime.toFixed(2)}s]</span> ${msg}`;
+            els.logContainer.appendChild(p);
+            if(els.logContainer.children.length > 5) els.logContainer.removeChild(els.logContainer.firstChild);
+        }
+
+        // ==========================================
+        // 核心动画循环与逻辑状态机
+        // ==========================================
+        const clock = new THREE.Clock();
+        let lastUITick = 0;
+
+        function animateCamera() {
+            // 平滑将相机移动到跟随主车的视角
+            const startPos = camera.position.clone();
+            const targetPos = new THREE.Vector3(25, 20, 35);
+            let t = 0;
+            const rigInterval = setInterval(() => {
+                t += 0.02;
+                if(t >= 1) { clearInterval(rigInterval); return; }
+                const easeOutCurve = 1 - Math.pow(1 - t, 3);
+                camera.position.lerpVectors(startPos, targetPos, easeOutCurve);
+                controls.target.set(egoCar.position.x, 0, egoCar.position.z - 20);
+                controls.update();
+            }, 16);
+        }
+
+        function updateScenario(delta) {
+            STATE.scenarioTime += delta;
+            const st = STATE.scenarioTime;
+
+            // 循环剧本
+            if (st > STATE.scenarioDuration) {
+                STATE.scenarioTime = 0; STATE.egoZ = 80; STATE.egoSpeed = 45; STATE.pedX = 22;
+                STATE.egoPhase = 'CRUISE'; STATE.riskLevel = 0;
+                pedLabel.style.display = 'none';
+                els.logContainer.innerHTML = '';
+            }
+
+            // 状态机逻辑计算
+            let pedActive = false;
+
+            if (st < SCENARIO_EVENTS.pedStart) {
+                STATE.egoPhase = 'CRUISE';
+                STATE.riskLevel = Math.max(0, STATE.riskLevel - 50*delta);
+            } 
+            else if (st < SCENARIO_EVENTS.rsuDetect) {
+                STATE.egoPhase = 'CRUISE';
+                STATE.pedX -= 4.5 * delta;
+                pedActive = true;
+            }
+            else if (st < SCENARIO_EVENTS.v2xWarn) {
+                if(STATE.egoPhase !== 'DETECT') { STATE.egoPhase = 'DETECT'; addLog('路侧边缘节点捕获盲区移动目标', 'warn'); pedLabel.style.display = 'block'; }
+                STATE.pedX -= 4.5 * delta;
+                STATE.riskLevel = Math.min(60, STATE.riskLevel + 100*delta);
+                pedActive = true;
+            }
+            else if (st < SCENARIO_EVENTS.brakeStart) {
+                if(STATE.egoPhase !== 'WARN') { STATE.egoPhase = 'WARN'; addLog('云端下发超视距协同预警 (C-V2X)', 'danger'); }
+                STATE.pedX -= 4.5 * delta;
+                STATE.riskLevel = Math.min(85, STATE.riskLevel + 100*delta);
+                pedActive = true;
+            }
+            else if (st < SCENARIO_EVENTS.stopTime) {
+                if(STATE.egoPhase !== 'BRAKE') { STATE.egoPhase = 'BRAKE'; addLog('AEB 紧急制动系统接管', 'danger'); }
+                STATE.pedX -= 4.5 * delta;
+                const decel = 45 / (SCENARIO_EVENTS.stopTime - SCENARIO_EVENTS.brakeStart);
+                STATE.egoSpeed = Math.max(0, STATE.egoSpeed - decel * delta);
+                STATE.riskLevel = 99;
+                pedActive = true;
+            }
+            else if (st < SCENARIO_EVENTS.safeCross) {
+                if(STATE.egoPhase !== 'PASS') { STATE.egoPhase = 'PASS'; addLog('碰撞风险解除，目标安全通过', 'success'); }
+                STATE.egoSpeed = 0;
+                STATE.pedX -= 4.5 * delta;
+                STATE.riskLevel = Math.max(0, STATE.riskLevel - 30*delta);
+                pedActive = true;
+            } else {
+                STATE.egoPhase = 'CRUISE';
+                STATE.egoSpeed = Math.min(45, STATE.egoSpeed + 15*delta); // 重新起步
+            }
+
+            // 更新实体坐标
+            STATE.egoZ -= (STATE.egoSpeed / 3.6) * delta; // km/h to m/s
+            egoCar.position.set(-6, 0, STATE.egoZ);
+            pedestrian.position.set(STATE.pedX, 0, 11);
+
+            // 更新背景车流
+            trafficCars.forEach(car => {
+                const spd = (car.userData.speed / 3.6) * delta;
+                if(car.userData.isVertical) {
+                    car.position.z += car.userData.lane > 0 ? spd : -spd;
+                    if(car.position.z > 100) car.position.z = -100;
+                    if(car.position.z < -100) car.position.z = 100;
+                } else {
+                    car.position.x += car.userData.lane < 0 ? spd : -spd;
+                    if(car.position.x > 100) car.position.x = -100;
+                    if(car.position.x < -100) car.position.x = 100;
+                }
+            });
+
+            // 相机柔性跟随主车
+            if(STATE.isBooted) {
+                const targetZ = STATE.egoZ - 20;
+                controls.target.z += (targetZ - controls.target.z) * 0.1;
+            }
+
+            // 视觉特效同步
+            if(STATE.egoPhase === 'WARN' || STATE.egoPhase === 'BRAKE') {
+                egoCar.userData.auraMat.color.setHex(THEME.red);
+                egoCar.userData.auraMat.opacity = 0.6 + Math.sin(st*20)*0.2;
+                rsus[0].ringMat.color.setHex(THEME.red);
+                pedWarn.material.opacity = 0.5 + Math.sin(st*15)*0.5;
+                
+                // 画 V2X 通信线
+                const vLine = egoCar.userData.v2xLine;
+                vLine.material.opacity = 1;
+                vLine.geometry.setFromPoints([
+                    new THREE.Vector3(0,2,0),
+                    rsus[0].group.position.clone().sub(egoCar.position).add(new THREE.Vector3(0,12,0))
+                ]);
+            } else {
+                egoCar.userData.auraMat.color.setHex(THEME.cyan);
+                egoCar.userData.auraMat.opacity = 0.2;
+                rsus[0].ringMat.color.setHex(THEME.cyan);
+                pedWarn.material.opacity = 0;
+                egoCar.userData.v2xLine.material.opacity = 0;
+            }
+        }
+
+        function updateUI() {
+            if(!STATE.isBooted) return;
+            const now = Date.now();
+            if(now - lastUITick < 100) return; // 10Hz UI 更新率
+            lastUITick = now;
+
+            // 1. 数据仪表盘抖动效果
+            els.cpu.innerHTML = `${70 + Math.floor(Math.random()*15)}<span class="text-[10px] text-cyan-400"> %</span>`;
+            Array.from(els.throughput.children).forEach(bar => {
+                bar.style.height = `${20 + Math.random() * 80}%`;
+                bar.style.background = Math.random() > 0.8 ? 'var(--neon-cyan)' : 'var(--neon-blue)';
+            });
+
+            // 2. 雷达映射计算
+            const mapScale = 0.5; // 雷达缩放比例
+            let dotsHTML = '';
+            
+            // 主车雷达点 (居中或相对)
+            dotsHTML += `<div class="radar-dot text-cyan-400" style="left: ${50 + egoCar.position.x*mapScale}%; top: ${50 + egoCar.position.z*mapScale}%;"></div>`;
+            // 货车点
+            dotsHTML += `<div class="radar-dot text-gray-500" style="left: ${50 + truck.position.x*mapScale}%; top: ${50 + truck.position.z*mapScale}%;"></div>`;
+            // 行人点
+            if(STATE.egoPhase !== 'CRUISE') {
+                const pedColor = (STATE.egoPhase === 'WARN' || STATE.egoPhase === 'BRAKE') ? 'text-red-500 shadow-[0_0_8px_#ff2a55] animate-ping' : 'text-yellow-400';
+                dotsHTML += `<div class="radar-dot ${pedColor}" style="left: ${50 + pedestrian.position.x*mapScale}%; top: ${50 + pedestrian.position.z*mapScale}%;"></div>`;
+            }
+            // 背景车流点
+            trafficCars.forEach(car => {
+                dotsHTML += `<div class="radar-dot text-cyan-800" style="left: ${50 + car.position.x*mapScale}%; top: ${50 + car.position.z*mapScale}%;"></div>`;
+            });
+            els.radarDots.innerHTML = dotsHTML;
+
+            // 3. 告警面板更新
+            const risk = Math.floor(STATE.riskLevel);
+            els.riskMetric.innerText = risk + '%';
+            els.riskBar.style.width = risk + '%';
+            els.speed.innerText = STATE.egoSpeed.toFixed(0);
+            
+            if(STATE.egoPhase === 'WARN' || STATE.egoPhase === 'BRAKE') {
+                els.alertPanel.className = "glass-panel p-5 rounded-lg w-[400px] transition-all duration-300 self-end border-red-500/80 bg-red-950/40 shadow-[0_0_30px_rgba(255,42,85,0.3)]";
+                els.alertIcon.className = "w-3 h-3 rounded-full bg-red-500 animate-ping";
+                els.alertTitle.className = "font-bold text-red-200 tracking-widest text-sm";
+                els.phase.className = "text-xs px-2 py-0.5 rounded bg-red-900/80 text-red-100 border border-red-500 shadow-[0_0_10px_rgba(255,0,0,0.5)] font-bold animate-pulse";
+                els.phase.innerText = STATE.egoPhase === 'WARN' ? "V2X 预警干预" : "AEB 紧急制动";
+                
+                const ttcVal = ((STATE.egoZ - pedestrian.position.z) / (STATE.egoSpeed/3.6 + 0.1)).toFixed(1);
+                els.ttc.innerText = `${ttcVal}s`;
+                els.ttc.className = "font-mono text-lg font-bold text-red-500 animate-pulse";
+                els.riskMetric.className = "font-mono text-lg font-bold text-red-500 drop-shadow-[0_0_8px_#ff2a55]";
+                els.riskBar.className = "h-full bg-red-500 transition-all duration-300";
+                
+                egoLabel.className = "entity-label font-mono text-[10px] px-2 py-0.5 rounded border backdrop-blur-sm bg-red-900/80 border-red-500 text-red-100 font-bold";
+                egoLabel.innerText = `EGO-01 [${STATE.egoPhase}]`;
+            } else {
+                els.alertPanel.className = "glass-panel p-5 rounded-lg w-[400px] transition-all duration-500 self-end";
+                els.alertIcon.className = "w-3 h-3 rounded-full bg-cyan-400";
+                els.alertTitle.className = "font-bold text-white tracking-widest text-sm";
+                els.phase.className = "text-xs px-2 py-0.5 rounded bg-cyan-900/50 text-cyan-200 border border-cyan-500/50 font-bold";
+                els.phase.innerText = STATE.egoPhase === 'PASS' ? "安全解除" : "L4 自动巡航";
+                els.ttc.innerText = "> 5.0s";
+                els.ttc.className = "font-mono text-lg font-bold text-cyan-400";
+                els.riskMetric.className = "font-mono text-lg font-bold text-cyan-400";
+                els.riskBar.className = "h-full bg-cyan-400 transition-all duration-300";
+
+                egoLabel.className = "entity-label font-mono text-[10px] px-2 py-0.5 rounded border backdrop-blur-sm bg-cyan-900/60 border-cyan-500/50 text-cyan-200";
+                egoLabel.innerText = 'EGO-01 [CRUISE]';
+            }
+
+            // 4. 更新 2D 浮动标签位置
+            updateLabelPos(egoCar.position.clone().add(new THREE.Vector3(0, 3, 0)), egoLabel);
+            updateLabelPos(truck.position.clone().add(new THREE.Vector3(0, 5, 0)), truckLabel);
+            updateLabelPos(pedestrian.position.clone().add(new THREE.Vector3(0, 2.5, 0)), pedLabel);
+
+            // 5. 更新底部时间轴
+            const progress = STATE.scenarioTime / STATE.scenarioDuration;
+            const activeIdx = Math.floor(progress * 40);
+            Array.from(els.timeline.children).forEach((el, idx) => {
+                if(idx < activeIdx) el.className = 'flex-1 h-1 bg-cyan-400 rounded-sm shadow-[0_0_5px_#00f3ff]';
+                else el.className = 'flex-1 h-1 bg-cyan-900/40 rounded-sm';
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = Math.min(clock.getDelta(), 0.1);
+            
+            if(STATE.isBooted) {
+                updateScenario(delta);
+                updateUI();
+            }
+            
+            controls.update();
+            composer.render();
+        }
+
+        // 窗口适配
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // 启动主循环
+        animate();
+
+    </script>
+</body>
+</html>

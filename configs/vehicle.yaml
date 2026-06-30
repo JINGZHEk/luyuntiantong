@@ -1,0 +1,32 @@
+vehicle_id: vehicle_001
+scene_id: scene_001
+
+ego:
+  initial_position: [50.0, 0.0]
+  initial_velocity: [8.0, 0.0]
+  initial_heading: 180.0
+  max_deceleration: 8.0
+  min_speed: 0.1
+
+risk:
+  ttc_thresholds:
+    safe: 4.0
+    warning: 2.0
+    danger: 1.0
+  hysteresis:
+    upgrade_frames: 1
+    downgrade_frames: 5
+  lateral_distance_threshold: 3.5
+
+decision:
+  brake_decel:
+    safe: 0.0
+    warning: 2.0
+    danger: 5.0
+    emergency: 8.0
+
+fallback:
+  timeout_ms: 200
+  max_missed_frames: 3
+  degraded_speed_factor: 0.5
+  recovery_transition_sec: 3.0
