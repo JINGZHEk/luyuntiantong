@@ -84,6 +84,27 @@ class DeploymentConfigTest(unittest.TestCase):
         self.assertIn("$previousCloudApiBaseUrl", script)
         self.assertIn("$env:VITE_CLOUD_API_BASE_URL = $previousCloudApiBaseUrl", script)
 
+    def test_gitignore_excludes_runtime_build_and_model_artifacts(self):
+        ignored_patterns = set(
+            line.strip()
+            for line in Path(".gitignore").read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.startswith("#")
+        )
+
+        for pattern in (
+            "__pycache__/",
+            "logs/",
+            "data/",
+            "*.db",
+            "*.db-wal",
+            "frontend/node_modules/",
+            "frontend/dist/",
+            "frontend/.tmp-tests/",
+            "models/",
+            "/路云天瞳/",
+        ):
+            self.assertIn(pattern, ignored_patterns)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -398,6 +398,7 @@ v2x/{scene_id}/cloud/command
 - 前端 `npm run build` 已通过。
 - 前端 `npm run lint` 已通过，实时 payload 已补最小类型定义。
 - 前端构建已配置 ECharts / Three 手动拆包，当前 build 无 Vite 大 chunk 警告。
+- `.gitignore` 已覆盖 Python 缓存、日志、运行数据、SQLite、前端依赖/构建产物、前端测试临时目录、模型 checkpoint/export 目录，以及本地误生成的 `路云天瞳/` 副本目录，降低误提交生成物的风险。
 
 ### 8.2 部分完成
 
@@ -482,8 +483,8 @@ http://localhost:8000/docs
    - 已支持自定义 `-BackendPort` 时自动注入前端 Cloud API 地址
 
 2. **项目生成物清理**
-   - 完善 `.gitignore`（已覆盖主要运行生成物）
-   - 排除 `node_modules/`、`dist/`、`__pycache__/`、临时 SQLite、日志
+   - 已完善 `.gitignore`（覆盖主要运行生成物）
+   - 已排除 `node_modules/`、`dist/`、`__pycache__/`、临时 SQLite、日志、模型 checkpoint/export 目录和本地误生成副本
    - 保留源码、文档、配置和测试
 
 3. **统一启动文档**

@@ -27,6 +27,7 @@ data/
 *.sqlite3
 
 # Model checkpoints and exported inference artifacts
+models/
 *.pt
 *.pth
 *.onnx
@@ -56,3 +57,6 @@ _tmp_*.py
 gen_intro.py
 gen_startup.py
 gen_docs_win.py
+
+# Local duplicate documentation folder accidentally produced outside the repo root
+/路云天瞳/
