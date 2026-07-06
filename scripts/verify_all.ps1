@@ -34,6 +34,9 @@ try {
         python scripts\verify_external_readiness.py
 
         if (-not $SkipBrokerless) {
+            Write-Step "Verifying M1 brokerless acceptance gates"
+            python scripts\verify_m1_acceptance.py --scenario heavy --frames 80
+
             Write-Step "Verifying brokerless MQTT three-agent flow"
             python scripts\verify_inmemory_mqtt_demo.py --scenario heavy --frames 80 --verify-fallback
         }

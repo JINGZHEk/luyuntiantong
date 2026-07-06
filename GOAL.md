@@ -377,6 +377,7 @@ v2x/{scene_id}/cloud/command
 - `scripts/start_demo.ps1` 已提供 Windows 一键演示启动入口，可检查依赖、按需安装前端依赖、启动 Cloud API、启动 demo loop、启动前端 dev server、打开 `/monitor`，并在自定义后端端口时通过 `VITE_CLOUD_API_BASE_URL` 自动让前端连接对应 Cloud API。
 - `scripts/start_mqtt_demo.ps1` 已提供 Windows 三端 MQTT 联动启动入口。
 - `scripts/verify_inmemory_mqtt_demo.py` 已提供无外部 Broker 的三端 topic 流验证模式，并可验证车端 `cooperative -> degraded -> recovering` 状态转换；验证摘要已输出 `avg_e2e_latency_ms`、`max_e2e_latency_ms`、`e2e_latency_sample_count`、`latency_target_ms=100.0` 和 `latency_target_passed`，用于持续覆盖 M1 “端到端延迟 < 100 ms”的轻量验收证据。
+- `scripts/verify_m1_acceptance.py` 已提供 M1 本地验收聚合入口，默认运行 brokerless 三端链路并汇总完整合并帧、ghost_probe 事件、fallback 恢复和 100ms 延迟目标；任一门槛失败会返回非零退出码，本地 `verify_all.ps1` 与 GitHub Actions 基础 CI 已纳入该检查。
 - `scripts/verify_mqtt_broker_demo.py` 已提供真实 MQTT Broker 预检/验收入口；当前机器未安装 Mosquitto/Docker 且 1883 未监听，因此外部 Broker 链路仍待具备环境后运行。
 - `scripts/verify_embedded_mqtt_broker_demo.py` 已提供嵌入式 `amqtt` TCP Broker 验收入口；当前机器已在 `v2x-ghost-algorithm` 环境通过真实网络三端闭环：`complete_frames=80`、`event_count=1`、`fallback_verified=true`，证明 Roadside Agent -> TCP MQTT Broker -> Vehicle Agent -> TCP MQTT Broker -> Cloud Agent 链路可运行。该结果不替代 Mosquitto/Docker 外部 Broker 验收。
 - `RoadsideAgent.process_frame()` 已支持预计算 `perception` 帧输入，可用于将确定性的 heavy ghost-probe 场景通过真实 MQTT 链路发布，同时保持 Roadside Agent 作为发布端。

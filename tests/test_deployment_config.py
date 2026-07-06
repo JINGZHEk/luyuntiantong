@@ -218,6 +218,45 @@ class DeploymentConfigTest(unittest.TestCase):
         self.assertIn("scripts/verify_external_readiness.py", run_blocks)
         self.assertIn("scripts\\verify_external_readiness.py", verify_all)
 
+    def test_m1_acceptance_verifier_reports_three_agent_gates(self):
+        verifier = Path("scripts/verify_m1_acceptance.py")
+        self.assertTrue(verifier.exists())
+
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(verifier),
+                    "--frames",
+                    "80",
+                    "--scenario",
+                    "heavy",
+                    "--db",
+                    str(Path(tmp) / "m1.db"),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        summary = json.loads(result.stdout)
+        self.assertEqual(summary["stage"], "M1")
+        self.assertTrue(summary["ready"])
+        self.assertEqual(summary["checks"]["complete_frames"]["status"], "pass")
+        self.assertEqual(summary["checks"]["ghost_probe_event"]["status"], "pass")
+        self.assertEqual(summary["checks"]["fallback_recovery"]["status"], "pass")
+        self.assertEqual(summary["checks"]["latency_target"]["status"], "pass")
+        self.assertLessEqual(summary["metrics"]["max_e2e_latency_ms"], 100.0)
+
+    def test_ci_and_verify_all_run_m1_acceptance_verifier(self):
+        workflow = yaml.safe_load(Path(".github/workflows/ci.yml").read_text(encoding="utf-8"))
+        backend_steps = workflow["jobs"]["backend"]["steps"]
+        run_blocks = "\n".join(step.get("run", "") for step in backend_steps)
+        verify_all = Path("scripts/verify_all.ps1").read_text(encoding="utf-8")
+
+        self.assertIn("scripts/verify_m1_acceptance.py", run_blocks)
+        self.assertIn("scripts\\verify_m1_acceptance.py", verify_all)
+
 
 if __name__ == "__main__":
     unittest.main()
