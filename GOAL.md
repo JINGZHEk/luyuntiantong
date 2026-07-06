@@ -386,6 +386,7 @@ v2x/{scene_id}/cloud/command
 - `docker-compose.yml` 已扩展为前端、Cloud API、Mosquitto 基础栈，并提供 `mqtt-demo` profile 启动 CloudAgent、VehicleAgent、ReplayEngine 三端容器。
 - `deployment/frontend.Dockerfile` 与 `deployment/nginx.frontend.conf` 已提供前端静态站点容器构建入口。
 - 后端/三端容器已支持 `MQTT_HOST` / `MQTT_PORT` 环境变量覆盖，可在 Compose 网络中连接 `mosquitto` 服务名。
+- `scripts/verify_docker_compose_config.py` 已提供不依赖 Docker daemon 的 Compose 部署合同验证入口，可检查服务数量、Dockerfile 路径、端口映射、`depends_on`、`mqtt-demo` profile、Mosquitto 配置挂载和容器内 MQTT 环境变量；本地 `verify_all.ps1` 与 GitHub Actions 基础 CI 已纳入该检查。
 - 路侧 `Detector` 已支持 `annotations` / `yolo` / `auto` 模式；默认 `configs/roadside.yaml` 使用 `annotations`，因此 DAIR replay、合成 replay、CI 和轻量容器 demo 不再依赖 `ultralytics`。
 - 前端 monitor 页接入 demo 控制与实时 WebSocket。
 - 前端 monitor 页已支持选择 demo 场景强度。
@@ -408,7 +409,7 @@ v2x/{scene_id}/cloud/command
 - M2 数据集入口已具备 DAIR-V2X 风格目录发现/严格验收、DAIR 风格 demo sample 生成、项目内部 replay clip 生成、常速度 baseline 评估、多 clip 聚合评估和 ST-GNN 训练样本导出能力；当前机器只发现生成样例，待接入真实 DAIR-V2X 数据目录运行。
 - OccAware-STGNN 已具备训练样本导出、训练脚本、checkpoint 评估脚本、模型骨架、Roadside Agent 配置入口（`prediction.backend: stgnn`、`prediction.model_path`）、TorchScript checkpoint 导出和推理适配器；真实训练后 checkpoint 和 DAIR-V2X 指标复核仍未完成。
 - 路侧检测已具备标注直读模式和 YOLO 模式切换入口；`detection.mode: yolo` 在帧同时包含 image 与 annotations 时会优先走图片推理，默认配置仍走标注/回放模式；当前机器已完成 YOLOv8n 真实图片推理烟测，并已具备 mini split manifest 批量检测评估脚本和 dry-run 报告链路，但 DAIR-V2X 真实图片批量检测指标仍未完成。
-- Docker Compose 已覆盖前端、Cloud API、Mosquitto 基础栈和 `mqtt-demo` 三端容器 profile；当前机器缺少 Docker 命令，尚未完成真实容器启动验证。
+- Docker Compose 已覆盖前端、Cloud API、Mosquitto 基础栈和 `mqtt-demo` 三端容器 profile，并已具备无 Docker daemon 的配置合同验证；当前机器缺少 Docker 命令，尚未完成真实容器构建/启动验证。
 
 ### 8.3 未完成
 
@@ -418,7 +419,7 @@ v2x/{scene_id}/cloud/command
 - MQTT 三端联动已通过嵌入式 `amqtt` 真实 TCP Broker 验证，并已纳入 GitHub Actions 的 Ubuntu Mosquitto 外部 Broker 验收；当前 Windows 本机仍需要在已安装 Mosquitto 或 Docker 的环境中完成外部 Broker 实机验证。
 - 真实数据多场景批量评估结果产出与指标复核。
 - 实体 Jetson / 小车部署。
-- CI / 自动化测试流水线已具备基础版本，并覆盖 brokerless MQTT、Ubuntu Mosquitto 外部 Broker、M2 demo sample、模型 readiness、前端 test/lint/build，以及手动/每周触发的 YOLO/ST-GNN 算法环境验证；真实 DAIR-V2X 样本缓存、真实 DAIR 指标达标和实体迁移仍未进入自动化验收。
+- CI / 自动化测试流水线已具备基础版本，并覆盖 Docker Compose 配置合同、brokerless MQTT、Ubuntu Mosquitto 外部 Broker、M2 demo sample、模型 readiness、前端 test/lint/build，以及手动/每周触发的 YOLO/ST-GNN 算法环境验证；真实 DAIR-V2X 样本缓存、真实 DAIR 指标达标、Docker 真实容器启动和实体迁移仍未进入自动化验收。
 
 ---
 
@@ -521,7 +522,7 @@ http://localhost:8000/docs
 1. DAIR-V2X 数据集接入（manifest / replay clip 生成器、常速度 baseline 评估和多 clip 聚合评估已完成，真实数据下载与 YOLO/ST-GNN 评估待完成）。
 2. YOLOv8 检测模型运行环境固定（当前机器已完成真实图片烟测和 manifest 批量评估 dry-run，待 DAIR-V2X 批量真实评估）。
 3. OccAware-STGNN 训练与评估。
-4. Docker Compose 完整部署（基础栈和 `mqtt-demo` profile 已补齐，待有 Docker 环境后实跑验证）。
+4. Docker Compose 完整部署（基础栈、`mqtt-demo` profile 和配置合同验证已补齐，待有 Docker 环境后实跑验证）。
 5. Jetson Orin 与实体小车迁移。
 
 ---

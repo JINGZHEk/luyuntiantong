@@ -1,4 +1,7 @@
 import os
+import json
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -104,6 +107,34 @@ class DeploymentConfigTest(unittest.TestCase):
             "/路云天瞳/",
         ):
             self.assertIn(pattern, ignored_patterns)
+
+    def test_docker_compose_verifier_checks_mqtt_demo_contract(self):
+        verifier = Path("scripts/verify_docker_compose_config.py")
+        self.assertTrue(verifier.exists())
+
+        result = subprocess.run(
+            [sys.executable, str(verifier)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        summary = json.loads(result.stdout)
+
+        self.assertEqual(summary["service_count"], 6)
+        self.assertEqual(summary["mqtt_demo_services"], ["cloud-agent", "replay-engine", "vehicle-agent"])
+        self.assertEqual(summary["frontend"]["port"], "3000:80")
+        self.assertEqual(summary["cloud_api"]["port"], "8000:8000")
+        self.assertEqual(summary["mqtt"]["host"], "mosquitto")
+        self.assertEqual(summary["mqtt"]["port"], "1883")
+
+    def test_ci_and_verify_all_run_docker_compose_verifier(self):
+        workflow = yaml.safe_load(Path(".github/workflows/ci.yml").read_text(encoding="utf-8"))
+        backend_steps = workflow["jobs"]["backend"]["steps"]
+        run_blocks = "\n".join(step.get("run", "") for step in backend_steps)
+        verify_all = Path("scripts/verify_all.ps1").read_text(encoding="utf-8")
+
+        self.assertIn("scripts/verify_docker_compose_config.py", run_blocks)
+        self.assertIn("scripts\\verify_docker_compose_config.py", verify_all)
 
 
 if __name__ == "__main__":
