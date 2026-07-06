@@ -102,6 +102,25 @@ def summarize_e2e_latency(
     }
 
 
+def summarize_brake_decisions(store: DataStore, frame_count: int) -> dict:
+    brake_values: list[float] = []
+    for frame_id in range(frame_count):
+        frame = store.get_frame(frame_id)
+        if not frame:
+            continue
+        decision = frame.get("decision_data") or {}
+        brake_decel = decision.get("brake_decel")
+        if isinstance(brake_decel, (int, float)) and brake_decel > 0:
+            brake_values.append(float(brake_decel))
+
+    max_brake = round(max(brake_values), 2) if brake_values else 0.0
+    return {
+        "brake_frame_count": len(brake_values),
+        "max_brake_decel": max_brake,
+        "brake_decision_passed": len(brake_values) > 0 and max_brake > 0,
+    }
+
+
 def build_scenario_perception_frame(
     frame_index: int,
     timestamp: int,
@@ -255,6 +274,7 @@ def run_real_mqtt_three_agent_demo(
             "events": events,
             "db_path": cloud.store.db_path,
             **summarize_e2e_latency(cloud.store, len(frames)),
+            **summarize_brake_decisions(cloud.store, len(frames)),
         }
         if verify_fallback:
             result["fallback_modes"] = fallback_modes

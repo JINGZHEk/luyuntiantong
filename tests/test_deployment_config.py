@@ -245,7 +245,10 @@ class DeploymentConfigTest(unittest.TestCase):
         self.assertEqual(summary["checks"]["complete_frames"]["status"], "pass")
         self.assertEqual(summary["checks"]["ghost_probe_event"]["status"], "pass")
         self.assertEqual(summary["checks"]["fallback_recovery"]["status"], "pass")
+        self.assertEqual(summary["checks"]["brake_decision"]["status"], "pass")
         self.assertEqual(summary["checks"]["latency_target"]["status"], "pass")
+        self.assertGreater(summary["metrics"]["brake_frame_count"], 0)
+        self.assertGreater(summary["metrics"]["max_brake_decel"], 0.0)
         self.assertLessEqual(summary["metrics"]["max_e2e_latency_ms"], 100.0)
 
     def test_ci_and_verify_all_run_m1_acceptance_verifier(self):

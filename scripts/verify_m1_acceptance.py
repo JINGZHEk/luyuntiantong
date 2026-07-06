@@ -26,6 +26,7 @@ def build_m1_acceptance_report(
     event_count = int(result.get("event_count", 0))
     fallback_verified = bool(result.get("fallback_verified"))
     latency_passed = bool(result.get("latency_target_passed"))
+    brake_passed = bool(result.get("brake_decision_passed"))
 
     checks = {
         "complete_frames": _check(
@@ -47,6 +48,14 @@ def build_m1_acceptance_report(
             {
                 "modes": result.get("fallback_modes", []),
                 "target": ["cooperative", "degraded", "recovering"],
+            },
+        ),
+        "brake_decision": _check(
+            brake_passed,
+            {
+                "brake_frame_count": result.get("brake_frame_count", 0),
+                "max_brake_decel": result.get("max_brake_decel", 0.0),
+                "target": "brake_decel > 0",
             },
         ),
         "latency_target": _check(
@@ -72,6 +81,8 @@ def build_m1_acceptance_report(
             "max_e2e_latency_ms": result.get("max_e2e_latency_ms"),
             "e2e_latency_sample_count": result.get("e2e_latency_sample_count"),
             "latency_target_ms": result.get("latency_target_ms"),
+            "brake_frame_count": result.get("brake_frame_count", 0),
+            "max_brake_decel": result.get("max_brake_decel", 0.0),
         },
         "db_path": result.get("db_path"),
     }
