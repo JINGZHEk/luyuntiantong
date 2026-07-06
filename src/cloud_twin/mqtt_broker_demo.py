@@ -7,6 +7,8 @@ from typing import Iterable
 
 from src.cloud_twin.demo_engine import generate_demo_frame
 
+LATENCY_TARGET_MS = 100.0
+
 
 def is_broker_available(host: str = "127.0.0.1", port: int = 1883, timeout_sec: float = 1.0) -> bool:
     try:
@@ -42,6 +44,11 @@ def validate_broker_demo_result(
         raise RuntimeError("No ghost-probe events were produced")
     if require_fallback and not result.get("fallback_verified"):
         raise RuntimeError("Fallback degraded/recovering transition was not verified")
+    if result.get("latency_target_passed") is False:
+        raise RuntimeError(
+            f"latency target failed: max={result.get('max_e2e_latency_ms')}ms "
+            f"target={result.get('latency_target_ms', LATENCY_TARGET_MS)}ms"
+        )
 
 
 def _remove_sqlite_files(db_path: str) -> None:
@@ -63,6 +70,36 @@ def _count_complete_frames(store: DataStore, frame_count: int) -> int:
         ):
             complete += 1
     return complete
+
+
+def summarize_e2e_latency(
+    store: DataStore,
+    frame_count: int,
+    target_ms: float = LATENCY_TARGET_MS,
+) -> dict:
+    latencies: list[float] = []
+    for frame_id in range(frame_count):
+        frame = store.get_frame(frame_id)
+        if not frame:
+            continue
+        perception = frame.get("perception_data") or {}
+        decision = frame.get("decision_data") or {}
+        perception_ts = perception.get("timestamp")
+        decision_ts = decision.get("timestamp")
+        if isinstance(perception_ts, (int, float)) and isinstance(decision_ts, (int, float)):
+            latency = float(decision_ts) - float(perception_ts)
+            if latency >= 0:
+                latencies.append(latency)
+
+    avg_latency = round(sum(latencies) / len(latencies), 2) if latencies else 0.0
+    max_latency = round(max(latencies), 2) if latencies else 0.0
+    return {
+        "avg_e2e_latency_ms": avg_latency,
+        "max_e2e_latency_ms": max_latency,
+        "e2e_latency_sample_count": len(latencies),
+        "latency_target_ms": float(target_ms),
+        "latency_target_passed": bool(latencies) and max_latency <= target_ms,
+    }
 
 
 def build_scenario_perception_frame(
@@ -217,6 +254,7 @@ def run_real_mqtt_three_agent_demo(
             "event_count": event_count,
             "events": events,
             "db_path": cloud.store.db_path,
+            **summarize_e2e_latency(cloud.store, len(frames)),
         }
         if verify_fallback:
             result["fallback_modes"] = fallback_modes

@@ -53,6 +53,8 @@ class MqttBrokerDemoValidationTest(unittest.TestCase):
             "complete_frames": 80,
             "event_count": 1,
             "fallback_verified": True,
+            "latency_target_passed": True,
+            "max_e2e_latency_ms": 45.0,
         }
 
         validate_broker_demo_result(result, min_complete_frames=20, require_fallback=True)
@@ -87,6 +89,19 @@ class MqttBrokerDemoValidationTest(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "Fallback"):
             validate_broker_demo_result(result, min_complete_frames=20, require_fallback=True)
+
+    def test_validation_rejects_latency_target_failure(self):
+        result = {
+            "broker_available": True,
+            "complete_frames": 80,
+            "event_count": 1,
+            "latency_target_passed": False,
+            "max_e2e_latency_ms": 150.0,
+            "latency_target_ms": 100.0,
+        }
+
+        with self.assertRaisesRegex(RuntimeError, "latency"):
+            validate_broker_demo_result(result, min_complete_frames=20)
 
 
 if __name__ == "__main__":

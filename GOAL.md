@@ -376,7 +376,7 @@ v2x/{scene_id}/cloud/command
 - `/api/v1/evaluation` 已输出 `leadTime`，离线 mini split 按首次遮挡帧到目标暴露帧计算，demo runtime 按首次 WARNING/DANGER/EMERGENCY 预警帧到 ghost_probe 事件计算。
 - `scripts/start_demo.ps1` 已提供 Windows 一键演示启动入口，可检查依赖、按需安装前端依赖、启动 Cloud API、启动 demo loop、启动前端 dev server、打开 `/monitor`，并在自定义后端端口时通过 `VITE_CLOUD_API_BASE_URL` 自动让前端连接对应 Cloud API。
 - `scripts/start_mqtt_demo.ps1` 已提供 Windows 三端 MQTT 联动启动入口。
-- `scripts/verify_inmemory_mqtt_demo.py` 已提供无外部 Broker 的三端 topic 流验证模式，并可验证车端 `cooperative -> degraded -> recovering` 状态转换。
+- `scripts/verify_inmemory_mqtt_demo.py` 已提供无外部 Broker 的三端 topic 流验证模式，并可验证车端 `cooperative -> degraded -> recovering` 状态转换；验证摘要已输出 `avg_e2e_latency_ms`、`max_e2e_latency_ms`、`e2e_latency_sample_count`、`latency_target_ms=100.0` 和 `latency_target_passed`，用于持续覆盖 M1 “端到端延迟 < 100 ms”的轻量验收证据。
 - `scripts/verify_mqtt_broker_demo.py` 已提供真实 MQTT Broker 预检/验收入口；当前机器未安装 Mosquitto/Docker 且 1883 未监听，因此外部 Broker 链路仍待具备环境后运行。
 - `scripts/verify_embedded_mqtt_broker_demo.py` 已提供嵌入式 `amqtt` TCP Broker 验收入口；当前机器已在 `v2x-ghost-algorithm` 环境通过真实网络三端闭环：`complete_frames=80`、`event_count=1`、`fallback_verified=true`，证明 Roadside Agent -> TCP MQTT Broker -> Vehicle Agent -> TCP MQTT Broker -> Cloud Agent 链路可运行。该结果不替代 Mosquitto/Docker 外部 Broker 验收。
 - `RoadsideAgent.process_frame()` 已支持预计算 `perception` 帧输入，可用于将确定性的 heavy ghost-probe 场景通过真实 MQTT 链路发布，同时保持 Roadside Agent 作为发布端。
@@ -406,7 +406,7 @@ v2x/{scene_id}/cloud/command
 
 ### 8.2 部分完成
 
-- `RoadsideAgent`、`VehicleAgent`、`CloudAgent` 代码存在，Windows MQTT 三端联动脚本已补齐；无 Broker 时可用内存总线验证 topic 流、同帧合并、高危事件生成和车端降级恢复状态；当前机器已用嵌入式 `amqtt` 完成真实 TCP Broker 闭环验证；GitHub Actions 已加入 Ubuntu Mosquitto 外部 Broker 验收；当前 Windows 本机有 Mosquitto/Docker 时仍可运行 `scripts/verify_mqtt_broker_demo.py` 完成本机外部 Broker 实机通过。
+- `RoadsideAgent`、`VehicleAgent`、`CloudAgent` 代码存在，Windows MQTT 三端联动脚本已补齐；无 Broker 时可用内存总线验证 topic 流、同帧合并、高危事件生成、端到端延迟目标和车端降级恢复状态；当前机器已用嵌入式 `amqtt` 完成真实 TCP Broker 闭环验证；GitHub Actions 已加入 Ubuntu Mosquitto 外部 Broker 验收；当前 Windows 本机有 Mosquitto/Docker 时仍可运行 `scripts/verify_mqtt_broker_demo.py` 完成本机外部 Broker 实机通过。
 - 前端总览页可接收真实数据，并已明确 live/mock 数据源与连接状态下的 mock 覆盖保护；仍保留断连 fallback mock 初始状态，用于无后端演示。
 - 模型评估页已接入 demo runtime 聚合指标、mini split 离线评估产物、ST-GNN checkpoint 评估产物和 YOLO detection 离线检测报告选择入口；算法环境中的 ST-GNN 小样本真实训练/评估烟测已完成，YOLO detection dry-run 报告链路已打通，真实 DAIR-V2X 训练/检测后的模型评测仍待运行。
 - M2 数据集入口已具备 DAIR-V2X 风格目录发现/严格验收、DAIR 风格 demo sample 生成、项目内部 replay clip 生成、常速度 baseline 评估、多 clip 聚合评估和 ST-GNN 训练样本导出能力；当前机器只发现生成样例，待接入真实 DAIR-V2X 数据目录运行。
@@ -500,7 +500,7 @@ http://localhost:8000/docs
 
 1. **MQTT 三端联动**
    - Mosquitto 一键启动（脚本已尝试本地 Mosquitto / Docker Compose）
-   - Roadside Agent + Vehicle Agent + Cloud Agent 完整链路（启动脚本已补齐；内存总线 topic/事件/fallback 验证已完成；嵌入式 `amqtt` 真实 TCP Broker 验证已通过；外部 Mosquitto/Docker Broker 待具备环境后运行通过）
+   - Roadside Agent + Vehicle Agent + Cloud Agent 完整链路（启动脚本已补齐；内存总线 topic/事件/fallback/延迟目标验证已完成；嵌入式 `amqtt` 真实 TCP Broker 验证已通过；外部 Mosquitto/Docker Broker 待具备环境后运行通过）
 
 2. **评估页真实化**
    - 后端输出评估 JSON（demo runtime 已完成）

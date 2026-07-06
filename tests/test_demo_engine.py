@@ -269,6 +269,11 @@ class DataStoreEventTest(unittest.TestCase):
         self.assertGreater(result["complete_frames"], 0)
         self.assertGreaterEqual(result["event_count"], 1)
         self.assertEqual(result["events"][0]["event_type"], "ghost_probe")
+        self.assertEqual(result["e2e_latency_sample_count"], result["complete_frames"])
+        self.assertEqual(result["latency_target_ms"], 100.0)
+        self.assertLessEqual(result["avg_e2e_latency_ms"], 100.0)
+        self.assertLessEqual(result["max_e2e_latency_ms"], 100.0)
+        self.assertTrue(result["latency_target_passed"])
 
     def test_in_memory_three_agent_loop_reports_current_run_only(self):
         with tempfile.TemporaryDirectory() as tmp:
