@@ -76,6 +76,14 @@ class DeploymentConfigTest(unittest.TestCase):
         self.assertIn("scripts/verify_algorithm_pipeline.py", run_blocks)
         self.assertIn("--real-stgnn", run_blocks)
 
+    def test_start_demo_passes_backend_url_to_frontend_dev_server(self):
+        script = Path("scripts/start_demo.ps1").read_text(encoding="utf-8")
+
+        self.assertIn("$frontendApiBaseUrl = \"$backendUrl/api/v1\"", script)
+        self.assertIn("$env:VITE_CLOUD_API_BASE_URL = $frontendApiBaseUrl", script)
+        self.assertIn("$previousCloudApiBaseUrl", script)
+        self.assertIn("$env:VITE_CLOUD_API_BASE_URL = $previousCloudApiBaseUrl", script)
+
 
 if __name__ == "__main__":
     unittest.main()

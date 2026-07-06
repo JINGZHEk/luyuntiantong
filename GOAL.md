@@ -374,6 +374,7 @@ v2x/{scene_id}/cloud/command
 - `/api/v1/evaluation/reports` 已支持枚举可用评估报告，包括 `YOLO Detection Offline`。
 - `/api/v1/evaluation` 已支持 `targetStatus` 指标达标状态，并能为旧离线评估 JSON 自动回填该字段。
 - `/api/v1/evaluation` 已输出 `leadTime`，离线 mini split 按首次遮挡帧到目标暴露帧计算，demo runtime 按首次 WARNING/DANGER/EMERGENCY 预警帧到 ghost_probe 事件计算。
+- `scripts/start_demo.ps1` 已提供 Windows 一键演示启动入口，可检查依赖、按需安装前端依赖、启动 Cloud API、启动 demo loop、启动前端 dev server、打开 `/monitor`，并在自定义后端端口时通过 `VITE_CLOUD_API_BASE_URL` 自动让前端连接对应 Cloud API。
 - `scripts/start_mqtt_demo.ps1` 已提供 Windows 三端 MQTT 联动启动入口。
 - `scripts/verify_inmemory_mqtt_demo.py` 已提供无外部 Broker 的三端 topic 流验证模式，并可验证车端 `cooperative -> degraded -> recovering` 状态转换。
 - `scripts/verify_mqtt_broker_demo.py` 已提供真实 MQTT Broker 预检/验收入口；当前机器未安装 Mosquitto/Docker 且 1883 未监听，因此外部 Broker 链路仍待具备环境后运行。
@@ -475,9 +476,10 @@ http://localhost:8000/docs
 ### 下一步优先级 P0
 
 1. **Windows 一键启动脚本**
-   - 新增 `scripts/start_demo.ps1`
-   - 自动启动 Cloud API、前端 dev server、demo loop
-   - 自动打开 `/monitor`
+   - 已新增 `scripts/start_demo.ps1`
+   - 已自动启动 Cloud API、前端 dev server、demo loop
+   - 已自动打开 `/monitor`
+   - 已支持自定义 `-BackendPort` 时自动注入前端 Cloud API 地址
 
 2. **项目生成物清理**
    - 完善 `.gitignore`（已覆盖主要运行生成物）

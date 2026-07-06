@@ -112,6 +112,7 @@ $backendCheckUrl = "http://127.0.0.1:$BackendPort"
 $frontendCheckUrl = "http://127.0.0.1:$FrontendPort"
 $backendUrl = "http://localhost:$BackendPort"
 $frontendUrl = "http://localhost:$FrontendPort"
+$frontendApiBaseUrl = "$backendUrl/api/v1"
 $backendHealthUrl = "$backendCheckUrl/api/v1/health"
 $demoStartUrl = "$backendCheckUrl/api/v1/demo/start?fps=$Fps&scenario=$Scenario"
 
@@ -151,13 +152,19 @@ if (Wait-Http -Url $frontendCheckUrl -Seconds 8) {
     Write-Step "Starting frontend dev server on port $FrontendPort"
     $frontendLog = Join-Path $LogRoot "demo_frontend.log"
     $frontendErr = Join-Path $LogRoot "demo_frontend.err.log"
-    Start-Process `
-        -FilePath $NpmExe `
-        -ArgumentList @("run", "dev", "--", "--host", "0.0.0.0", "--port", "$FrontendPort") `
-        -WorkingDirectory $FrontendRoot `
-        -RedirectStandardOutput $frontendLog `
-        -RedirectStandardError $frontendErr `
-        -WindowStyle Hidden
+    $previousCloudApiBaseUrl = $env:VITE_CLOUD_API_BASE_URL
+    $env:VITE_CLOUD_API_BASE_URL = $frontendApiBaseUrl
+    try {
+        Start-Process `
+            -FilePath $NpmExe `
+            -ArgumentList @("run", "dev", "--", "--host", "0.0.0.0", "--port", "$FrontendPort") `
+            -WorkingDirectory $FrontendRoot `
+            -RedirectStandardOutput $frontendLog `
+            -RedirectStandardError $frontendErr `
+            -WindowStyle Hidden
+    } finally {
+        $env:VITE_CLOUD_API_BASE_URL = $previousCloudApiBaseUrl
+    }
     $startedFrontend = $true
 }
 
@@ -178,6 +185,7 @@ Write-Host ""
 Write-Host "Started backend in this run:  $startedBackend"
 Write-Host "Started frontend in this run: $startedFrontend"
 Write-Host "Scenario: $Scenario"
+Write-Host "Frontend Cloud API: $frontendApiBaseUrl"
 Write-Host "Logs: $LogRoot"
 
 if (-not $NoBrowser) {

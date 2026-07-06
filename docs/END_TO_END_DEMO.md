@@ -25,8 +25,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\start_demo.ps1
 Use `-NoBrowser` to keep the browser closed, or `-BackendPort` /
 `-FrontendPort` when the default ports are occupied. Use `-Scenario light`,
 `-Scenario moderate`, or `-Scenario heavy` to pick the ghost-probe intensity.
-When `-BackendPort` is not `8000`, open the frontend settings page and set
-Cloud API Base URL to `http://localhost:<port>/api/v1`.
+When `start_demo.ps1` launches the frontend dev server, it injects
+`VITE_CLOUD_API_BASE_URL=http://localhost:<BackendPort>/api/v1`, so custom
+backend ports work without a manual settings change. If the frontend was
+already running, use `/settings` to confirm the Cloud API Base URL.
 
 ## Start Backend
 

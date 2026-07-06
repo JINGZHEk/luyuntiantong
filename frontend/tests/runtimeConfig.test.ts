@@ -3,6 +3,7 @@ import {
   buildApiUrl,
   buildWebSocketUrl,
   normalizeApiBaseUrl,
+  resolveDefaultCloudApiBaseUrl,
 } from '../src/services/runtimeConfig.js';
 
 function assertEqual(actual: string, expected: string): void {
@@ -12,6 +13,16 @@ function assertEqual(actual: string, expected: string): void {
 }
 
 assertEqual(DEFAULT_CLOUD_API_BASE_URL, 'http://localhost:8000/api/v1');
+
+assertEqual(
+  resolveDefaultCloudApiBaseUrl(' http://localhost:8015/api/v1/// '),
+  'http://localhost:8015/api/v1',
+);
+
+assertEqual(
+  resolveDefaultCloudApiBaseUrl(''),
+  'http://localhost:8000/api/v1',
+);
 
 assertEqual(
   normalizeApiBaseUrl(' http://127.0.0.1:8010/api/v1/// '),

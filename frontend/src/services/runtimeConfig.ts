@@ -1,13 +1,25 @@
-export const DEFAULT_CLOUD_API_BASE_URL = 'http://localhost:8000/api/v1';
+const BUILTIN_CLOUD_API_BASE_URL = 'http://localhost:8000/api/v1';
 const SETTINGS_STORAGE_KEY = 'v2x-settings';
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
 
+export function resolveDefaultCloudApiBaseUrl(envValue?: string | null): string {
+  return normalizeApiBaseUrl(envValue || BUILTIN_CLOUD_API_BASE_URL);
+}
+
+const viteEnv = (import.meta as ImportMeta & {
+  env?: { VITE_CLOUD_API_BASE_URL?: string };
+}).env;
+
+export const DEFAULT_CLOUD_API_BASE_URL = resolveDefaultCloudApiBaseUrl(
+  viteEnv?.VITE_CLOUD_API_BASE_URL,
+);
+
 export function normalizeApiBaseUrl(value?: string | null): string {
   const trimmed = (value || '').trim();
-  if (!trimmed) return DEFAULT_CLOUD_API_BASE_URL;
+  if (!trimmed) return BUILTIN_CLOUD_API_BASE_URL;
   return trimTrailingSlash(trimmed);
 }
 
