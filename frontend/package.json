@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test:unit": "tsc -p tsconfig.test.json && node .tmp-tests/tests/runtimeConfig.test.js && node .tmp-tests/tests/settingsApi.test.js && node .tmp-tests/tests/evaluationApi.test.js",
+    "test:unit": "tsc -p tsconfig.test.json && node .tmp-tests/tests/runtimeConfig.test.js && node .tmp-tests/tests/settingsApi.test.js && node .tmp-tests/tests/evaluationApi.test.js && node .tmp-tests/tests/dashboardDataSource.test.js",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },

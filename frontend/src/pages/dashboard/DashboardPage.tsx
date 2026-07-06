@@ -1,5 +1,5 @@
 import React from 'react';
-import { Row, Col } from 'antd';
+import { Row, Col, Tag } from 'antd';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { KpiBar } from '@/widgets/kpi-bar/KpiBar';
 import { RiskList } from '@/widgets/risk-list/RiskList';
@@ -19,6 +19,7 @@ const DashboardPage: React.FC = () => {
     logs,
     logFilter,
     setLogFilter,
+    source,
     pageState,
   } = useDashboardStore();
 
@@ -26,6 +27,9 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <Tag color={source === 'live' ? 'green' : 'gold'}>{source === 'live' ? 'live' : 'mock'}</Tag>
+      </div>
       <KpiBar metrics={metrics} />
 
       <Row gutter={12} style={{ marginTop: 12 }}>

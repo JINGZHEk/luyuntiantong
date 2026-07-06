@@ -51,7 +51,7 @@ export function useMockRealtime() {
             risk: { time: new Date().toLocaleTimeString(), value: 0.3 },
             brake: { time: new Date().toLocaleTimeString(), value: 0 },
           };
-          updateDashboard({}, riskItems, trendPoint);
+          updateDashboard({}, riskItems, trendPoint, 'live', true);
         }
       }
 
@@ -60,7 +60,7 @@ export function useMockRealtime() {
         const metrics = decisionToMetrics(data, metricsRef.current);
         const trendPoint = decisionToTrendPoint(data);
         const riskItems = useDashboardStore.getState().riskItems;
-        updateDashboard(metrics, riskItems, trendPoint);
+        updateDashboard(metrics, riskItems, trendPoint, 'live', true);
         metricsRef.current = { ...metricsRef.current, ...metrics };
       }
 
@@ -102,7 +102,7 @@ export function useMockRealtime() {
     if (wsConnected.current && wsService.connected) return;
 
     const data = generateDashboardUpdate();
-    updateDashboard(data.metrics, data.riskItems, data.trendPoint);
+    updateDashboard(data.metrics, data.riskItems, data.trendPoint, 'mock', wsService.connected);
     if (data.log) {
       addLog(data.log);
     }
@@ -113,6 +113,6 @@ export function useMockRealtime() {
   // Initial data load
   useEffect(() => {
     const data = generateDashboardUpdate();
-    updateDashboard(data.metrics, data.riskItems, data.trendPoint);
+    updateDashboard(data.metrics, data.riskItems, data.trendPoint, 'mock', wsService.connected);
   }, [updateDashboard]);
 }

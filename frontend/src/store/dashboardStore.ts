@@ -3,6 +3,11 @@ import { SystemMetrics } from '@/types/metrics';
 import { LogEntry, TimeSeriesPoint } from '@/types/common';
 import { RiskItem, generateInitialTrend } from '@/mock/dashboardMock';
 import { LOG_MAX_ENTRIES } from '@/constants/config';
+import {
+  DashboardDataSource,
+  nextDashboardSource,
+  shouldAcceptDashboardUpdate,
+} from './dashboardDataSource';
 
 interface DashboardState {
   metrics: SystemMetrics;
@@ -12,11 +17,14 @@ interface DashboardState {
   trendBrake: TimeSeriesPoint[];
   logs: LogEntry[];
   logFilter: LogEntry['level'] | 'all';
+  source: DashboardDataSource;
   pageState: { loading: boolean; error: string | null };
   update: (
     metrics: Partial<SystemMetrics>,
     riskItems: RiskItem[],
     trend: { ttc: TimeSeriesPoint; risk: TimeSeriesPoint; brake: TimeSeriesPoint },
+    source?: DashboardDataSource,
+    cloudConnected?: boolean,
   ) => void;
   addLog: (log: LogEntry) => void;
   setLogFilter: (filter: LogEntry['level'] | 'all') => void;
@@ -42,16 +50,24 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   trendBrake: initialTrend.brake,
   logs: [],
   logFilter: 'all',
+  source: 'mock',
   pageState: { loading: false, error: null },
 
-  update: (metrics, riskItems, trend) =>
-    set((state) => ({
-      metrics: { ...state.metrics, ...metrics },
-      riskItems,
-      trendTtc: [...state.trendTtc.slice(-59), trend.ttc],
-      trendRisk: [...state.trendRisk.slice(-59), trend.risk],
-      trendBrake: [...state.trendBrake.slice(-59), trend.brake],
-    })),
+  update: (metrics, riskItems, trend, source = 'mock', cloudConnected = false) =>
+    set((state) => {
+      if (!shouldAcceptDashboardUpdate(state.source, source, cloudConnected)) {
+        return state;
+      }
+
+      return {
+        metrics: { ...state.metrics, ...metrics },
+        riskItems,
+        trendTtc: [...state.trendTtc.slice(-59), trend.ttc],
+        trendRisk: [...state.trendRisk.slice(-59), trend.risk],
+        trendBrake: [...state.trendBrake.slice(-59), trend.brake],
+        source: nextDashboardSource(state.source, source),
+      };
+    }),
 
   addLog: (log) =>
     set((state) => ({

@@ -392,6 +392,7 @@ v2x/{scene_id}/cloud/command
 - 路侧 `Detector` 已支持 `annotations` / `yolo` / `auto` 模式；默认 `configs/roadside.yaml` 使用 `annotations`，因此 DAIR replay、合成 replay、CI 和轻量容器 demo 不再依赖 `ultralytics`。
 - 前端 monitor 页接入 demo 控制与实时 WebSocket。
 - 前端 monitor 页已支持选择 demo 场景强度。
+- 前端总览页已增加 live/mock 数据源标记，并在 Cloud API WebSocket 仍连接时阻止 fallback mock 更新覆盖 live 总览数据；相关规则已纳入前端单元测试，降低 mock 与 real 数据混用造成的状态混乱。
 - 前端设置页已支持配置 Cloud API 地址，REST 请求与 WebSocket 连接会跟随该地址切换。
 - 前端设置页已接入 `/api/v1/config/{scene_id}`，可加载/保存运行配置。
 - 后端 `RuntimeConfigStore` 已将场景运行配置持久化到 `data/runtime_config.json`，并校验阈值范围和 URL 协议。
@@ -406,7 +407,7 @@ v2x/{scene_id}/cloud/command
 ### 8.2 部分完成
 
 - `RoadsideAgent`、`VehicleAgent`、`CloudAgent` 代码存在，Windows MQTT 三端联动脚本已补齐；无 Broker 时可用内存总线验证 topic 流、同帧合并、高危事件生成和车端降级恢复状态；当前机器已用嵌入式 `amqtt` 完成真实 TCP Broker 闭环验证；GitHub Actions 已加入 Ubuntu Mosquitto 外部 Broker 验收；当前 Windows 本机有 Mosquitto/Docker 时仍可运行 `scripts/verify_mqtt_broker_demo.py` 完成本机外部 Broker 实机通过。
-- 前端总览页可接收真实数据，但仍保留较多 mock 初始状态。
+- 前端总览页可接收真实数据，并已明确 live/mock 数据源与连接状态下的 mock 覆盖保护；仍保留断连 fallback mock 初始状态，用于无后端演示。
 - 模型评估页已接入 demo runtime 聚合指标、mini split 离线评估产物、ST-GNN checkpoint 评估产物和 YOLO detection 离线检测报告选择入口；算法环境中的 ST-GNN 小样本真实训练/评估烟测已完成，YOLO detection dry-run 报告链路已打通，真实 DAIR-V2X 训练/检测后的模型评测仍待运行。
 - M2 数据集入口已具备 DAIR-V2X 风格目录发现/严格验收、DAIR 风格 demo sample 生成、项目内部 replay clip 生成、常速度 baseline 评估、多 clip 聚合评估和 ST-GNN 训练样本导出能力；当前机器只发现生成样例，待接入真实 DAIR-V2X 数据目录运行。
 - OccAware-STGNN 已具备训练样本导出、训练脚本、checkpoint 评估脚本、模型骨架、Roadside Agent 配置入口（`prediction.backend: stgnn`、`prediction.model_path`）、TorchScript checkpoint 导出和推理适配器；真实训练后 checkpoint 和 DAIR-V2X 指标复核仍未完成。
