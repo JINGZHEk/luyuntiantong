@@ -27,6 +27,9 @@ try {
         Write-Step "Verifying Docker Compose deployment contract"
         python scripts\verify_docker_compose_config.py
 
+        Write-Step "Verifying startup documentation coverage"
+        python scripts\verify_startup_docs.py
+
         if (-not $SkipBrokerless) {
             Write-Step "Verifying brokerless MQTT three-agent flow"
             python scripts\verify_inmemory_mqtt_demo.py --scenario heavy --frames 80 --verify-fallback

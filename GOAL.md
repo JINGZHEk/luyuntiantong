@@ -387,6 +387,7 @@ v2x/{scene_id}/cloud/command
 - `deployment/frontend.Dockerfile` 与 `deployment/nginx.frontend.conf` 已提供前端静态站点容器构建入口。
 - 后端/三端容器已支持 `MQTT_HOST` / `MQTT_PORT` 环境变量覆盖，可在 Compose 网络中连接 `mosquitto` 服务名。
 - `scripts/verify_docker_compose_config.py` 已提供不依赖 Docker daemon 的 Compose 部署合同验证入口，可检查服务数量、Dockerfile 路径、端口映射、`depends_on`、`mqtt-demo` profile、Mosquitto 配置挂载和容器内 MQTT 环境变量；本地 `verify_all.ps1` 与 GitHub Actions 基础 CI 已纳入该检查。
+- `scripts/verify_startup_docs.py` 已提供启动文档覆盖验证入口，可检查 `启动.md` 是否统一覆盖一键启动、浏览器入口、手动启动、快速验证、MQTT 三端、Docker Compose、DAIR-V2X、算法环境、YOLO/ST-GNN、故障排查和相关文档；本地 `verify_all.ps1` 与 GitHub Actions 基础 CI 已纳入该检查。
 - 路侧 `Detector` 已支持 `annotations` / `yolo` / `auto` 模式；默认 `configs/roadside.yaml` 使用 `annotations`，因此 DAIR replay、合成 replay、CI 和轻量容器 demo 不再依赖 `ultralytics`。
 - 前端 monitor 页接入 demo 控制与实时 WebSocket。
 - 前端 monitor 页已支持选择 demo 场景强度。
@@ -489,8 +490,9 @@ http://localhost:8000/docs
    - 保留源码、文档、配置和测试
 
 3. **统一启动文档**
-   - 更新 `启动.md`
-   - 合并 `docs/END_TO_END_DEMO.md` 的关键入口
+   - 已更新 `启动.md`
+   - 已合并 `docs/END_TO_END_DEMO.md` 的关键入口
+   - 已通过 `scripts/verify_startup_docs.py` 纳入本地和 CI 覆盖验证
 
 ### 中期优先级 P1
 

@@ -136,6 +136,34 @@ class DeploymentConfigTest(unittest.TestCase):
         self.assertIn("scripts/verify_docker_compose_config.py", run_blocks)
         self.assertIn("scripts\\verify_docker_compose_config.py", verify_all)
 
+    def test_startup_doc_verifier_covers_all_operational_paths(self):
+        verifier = Path("scripts/verify_startup_docs.py")
+        self.assertTrue(verifier.exists())
+
+        result = subprocess.run(
+            [sys.executable, str(verifier)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        summary = json.loads(result.stdout)
+
+        self.assertEqual(summary["document"], "启动.md")
+        self.assertEqual(summary["required_sections"], 10)
+        self.assertGreaterEqual(summary["required_snippets"], 30)
+        self.assertIn("scripts\\start_demo.ps1", summary["covered_commands"])
+        self.assertIn("scripts\\verify_docker_compose_config.py", summary["covered_commands"])
+        self.assertIn("docs/END_TO_END_DEMO.md", summary["related_docs"])
+
+    def test_ci_and_verify_all_run_startup_doc_verifier(self):
+        workflow = yaml.safe_load(Path(".github/workflows/ci.yml").read_text(encoding="utf-8"))
+        backend_steps = workflow["jobs"]["backend"]["steps"]
+        run_blocks = "\n".join(step.get("run", "") for step in backend_steps)
+        verify_all = Path("scripts/verify_all.ps1").read_text(encoding="utf-8")
+
+        self.assertIn("scripts/verify_startup_docs.py", run_blocks)
+        self.assertIn("scripts\\verify_startup_docs.py", verify_all)
+
 
 if __name__ == "__main__":
     unittest.main()
