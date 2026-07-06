@@ -3,7 +3,11 @@ from pathlib import Path
 from src.cloud_twin.cloud_agent import CloudAgent
 from src.cloud_twin.data_store import DataStore
 from src.cloud_twin.demo_engine import generate_demo_frame
-from src.cloud_twin.mqtt_broker_demo import summarize_brake_decisions, summarize_e2e_latency
+from src.cloud_twin.mqtt_broker_demo import (
+    summarize_brake_decisions,
+    summarize_e2e_latency,
+    summarize_runtime_lead_time,
+)
 from src.communication.in_memory_mqtt import InMemoryBroker, InMemoryMQTTClient
 from src.vehicle_decision.fallback_manager import FallbackManager
 
@@ -158,6 +162,7 @@ def run_in_memory_three_agent_demo(
             "db_path": cloud.store.db_path,
             **summarize_e2e_latency(cloud.store, frame_count),
             **summarize_brake_decisions(cloud.store, frame_count),
+            **summarize_runtime_lead_time(cloud.store, frame_count, events),
         }
         if verify_fallback:
             result["fallback_modes"] = fallback_modes

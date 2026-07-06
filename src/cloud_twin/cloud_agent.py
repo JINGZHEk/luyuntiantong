@@ -115,6 +115,7 @@ class CloudAgent:
         """Detect ghost-probe events based on TTC and occlusion."""
         ttc = decision.get("ttc", float('inf'))
         risk_level = decision.get("risk_level", "SAFE")
+        decision_timestamp = decision.get("timestamp")
 
         if ttc > self.ttc_threshold:
             return
@@ -130,7 +131,11 @@ class CloudAgent:
 
         event = {
             "event_id": f"evt_{int(now)}_{self._event_counter:03d}",
-            "timestamp": make_timestamp(),
+            "timestamp": (
+                decision_timestamp
+                if isinstance(decision_timestamp, (int, float))
+                else make_timestamp()
+            ),
             "event_type": "ghost_probe",
             "severity": "critical" if risk_level == "EMERGENCY" else "high",
             "scene_id": self.scene_id,

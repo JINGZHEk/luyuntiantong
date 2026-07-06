@@ -8,6 +8,8 @@ from typing import Iterable
 from src.cloud_twin.demo_engine import generate_demo_frame
 
 LATENCY_TARGET_MS = 100.0
+LEAD_TIME_TARGET_SEC = 1.5
+LEAD_TIME_MAX_SEC = 3.0
 
 
 def is_broker_available(host: str = "127.0.0.1", port: int = 1883, timeout_sec: float = 1.0) -> bool:
@@ -48,6 +50,11 @@ def validate_broker_demo_result(
         raise RuntimeError(
             f"latency target failed: max={result.get('max_e2e_latency_ms')}ms "
             f"target={result.get('latency_target_ms', LATENCY_TARGET_MS)}ms"
+        )
+    if result.get("lead_time_target_passed") is False:
+        raise RuntimeError(
+            f"lead-time target failed: actual={result.get('lead_time_seconds')}s "
+            f"target={result.get('lead_time_target_sec', LEAD_TIME_TARGET_SEC)}s"
         )
 
 
@@ -118,6 +125,52 @@ def summarize_brake_decisions(store: DataStore, frame_count: int) -> dict:
         "brake_frame_count": len(brake_values),
         "max_brake_decel": max_brake,
         "brake_decision_passed": len(brake_values) > 0 and max_brake > 0,
+    }
+
+
+def summarize_runtime_lead_time(
+    store: DataStore,
+    frame_count: int,
+    events: list[dict],
+    target_sec: float = LEAD_TIME_TARGET_SEC,
+    max_sec: float = LEAD_TIME_MAX_SEC,
+) -> dict:
+    frames = []
+    for frame_id in range(frame_count):
+        frame = store.get_frame(frame_id)
+        if frame:
+            frames.append(frame)
+
+    first_occluded_ts = None
+    for frame in sorted(frames, key=lambda item: item.get("timestamp", 0)):
+        perception = frame.get("perception_data") or {}
+        timestamp = perception.get("timestamp", frame.get("timestamp"))
+        if not isinstance(timestamp, (int, float)):
+            continue
+        objects = perception.get("objects") or []
+        if any(
+            obj.get("class") == "person" and int(obj.get("occlusion_level", 0)) >= 1
+            for obj in objects
+            if isinstance(obj, dict)
+        ):
+            first_occluded_ts = float(timestamp)
+            break
+
+    event_timestamps = [
+        float(event["timestamp"])
+        for event in events
+        if event.get("event_type") == "ghost_probe" and isinstance(event.get("timestamp"), (int, float))
+    ]
+    if first_occluded_ts is None or not event_timestamps:
+        lead_time = 0.0
+    else:
+        first_event_ts = min(event_timestamps)
+        lead_time = round(max(0.0, first_event_ts - first_occluded_ts) / 1000.0, 2)
+    return {
+        "lead_time_seconds": lead_time,
+        "lead_time_target_sec": float(target_sec),
+        "lead_time_max_sec": float(max_sec),
+        "lead_time_target_passed": target_sec <= lead_time <= max_sec,
     }
 
 
@@ -275,6 +328,7 @@ def run_real_mqtt_three_agent_demo(
             "db_path": cloud.store.db_path,
             **summarize_e2e_latency(cloud.store, len(frames)),
             **summarize_brake_decisions(cloud.store, len(frames)),
+            **summarize_runtime_lead_time(cloud.store, len(frames), events),
         }
         if verify_fallback:
             result["fallback_modes"] = fallback_modes

@@ -27,6 +27,7 @@ def build_m1_acceptance_report(
     fallback_verified = bool(result.get("fallback_verified"))
     latency_passed = bool(result.get("latency_target_passed"))
     brake_passed = bool(result.get("brake_decision_passed"))
+    lead_time_passed = bool(result.get("lead_time_target_passed"))
 
     checks = {
         "complete_frames": _check(
@@ -58,6 +59,14 @@ def build_m1_acceptance_report(
                 "target": "brake_decel > 0",
             },
         ),
+        "early_warning_lead_time": _check(
+            lead_time_passed,
+            {
+                "actual_sec": result.get("lead_time_seconds", 0.0),
+                "target_sec": result.get("lead_time_target_sec", 1.5),
+                "max_sec": result.get("lead_time_max_sec", 3.0),
+            },
+        ),
         "latency_target": _check(
             latency_passed,
             {
@@ -83,6 +92,9 @@ def build_m1_acceptance_report(
             "latency_target_ms": result.get("latency_target_ms"),
             "brake_frame_count": result.get("brake_frame_count", 0),
             "max_brake_decel": result.get("max_brake_decel", 0.0),
+            "lead_time_seconds": result.get("lead_time_seconds", 0.0),
+            "lead_time_target_sec": result.get("lead_time_target_sec", 1.5),
+            "lead_time_max_sec": result.get("lead_time_max_sec", 3.0),
         },
         "db_path": result.get("db_path"),
     }
