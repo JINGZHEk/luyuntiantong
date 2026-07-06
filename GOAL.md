@@ -364,6 +364,7 @@ v2x/{scene_id}/cloud/command
 - `scripts/verify_m2_demo_sample.py` 已提供 M2 样例评估验收入口，可自动生成 DAIR 风格样例、构建 replay clip、写出 `evaluation.json`、`stgnn_evaluation.json` 和 `yolo_detection.json`，并验证 baseline 目标状态、ST-GNN dry-run 报告结构和 YOLO detection dry-run 报告链路。
 - `scripts/verify_model_readiness.py` 已提供 YOLO/ST-GNN 算法环境 readiness 诊断入口，默认输出 Python、ultralytics、torch、torchvision、torch_geometric 可用性；可通过 `--require-yolo` / `--require-stgnn` 在算法环境中强制验收。
 - `environment-algorithm.yml` 已提供 Python 3.11 Conda 算法环境规格，包含 PyTorch、torchvision、ultralytics、torch-geometric 和项目运行依赖；默认使用 CPU 基线，后续可按 GPU/CUDA 机器替换 PyTorch channel 配置。
+- `.github/workflows/algorithm.yml` 已提供手动触发和每周调度的算法环境验证 workflow，会用 `environment-algorithm.yml` 创建 Conda 环境，强制运行 YOLO/ST-GNN readiness、YOLO 真实图片推理和 `verify_algorithm_pipeline.py --real-stgnn` 小样本真实训练/checkpoint 评估。
 - 当前机器已创建并验收 `v2x-ghost-algorithm` Conda 环境，强制 readiness 通过：Python 3.11.15、ultralytics 8.4.89、torch 2.5.1、torchvision 0.20.1、torch_geometric 2.8.0。
 - `scripts/verify_yolo_image_inference.py` 已提供 YOLOv8 真实图片推理验收入口，默认使用 ultralytics 包内 `bus.jpg` 真实照片和 `yolov8n` 权重；当前机器已在 `v2x-ghost-algorithm` 环境通过一次真实推理烟测，输出 `detection_count=4`，类别包含 `bus` 和 `person`。权重缓存到 `data/model_cache`，不污染项目根目录。
 - `src/dataset/yolo_detection_evaluator.py` 已提供 YOLO 检测结果与 DAIR 标注的 IoU 匹配、总体 precision/recall/F1、TP/FP/FN、per-class 统计、逐帧检测摘要、平均延迟和 FPS 计算。
@@ -415,7 +416,7 @@ v2x/{scene_id}/cloud/command
 - MQTT 三端联动已通过嵌入式 `amqtt` 真实 TCP Broker 验证，并已纳入 GitHub Actions 的 Ubuntu Mosquitto 外部 Broker 验收；当前 Windows 本机仍需要在已安装 Mosquitto 或 Docker 的环境中完成外部 Broker 实机验证。
 - 真实数据多场景批量评估结果产出与指标复核。
 - 实体 Jetson / 小车部署。
-- CI / 自动化测试流水线已具备基础版本，并覆盖 brokerless MQTT、Ubuntu Mosquitto 外部 Broker、M2 demo sample、模型 readiness 和前端 test/lint/build；真实 DAIR-V2X、YOLO/ST-GNN 强制算法环境和实体迁移仍未进入自动化验收。
+- CI / 自动化测试流水线已具备基础版本，并覆盖 brokerless MQTT、Ubuntu Mosquitto 外部 Broker、M2 demo sample、模型 readiness、前端 test/lint/build，以及手动/每周触发的 YOLO/ST-GNN 算法环境验证；真实 DAIR-V2X 样本缓存、真实 DAIR 指标达标和实体迁移仍未进入自动化验收。
 
 ---
 
@@ -509,7 +510,8 @@ http://localhost:8000/docs
 4. **自动化验证**
    - 本地 `scripts/verify_all.ps1` 已完成
    - GitHub Actions 基础 CI 已完成，已包含 DAIR 数据集发现脚本测试、brokerless MQTT、Ubuntu Mosquitto 外部 Broker 验收、M2 DAIR 风格样例评估验证和模型环境 readiness 诊断
-   - 后续补真实 DAIR-V2X 样本缓存、YOLO/ST-GNN 强制算法环境矩阵和实体迁移验收
+   - 手动/每周 YOLO/ST-GNN 强制算法环境 workflow 已完成
+   - 后续补真实 DAIR-V2X 样本缓存、真实 DAIR 指标达标复核和实体迁移验收
 
 ### 长期优先级 P2
 

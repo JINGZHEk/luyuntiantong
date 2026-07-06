@@ -1,0 +1,43 @@
+name: Algorithm Validation
+
+"on":
+  workflow_dispatch:
+  schedule:
+    - cron: "0 18 * * 0"
+
+jobs:
+  algorithm:
+    name: YOLO and ST-GNN algorithm checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify algorithm environment spec exists
+        run: |
+          test -f environment-algorithm.yml
+
+      - name: Set up algorithm environment
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: environment-algorithm.yml
+          environment-name: v2x-ghost-algorithm
+          cache-environment: true
+          cache-downloads: true
+
+      - name: Verify required algorithm packages
+        shell: bash -el {0}
+        run: |
+          python scripts/verify_model_readiness.py --require-yolo --require-stgnn
+
+      - name: Verify YOLO image inference
+        shell: bash -el {0}
+        run: |
+          python scripts/verify_yolo_image_inference.py --min-detections 1
+
+      - name: Verify real ST-GNN training and checkpoint evaluation
+        shell: bash -el {0}
+        run: |
+          python scripts/verify_algorithm_pipeline.py --work-dir data/algorithm_validation_ci --frames 32 --horizon 5 --real-stgnn --python python --epochs 8 --batch-size 4 --hidden-dim 32

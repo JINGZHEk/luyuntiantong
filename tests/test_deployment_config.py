@@ -59,6 +59,23 @@ class DeploymentConfigTest(unittest.TestCase):
         self.assertIn("scripts/verify_mqtt_broker_demo.py", run_blocks)
         self.assertIn("--verify-fallback", run_blocks)
 
+    def test_algorithm_workflow_runs_real_yolo_and_stgnn_validation(self):
+        workflow_path = Path(".github/workflows/algorithm.yml")
+        self.assertTrue(workflow_path.exists())
+        workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+        run_blocks = "\n".join(
+            step.get("run", "")
+            for job in workflow["jobs"].values()
+            for step in job["steps"]
+        )
+
+        self.assertIn("workflow_dispatch", workflow["on"])
+        self.assertIn("environment-algorithm.yml", run_blocks)
+        self.assertIn("scripts/verify_model_readiness.py --require-yolo --require-stgnn", run_blocks)
+        self.assertIn("scripts/verify_yolo_image_inference.py --min-detections 1", run_blocks)
+        self.assertIn("scripts/verify_algorithm_pipeline.py", run_blocks)
+        self.assertIn("--real-stgnn", run_blocks)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -173,6 +173,13 @@ python scripts\verify_mqtt_broker_demo.py --frames 80 --fps 10 --verify-fallback
 That CI step validates the external Mosquitto Broker path even when the local
 Windows workstation does not have Mosquitto or Docker installed.
 
+The repository also includes `.github/workflows/algorithm.yml` for manual and
+weekly algorithm validation. It creates the `environment-algorithm.yml` Conda
+environment, requires YOLO/ST-GNN packages, runs the real YOLO image inference
+smoke test, and executes `verify_algorithm_pipeline.py --real-stgnn` for a
+small ST-GNN training/checkpoint evaluation loop. This validates the algorithm
+runtime path, but it is still not a real DAIR-V2X benchmark result.
+
 ## DAIR-V2X Mini Split Entry
 
 First verify whether a real DAIR-V2X style dataset is present:
