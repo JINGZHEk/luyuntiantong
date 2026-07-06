@@ -2,6 +2,7 @@ import os
 import json
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -163,6 +164,59 @@ class DeploymentConfigTest(unittest.TestCase):
 
         self.assertIn("scripts/verify_startup_docs.py", run_blocks)
         self.assertIn("scripts\\verify_startup_docs.py", verify_all)
+
+    def test_external_readiness_verifier_reports_remaining_environment_gaps(self):
+        verifier = Path("scripts/verify_external_readiness.py")
+        self.assertTrue(verifier.exists())
+
+        result = subprocess.run(
+            [sys.executable, str(verifier), "--search-root", str(Path("data"))],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        summary = json.loads(result.stdout)
+
+        self.assertIn("dair", summary)
+        self.assertIn("docker", summary)
+        self.assertIn("mqtt_broker", summary)
+        self.assertIn("algorithm", summary)
+        self.assertIn("next_actions", summary)
+        self.assertEqual(summary["dair"]["required"], False)
+        self.assertEqual(summary["docker"]["required"], False)
+        self.assertEqual(summary["mqtt_broker"]["required"], False)
+        self.assertEqual(summary["algorithm"]["required"], False)
+
+    def test_external_readiness_strict_real_dair_requirement_fails_without_dataset(self):
+        verifier = Path("scripts/verify_external_readiness.py")
+        self.assertTrue(verifier.exists())
+
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(verifier),
+                    "--search-root",
+                    tmp,
+                    "--require-real-dair",
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertNotEqual(result.returncode, 0)
+        summary = json.loads(result.stdout)
+        self.assertEqual(summary["dair"]["ready"], False)
+        self.assertIn("real DAIR-V2X", summary["missing_required"])
+
+    def test_ci_and_verify_all_run_external_readiness_verifier(self):
+        workflow = yaml.safe_load(Path(".github/workflows/ci.yml").read_text(encoding="utf-8"))
+        backend_steps = workflow["jobs"]["backend"]["steps"]
+        run_blocks = "\n".join(step.get("run", "") for step in backend_steps)
+        verify_all = Path("scripts/verify_all.ps1").read_text(encoding="utf-8")
+
+        self.assertIn("scripts/verify_external_readiness.py", run_blocks)
+        self.assertIn("scripts\\verify_external_readiness.py", verify_all)
 
 
 if __name__ == "__main__":

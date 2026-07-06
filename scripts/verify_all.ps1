@@ -30,6 +30,9 @@ try {
         Write-Step "Verifying startup documentation coverage"
         python scripts\verify_startup_docs.py
 
+        Write-Step "Summarizing external environment readiness"
+        python scripts\verify_external_readiness.py
+
         if (-not $SkipBrokerless) {
             Write-Step "Verifying brokerless MQTT three-agent flow"
             python scripts\verify_inmemory_mqtt_demo.py --scenario heavy --frames 80 --verify-fallback

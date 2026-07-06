@@ -40,6 +40,10 @@ jobs:
         run: |
           python scripts/verify_startup_docs.py
 
+      - name: Summarize external environment readiness
+        run: |
+          python scripts/verify_external_readiness.py
+
       - name: Verify brokerless MQTT flow
         run: |
           python scripts/verify_inmemory_mqtt_demo.py --scenario heavy --frames 80 --verify-fallback

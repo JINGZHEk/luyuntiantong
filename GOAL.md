@@ -388,6 +388,7 @@ v2x/{scene_id}/cloud/command
 - 后端/三端容器已支持 `MQTT_HOST` / `MQTT_PORT` 环境变量覆盖，可在 Compose 网络中连接 `mosquitto` 服务名。
 - `scripts/verify_docker_compose_config.py` 已提供不依赖 Docker daemon 的 Compose 部署合同验证入口，可检查服务数量、Dockerfile 路径、端口映射、`depends_on`、`mqtt-demo` profile、Mosquitto 配置挂载和容器内 MQTT 环境变量；本地 `verify_all.ps1` 与 GitHub Actions 基础 CI 已纳入该检查。
 - `scripts/verify_startup_docs.py` 已提供启动文档覆盖验证入口，可检查 `启动.md` 是否统一覆盖一键启动、浏览器入口、手动启动、快速验证、MQTT 三端、Docker Compose、DAIR-V2X、算法环境、YOLO/ST-GNN、故障排查和相关文档；本地 `verify_all.ps1` 与 GitHub Actions 基础 CI 已纳入该检查。
+- `scripts/verify_external_readiness.py` 已提供外部验收环境 readiness 汇总入口，默认非阻塞输出真实 DAIR-V2X、Docker/Compose、外部 MQTT Broker、YOLO/ST-GNN 算法环境状态；可通过 `--require-real-dair`、`--require-docker`、`--require-broker`、`--require-algorithm` 切换为严格失败模式。本地 `verify_all.ps1` 与 GitHub Actions 基础 CI 已纳入默认预检，用于持续暴露剩余外部条件缺口。
 - 路侧 `Detector` 已支持 `annotations` / `yolo` / `auto` 模式；默认 `configs/roadside.yaml` 使用 `annotations`，因此 DAIR replay、合成 replay、CI 和轻量容器 demo 不再依赖 `ultralytics`。
 - 前端 monitor 页接入 demo 控制与实时 WebSocket。
 - 前端 monitor 页已支持选择 demo 场景强度。
@@ -420,7 +421,7 @@ v2x/{scene_id}/cloud/command
 - MQTT 三端联动已通过嵌入式 `amqtt` 真实 TCP Broker 验证，并已纳入 GitHub Actions 的 Ubuntu Mosquitto 外部 Broker 验收；当前 Windows 本机仍需要在已安装 Mosquitto 或 Docker 的环境中完成外部 Broker 实机验证。
 - 真实数据多场景批量评估结果产出与指标复核。
 - 实体 Jetson / 小车部署。
-- CI / 自动化测试流水线已具备基础版本，并覆盖 Docker Compose 配置合同、brokerless MQTT、Ubuntu Mosquitto 外部 Broker、M2 demo sample、模型 readiness、前端 test/lint/build，以及手动/每周触发的 YOLO/ST-GNN 算法环境验证；真实 DAIR-V2X 样本缓存、真实 DAIR 指标达标、Docker 真实容器启动和实体迁移仍未进入自动化验收。
+- CI / 自动化测试流水线已具备基础版本，并覆盖 Docker Compose 配置合同、外部 readiness 默认预检、brokerless MQTT、Ubuntu Mosquitto 外部 Broker、M2 demo sample、模型 readiness、前端 test/lint/build，以及手动/每周触发的 YOLO/ST-GNN 算法环境验证；真实 DAIR-V2X 样本缓存、真实 DAIR 指标达标、Docker 真实容器启动和实体迁移仍未进入自动化验收。
 
 ---
 
@@ -516,6 +517,7 @@ http://localhost:8000/docs
 4. **自动化验证**
    - 本地 `scripts/verify_all.ps1` 已完成
    - GitHub Actions 基础 CI 已完成，已包含 DAIR 数据集发现脚本测试、brokerless MQTT、Ubuntu Mosquitto 外部 Broker 验收、M2 DAIR 风格样例评估验证和模型环境 readiness 诊断
+   - 外部 readiness 默认预检已完成，可持续汇总真实 DAIR-V2X、Docker/Compose、外部 MQTT Broker 和算法环境缺口；严格模式待具备对应环境后作为强制门禁启用
    - 手动/每周 YOLO/ST-GNN 强制算法环境 workflow 已完成
    - 后续补真实 DAIR-V2X 样本缓存、真实 DAIR 指标达标复核和实体迁移验收
 

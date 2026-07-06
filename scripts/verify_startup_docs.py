@@ -39,6 +39,8 @@ REQUIRED_SNIPPETS = [
     "Invoke-WebRequest \"http://localhost:8000/api/v1/demo/start?fps=10&scenario=moderate\" -Method POST",
     "npm run dev -- --host 0.0.0.0 --port 3000",
     "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\verify_all.ps1",
+    "python scripts\\verify_external_readiness.py",
+    "python scripts\\verify_external_readiness.py --search-root E:\\路云天瞳 --require-real-dair --require-docker --require-broker --require-algorithm",
     "python scripts\\verify_docker_compose_config.py",
     "python scripts\\verify_mqtt_broker_demo.py --frames 80 --fps 10 --verify-fallback",
     "python scripts\\verify_inmemory_mqtt_demo.py --scenario heavy --frames 80 --verify-fallback",
@@ -64,6 +66,7 @@ REQUIRED_SNIPPETS = [
 COVERED_COMMANDS = [
     "scripts\\start_demo.ps1",
     "scripts\\verify_all.ps1",
+    "scripts\\verify_external_readiness.py",
     "scripts\\verify_docker_compose_config.py",
     "scripts\\start_mqtt_demo.ps1",
     "scripts\\verify_mqtt_broker_demo.py",
