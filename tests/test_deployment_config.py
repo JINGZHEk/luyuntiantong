@@ -49,6 +49,16 @@ class DeploymentConfigTest(unittest.TestCase):
 
         self.assertIn("scripts/verify_model_readiness.py", run_blocks)
 
+    def test_ci_runs_external_mosquitto_broker_validation(self):
+        workflow = yaml.safe_load(Path(".github/workflows/ci.yml").read_text(encoding="utf-8"))
+        backend_steps = workflow["jobs"]["backend"]["steps"]
+        run_blocks = "\n".join(step.get("run", "") for step in backend_steps)
+
+        self.assertIn("apt-get install -y mosquitto", run_blocks)
+        self.assertIn("mosquitto -d", run_blocks)
+        self.assertIn("scripts/verify_mqtt_broker_demo.py", run_blocks)
+        self.assertIn("--verify-fallback", run_blocks)
+
 
 if __name__ == "__main__":
     unittest.main()

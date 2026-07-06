@@ -380,7 +380,7 @@ v2x/{scene_id}/cloud/command
 - `RoadsideAgent.process_frame()` 已支持预计算 `perception` 帧输入，可用于将确定性的 heavy ghost-probe 场景通过真实 MQTT 链路发布，同时保持 Roadside Agent 作为发布端。
 - `configs/vehicle.yaml` 默认自车速度已调整为沿 x 负方向接近路口，与 `ReplayEngine` 合成鬼探头场景保持一致。
 - `scripts/verify_all.ps1` 已提供本地一键验证入口，可串行运行后端单元测试、DAIR 数据集发现脚本测试、ST-GNN 模型/适配器/训练样本/训练脚本/checkpoint 评估/算法流水线 dry-run 测试、内存三端 MQTT 验证、M2 DAIR 风格样例评估验证、YOLO/ST-GNN 环境 readiness 诊断、前端 unit/lint/build。
-- `.github/workflows/ci.yml` 已提供基础 CI，覆盖轻量 Python 依赖下的后端测试、DAIR 数据集发现脚本测试、ST-GNN 模型/适配器/训练样本/训练脚本/checkpoint 评估/算法流水线 dry-run 测试、brokerless MQTT 验证、M2 DAIR 风格样例评估验证、模型环境 readiness 诊断和前端 test/lint/build。
+- `.github/workflows/ci.yml` 已提供基础 CI，覆盖轻量 Python 依赖下的后端测试、DAIR 数据集发现脚本测试、ST-GNN 模型/适配器/训练样本/训练脚本/checkpoint 评估/算法流水线 dry-run 测试、brokerless MQTT 验证、Ubuntu Mosquitto 外部 Broker 三端验证、M2 DAIR 风格样例评估验证、模型环境 readiness 诊断和前端 test/lint/build。
 - `docker-compose.yml` 已扩展为前端、Cloud API、Mosquitto 基础栈，并提供 `mqtt-demo` profile 启动 CloudAgent、VehicleAgent、ReplayEngine 三端容器。
 - `deployment/frontend.Dockerfile` 与 `deployment/nginx.frontend.conf` 已提供前端静态站点容器构建入口。
 - 后端/三端容器已支持 `MQTT_HOST` / `MQTT_PORT` 环境变量覆盖，可在 Compose 网络中连接 `mosquitto` 服务名。
@@ -399,7 +399,7 @@ v2x/{scene_id}/cloud/command
 
 ### 8.2 部分完成
 
-- `RoadsideAgent`、`VehicleAgent`、`CloudAgent` 代码存在，Windows MQTT 三端联动脚本已补齐；无 Broker 时可用内存总线验证 topic 流、同帧合并、高危事件生成和车端降级恢复状态；当前机器已用嵌入式 `amqtt` 完成真实 TCP Broker 闭环验证；有 Mosquitto/Docker 时仍需运行 `scripts/verify_mqtt_broker_demo.py` 完成外部 Broker 实机通过。
+- `RoadsideAgent`、`VehicleAgent`、`CloudAgent` 代码存在，Windows MQTT 三端联动脚本已补齐；无 Broker 时可用内存总线验证 topic 流、同帧合并、高危事件生成和车端降级恢复状态；当前机器已用嵌入式 `amqtt` 完成真实 TCP Broker 闭环验证；GitHub Actions 已加入 Ubuntu Mosquitto 外部 Broker 验收；当前 Windows 本机有 Mosquitto/Docker 时仍可运行 `scripts/verify_mqtt_broker_demo.py` 完成本机外部 Broker 实机通过。
 - 前端总览页可接收真实数据，但仍保留较多 mock 初始状态。
 - 模型评估页已接入 demo runtime 聚合指标、mini split 离线评估产物、ST-GNN checkpoint 评估产物和 YOLO detection 离线检测报告选择入口；算法环境中的 ST-GNN 小样本真实训练/评估烟测已完成，YOLO detection dry-run 报告链路已打通，真实 DAIR-V2X 训练/检测后的模型评测仍待运行。
 - M2 数据集入口已具备 DAIR-V2X 风格目录发现/严格验收、DAIR 风格 demo sample 生成、项目内部 replay clip 生成、常速度 baseline 评估、多 clip 聚合评估和 ST-GNN 训练样本导出能力；当前机器只发现生成样例，待接入真实 DAIR-V2X 数据目录运行。
@@ -412,10 +412,10 @@ v2x/{scene_id}/cloud/command
 - 真实 DAIR-V2X 数据目录运行与样本筛选；当前已有 `scripts/verify_dair_dataset.py --require-real` 作为严格验收入口，但本机 `real_candidate_count=0`。
 - YOLOv8 / PyTorch 环境统一已在当前机器完成 Conda 环境安装、强制 readiness 验收、YOLOv8n 真实图片推理烟测和 mini split 检测评估 dry-run；后续仍需在目标部署/CI 环境复现，并在 DAIR-V2X 真实图片上运行 `scripts/evaluate_yolo_detection.py` 产出批量检测指标。
 - OccAware-STGNN 小样本真实训练和 checkpoint 产出已完成烟测；训练后指标达标和真实 DAIR-V2X 复核仍未完成。
-- MQTT 三端联动已通过嵌入式 `amqtt` 真实 TCP Broker 验证；仍需要在已安装 Mosquitto 或 Docker 的环境中完成外部 Broker 实机验证。
+- MQTT 三端联动已通过嵌入式 `amqtt` 真实 TCP Broker 验证，并已纳入 GitHub Actions 的 Ubuntu Mosquitto 外部 Broker 验收；当前 Windows 本机仍需要在已安装 Mosquitto 或 Docker 的环境中完成外部 Broker 实机验证。
 - 真实数据多场景批量评估结果产出与指标复核。
 - 实体 Jetson / 小车部署。
-- CI / 自动化测试流水线已具备基础版本；真实 DAIR-V2X、YOLO/ST-GNN、真实 Broker 和实体迁移仍未进入自动化验收。
+- CI / 自动化测试流水线已具备基础版本，并覆盖 brokerless MQTT、Ubuntu Mosquitto 外部 Broker、M2 demo sample、模型 readiness 和前端 test/lint/build；真实 DAIR-V2X、YOLO/ST-GNN 强制算法环境和实体迁移仍未进入自动化验收。
 
 ---
 
@@ -508,8 +508,8 @@ http://localhost:8000/docs
 
 4. **自动化验证**
    - 本地 `scripts/verify_all.ps1` 已完成
-   - GitHub Actions 基础 CI 已完成，已包含 DAIR 数据集发现脚本测试、M2 DAIR 风格样例评估验证和模型环境 readiness 诊断
-   - 后续补真实 Broker 服务矩阵、真实 DAIR-V2X 样本缓存和算法环境矩阵
+   - GitHub Actions 基础 CI 已完成，已包含 DAIR 数据集发现脚本测试、brokerless MQTT、Ubuntu Mosquitto 外部 Broker 验收、M2 DAIR 风格样例评估验证和模型环境 readiness 诊断
+   - 后续补真实 DAIR-V2X 样本缓存、YOLO/ST-GNN 强制算法环境矩阵和实体迁移验收
 
 ### 长期优先级 P2
 

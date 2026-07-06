@@ -164,6 +164,15 @@ Agent path. On this machine it has been verified with `complete_frames=80`,
 `event_count=1`, and `fallback_verified=true`. It is a real network check, but
 it does not replace the external Mosquitto/Docker Broker validation.
 
+GitHub Actions also installs Mosquitto on the Ubuntu backend runner and runs:
+
+```powershell
+python scripts\verify_mqtt_broker_demo.py --frames 80 --fps 10 --verify-fallback
+```
+
+That CI step validates the external Mosquitto Broker path even when the local
+Windows workstation does not have Mosquitto or Docker installed.
+
 ## DAIR-V2X Mini Split Entry
 
 First verify whether a real DAIR-V2X style dataset is present:

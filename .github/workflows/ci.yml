@@ -36,6 +36,13 @@ jobs:
         run: |
           python scripts/verify_inmemory_mqtt_demo.py --scenario heavy --frames 80 --verify-fallback
 
+      - name: Verify external Mosquitto MQTT Broker flow
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mosquitto
+          mosquitto -d -p 1883
+          python scripts/verify_mqtt_broker_demo.py --frames 80 --fps 10 --verify-fallback
+
       - name: Verify M2 demo sample evaluation
         run: |
           python scripts/verify_m2_demo_sample.py --frames 60 --horizon 30
