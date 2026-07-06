@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { ReplayEvent, ReplayFrame, PlaybackState } from '@/types/event';
 import { generateReplayEvents, generateReplayFrames } from '@/mock/replayMock';
+import { replayApi } from '@/services/replayApi';
 
 interface ReplayState {
   events: ReplayEvent[];
@@ -10,7 +11,7 @@ interface ReplayState {
   searchText: string;
   filterType: string;
   pageState: { loading: boolean; error: string | null };
-  selectEvent: (event: ReplayEvent) => void;
+  selectEvent: (event: ReplayEvent) => Promise<void>;
   setPlaying: (playing: boolean) => void;
   setSpeed: (speed: number) => void;
   setCurrentFrame: (frame: number) => void;
@@ -19,7 +20,7 @@ interface ReplayState {
   setFilterType: (type: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  loadEvents: () => void;
+  loadEvents: () => Promise<void>;
 }
 
 export const useReplayStore = create<ReplayState>((set, get) => ({
@@ -37,17 +38,38 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
   filterType: 'all',
   pageState: { loading: false, error: null },
 
-  loadEvents: () => {
-    const events = generateReplayEvents();
-    set({ events });
+  loadEvents: async () => {
+    set((state) => ({ pageState: { ...state.pageState, loading: true, error: null } }));
+    try {
+      const events = await replayApi.listEvents();
+      set({ events: events.length > 0 ? events : generateReplayEvents(), pageState: { loading: false, error: null } });
+    } catch (err) {
+      const events = generateReplayEvents();
+      set({
+        events,
+        pageState: {
+          loading: false,
+          error: err instanceof Error ? `${err.message}，已使用本地回放数据` : '回放接口异常，已使用本地回放数据',
+        },
+      });
+      setTimeout(() => set((state) => ({ pageState: { ...state.pageState, error: null } })), 1800);
+    }
   },
 
-  selectEvent: (event) => {
-    const frames = generateReplayFrames(event);
+  selectEvent: async (event) => {
+    set((state) => ({ selectedEvent: event, pageState: { ...state.pageState, loading: true, error: null } }));
+    let frames: ReplayFrame[];
+    try {
+      frames = await replayApi.getEventFrames(event.eventId);
+      if (frames.length === 0) frames = generateReplayFrames(event);
+    } catch {
+      frames = generateReplayFrames(event);
+    }
     const keyframes = [0, Math.floor(frames.length * 0.3), Math.floor(frames.length * 0.6), frames.length - 1];
     set({
       selectedEvent: event,
       frames,
+      pageState: { loading: false, error: null },
       playback: {
         isPlaying: false,
         speed: 1,

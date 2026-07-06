@@ -2,13 +2,24 @@ import { RiskItem } from '@/mock/dashboardMock';
 import { MonitorMessage } from '@/mock/monitorMock';
 import { SystemMetrics } from '@/types/metrics';
 import { TimeSeriesPoint, LogEntry } from '@/types/common';
+import {
+  CloudEventPayload,
+  DecisionPayload,
+  PerceptionPayload,
+  RealtimePayload,
+} from '@/types/realtime';
 import dayjs from 'dayjs';
+import { buildWebSocketUrl } from './runtimeConfig';
 
-const WS_URL = 'ws://localhost:8000/api/v1/realtime/ws';
 const RECONNECT_INTERVAL = 3000;
 const MAX_RECONNECT_ATTEMPTS = 10;
 
-type MessageHandler = (type: string, data: any) => void;
+type MessageHandler = (type: string, data: RealtimePayload) => void;
+type ConnectionHandler = (connected: boolean) => void;
+interface WebSocketEnvelope {
+  type?: string;
+  data?: RealtimePayload;
+}
 
 class WebSocketService {
   private ws: WebSocket | null = null;
@@ -16,9 +27,11 @@ class WebSocketService {
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private handlers: Set<MessageHandler> = new Set();
+  private connectionHandlers: Set<ConnectionHandler> = new Set();
   private _connected = false;
+  private intentionalClose = false;
 
-  constructor(url: string = WS_URL) {
+  constructor(url: string = buildWebSocketUrl()) {
     this.url = url;
   }
 
@@ -26,36 +39,53 @@ class WebSocketService {
     return this._connected;
   }
 
-  connect(): void {
+  connect(url: string = buildWebSocketUrl()): void {
+    if (url !== this.url) {
+      this.disconnect();
+      this.url = url;
+    }
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
     try {
+      this.intentionalClose = false;
       this.ws = new WebSocket(this.url);
+      const socket = this.ws;
 
       this.ws.onopen = () => {
+        if (this.ws !== socket) return;
         this._connected = true;
+        this.notifyConnection();
         this.reconnectAttempts = 0;
         console.log('[WS] Connected to cloud API');
         this.ws?.send(JSON.stringify({ action: 'subscribe', topics: ['perception', 'decision', 'event', 'vehicle_status', 'heartbeat'] }));
       };
 
       this.ws.onmessage = (event) => {
+        if (this.ws !== socket) return;
         try {
-          const msg = JSON.parse(event.data);
-          this.handlers.forEach((handler) => handler(msg.type, msg.data));
+          const msg = JSON.parse(event.data) as WebSocketEnvelope;
+          if (typeof msg.type === 'string' && msg.data) {
+            this.handlers.forEach((handler) => handler(msg.type as string, msg.data as RealtimePayload));
+          }
         } catch (e) {
           console.warn('[WS] Failed to parse message:', e);
         }
       };
 
       this.ws.onclose = () => {
+        if (this.ws !== socket) return;
         this._connected = false;
+        this.notifyConnection();
         console.log('[WS] Disconnected');
-        this.scheduleReconnect();
+        if (!this.intentionalClose) {
+          this.scheduleReconnect();
+        }
       };
 
       this.ws.onerror = () => {
+        if (this.ws !== socket) return;
         this._connected = false;
+        this.notifyConnection();
       };
     } catch (e) {
       this._connected = false;
@@ -64,6 +94,7 @@ class WebSocketService {
   }
 
   disconnect(): void {
+    this.intentionalClose = true;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -73,11 +104,26 @@ class WebSocketService {
       this.ws = null;
     }
     this._connected = false;
+    this.notifyConnection();
+  }
+
+  getUrl(): string {
+    return this.url;
   }
 
   onMessage(handler: MessageHandler): () => void {
     this.handlers.add(handler);
     return () => this.handlers.delete(handler);
+  }
+
+  onConnectionChange(handler: ConnectionHandler): () => void {
+    this.connectionHandlers.add(handler);
+    handler(this._connected);
+    return () => this.connectionHandlers.delete(handler);
+  }
+
+  private notifyConnection(): void {
+    this.connectionHandlers.forEach((handler) => handler(this._connected));
   }
 
   private scheduleReconnect(): void {
@@ -93,20 +139,22 @@ export const wsService = new WebSocketService();
 
 // ─── Data transformation helpers ───
 
-export function perceptionToRiskItems(data: any): RiskItem[] {
+export function perceptionToRiskItems(data: PerceptionPayload): RiskItem[] {
   const objects = data?.objects || [];
   return objects
-    .filter((obj: any) => obj.class === 'person' || obj.occlusion_level >= 1)
-    .map((obj: any) => {
-      const riskScore = obj.occlusion_level >= 2 ? 0.8 : obj.occlusion_level >= 1 ? 0.5 : 0.3;
+    .filter((obj) => obj.class === 'person' || (obj.occlusion_level ?? 0) >= 1)
+    .map((obj) => {
+      const occlusionLevel = obj.occlusion_level ?? 0;
+      const riskScore = occlusionLevel >= 2 ? 0.8 : occlusionLevel >= 1 ? 0.5 : 0.3;
       let riskLevel: 'low' | 'medium' | 'high' | 'critical' = 'low';
       if (riskScore > 0.85) riskLevel = 'critical';
       else if (riskScore > 0.65) riskLevel = 'high';
       else if (riskScore > 0.4) riskLevel = 'medium';
+      const objectClass = obj.class || 'object';
 
       return {
         id: `obj_${obj.track_id}`,
-        target: `${obj.class.toUpperCase()}-${obj.track_id}`,
+        target: `${objectClass.toUpperCase()}-${obj.track_id}`,
         type: obj.class === 'person' ? 'pedestrian' : obj.class === 'bicycle' ? 'bicycle' : 'vehicle',
         riskLevel,
         riskScore: parseFloat(riskScore.toFixed(2)),
@@ -117,7 +165,7 @@ export function perceptionToRiskItems(data: any): RiskItem[] {
     });
 }
 
-export function decisionToMetrics(data: any, prev: SystemMetrics): Partial<SystemMetrics> {
+export function decisionToMetrics(data: DecisionPayload, prev: SystemMetrics): Partial<SystemMetrics> {
   return {
     avgLatency: data.ttc != null ? Math.min(99, Math.max(10, 100 - data.ttc * 10)) : prev.avgLatency,
     todayHighRiskEvents: data.risk_level === 'DANGER' || data.risk_level === 'EMERGENCY'
@@ -126,31 +174,35 @@ export function decisionToMetrics(data: any, prev: SystemMetrics): Partial<Syste
   };
 }
 
-export function decisionToTrendPoint(data: any): { ttc: TimeSeriesPoint; risk: TimeSeriesPoint; brake: TimeSeriesPoint } {
+export function decisionToTrendPoint(data: DecisionPayload): { ttc: TimeSeriesPoint; risk: TimeSeriesPoint; brake: TimeSeriesPoint } {
   const now = dayjs().format('HH:mm:ss');
   const riskMap: Record<string, number> = { SAFE: 0.1, WARNING: 0.4, DANGER: 0.7, EMERGENCY: 0.95 };
+  const riskKey = data.risk_level ?? '';
   return {
     ttc: { time: now, value: Math.min(data.ttc ?? 10, 10) },
-    risk: { time: now, value: riskMap[data.risk_level] ?? 0.1 },
+    risk: { time: now, value: riskMap[riskKey] ?? 0.1 },
     brake: { time: now, value: data.brake_decel ?? 0 },
   };
 }
 
-export function toLogEntry(type: string, data: any): LogEntry {
+export function toLogEntry(type: string, data: RealtimePayload): LogEntry {
   let message = '';
   let level: LogEntry['level'] = 'info';
   let source = 'CloudCore';
 
   if (type === 'perception') {
-    const n = data?.objects?.length ?? 0;
+    const payload = data as PerceptionPayload;
+    const n = payload.objects?.length ?? 0;
     message = `路侧感知: 检测到 ${n} 个目标`;
-    source = data?.node_id || 'RSU-001';
+    source = payload.node_id || 'RSU-001';
   } else if (type === 'decision') {
-    message = `车端决策: risk=${data.risk_level} TTC=${data.ttc?.toFixed(1)}s brake=${data.brake_decel?.toFixed(1)}m/s²`;
-    source = data?.vehicle_id || 'OBU-V01';
-    if (data.risk_level === 'DANGER' || data.risk_level === 'EMERGENCY') level = 'warn';
+    const payload = data as DecisionPayload;
+    message = `车端决策: risk=${payload.risk_level} TTC=${payload.ttc?.toFixed(1)}s brake=${payload.brake_decel?.toFixed(1)}m/s²`;
+    source = payload.vehicle_id || 'OBU-V01';
+    if (payload.risk_level === 'DANGER' || payload.risk_level === 'EMERGENCY') level = 'warn';
   } else if (type === 'event') {
-    message = `高危事件: ${data.description || data.event_type}`;
+    const payload = data as CloudEventPayload;
+    message = `高危事件: ${payload.description || payload.event_type}`;
     level = 'error';
     source = 'EventDetector';
   }
@@ -164,7 +216,7 @@ export function toLogEntry(type: string, data: any): LogEntry {
   };
 }
 
-export function toMonitorMessage(type: string, data: any): MonitorMessage {
+export function toMonitorMessage(type: string, data: RealtimePayload): MonitorMessage {
   const topicMap: Record<string, string> = {
     perception: 'v2x/roadside/perception',
     decision: 'v2x/vehicle/decision',

@@ -4,17 +4,17 @@ Loads frames from dataset, runs detection + prediction, publishes to MQTT.
 """
 import time
 import argparse
-import numpy as np
 
 from src.utils import load_config, get_config_path, setup_logger
 from src.communication import MQTTClient, PerceptionMessage, HeartbeatMessage, make_timestamp
-from src.roadside_perception import Detector, TrajectoryPredictor, OcclusionEstimator
+from src.communication.mqtt_config import apply_mqtt_env_overrides
+from src.roadside_perception import Detector
 
 
 class RoadsideAgent:
     def __init__(self, config_path: str = None):
         self.config = load_config(config_path or get_config_path("roadside.yaml"))
-        mqtt_config = load_config(get_config_path("mqtt.yaml"))
+        mqtt_config = apply_mqtt_env_overrides(load_config(get_config_path("mqtt.yaml")))
         self.logger = setup_logger("roadside_agent", log_dir="logs")
 
         self.node_id = self.config.get("node_id", "roadside_001")
@@ -32,16 +32,15 @@ class RoadsideAgent:
         self.detector = Detector(
             model_name=det_config.get("model", "yolov8n"),
             confidence=det_config.get("confidence_threshold", 0.4),
+            iou_threshold=det_config.get("iou_threshold", 0.5),
             target_classes=det_config.get("target_classes", ["person", "car"]),
+            mode=det_config.get("mode", "yolo"),
         )
 
         pred_config = self.config.get("prediction", {})
-        self.predictor = TrajectoryPredictor(
-            history_length=pred_config.get("history_length", 10),
-            predict_steps=pred_config.get("predict_steps", 30),
-            fps=self.config.get("replay", {}).get("fps", 10),
-            smoothing_alpha=pred_config.get("smoothing_alpha", 0.3),
-        )
+        self.predictor = self._create_predictor(pred_config)
+
+        from src.roadside_perception import OcclusionEstimator
 
         self.occlusion = OcclusionEstimator(
             area_ratio_threshold=self.config.get("occlusion", {}).get("area_ratio_threshold", 0.6)
@@ -63,17 +62,15 @@ class RoadsideAgent:
         Process a single frame from replay engine or camera.
         frame_data: {frame_id, timestamp, image (optional), annotations}
         """
+        if "perception" in frame_data:
+            self._publish_precomputed_perception(frame_data["perception"])
+            return
+
         t_start = time.time()
         frame_id = frame_data.get("frame_id", self._frame_count)
         timestamp = frame_data.get("timestamp", make_timestamp())
 
-        # Detection: use annotations in simulation mode, YOLO in real mode
-        if "annotations" in frame_data:
-            detections = self.detector.detect_from_annotations(frame_data["annotations"])
-        elif "image" in frame_data:
-            detections = self.detector.detect(frame_data["image"])
-        else:
-            detections = []
+        detections = self._detect_frame(frame_data)
 
         # Process each detection
         objects = []
@@ -84,11 +81,18 @@ class RoadsideAgent:
             active_ids.add(track_id)
 
             # Occlusion estimation
-            occ_level = self.occlusion.estimate(det)
+            occ_level = det.get("occlusion_level")
+            if occ_level is None:
+                occ_level = self.occlusion.estimate(det)
+
+            metadata = {
+                "bbox": det.get("bbox", [0, 0, 50, 120]),
+                "class": det["class"],
+            }
 
             # Update trajectory history
             world_pos = det.get("world_pos", [0.0, 0.0])
-            self.predictor.update(track_id, world_pos)
+            self._update_predictor(track_id, world_pos, metadata)
 
             # Predict trajectory
             predicted = self.predictor.predict(track_id, occ_level)
@@ -124,6 +128,20 @@ class RoadsideAgent:
         self._frame_count += 1
         self._send_heartbeat_if_needed()
 
+    def _publish_precomputed_perception(self, perception: dict):
+        payload = dict(perception)
+        payload["node_id"] = self.node_id
+        payload.setdefault("timestamp", make_timestamp())
+        payload.setdefault("frame_id", self._frame_count)
+        payload.setdefault("objects", [])
+        payload.setdefault("processing_time_ms", 0.0)
+
+        topic = f"v2x/{self.scene_id}/roadside/{self.node_id}/perception"
+        self.mqtt.publish(topic, payload)
+
+        self._frame_count += 1
+        self._send_heartbeat_if_needed()
+
     def _send_heartbeat_if_needed(self):
         now = time.time()
         if now - self._last_heartbeat >= 5.0:
@@ -136,6 +154,56 @@ class RoadsideAgent:
             topic = f"v2x/{self.scene_id}/roadside/{self.node_id}/heartbeat"
             self.mqtt.publish(topic, hb.to_dict())
             self._last_heartbeat = now
+
+    def _detect_frame(self, frame_data: dict) -> list:
+        mode = getattr(self.detector, "mode", "yolo")
+        has_image = "image" in frame_data
+        has_annotations = "annotations" in frame_data
+
+        if mode == "annotations":
+            return self.detector.detect_from_annotations(frame_data["annotations"]) if has_annotations else []
+
+        if mode == "auto":
+            if has_image and getattr(self.detector, "model", None) is not None:
+                return self.detector.detect(frame_data["image"])
+            return self.detector.detect_from_annotations(frame_data["annotations"]) if has_annotations else []
+
+        if mode == "yolo" and has_image:
+            return self.detector.detect(frame_data["image"])
+
+        if has_annotations:
+            self.logger.warning("YOLO mode received no image; falling back to annotations")
+            return self.detector.detect_from_annotations(frame_data["annotations"])
+
+        return []
+
+    def _create_predictor(self, pred_config: dict):
+        backend = pred_config.get("backend", "constant_velocity")
+        fps = self.config.get("replay", {}).get("fps", 10)
+        if backend == "stgnn":
+            from src.roadside_perception.stgnn_predictor import OccAwareSTGNNPredictor
+
+            return OccAwareSTGNNPredictor(
+                history_length=pred_config.get("history_length", 8),
+                predict_steps=pred_config.get("predict_steps", 30),
+                fps=fps,
+                model_path=pred_config.get("model_path"),
+            )
+
+        from src.roadside_perception import TrajectoryPredictor
+
+        return TrajectoryPredictor(
+            history_length=pred_config.get("history_length", 10),
+            predict_steps=pred_config.get("predict_steps", 30),
+            fps=fps,
+            smoothing_alpha=pred_config.get("smoothing_alpha", 0.3),
+        )
+
+    def _update_predictor(self, track_id: int, world_pos: list, metadata: dict) -> None:
+        try:
+            self.predictor.update(track_id, world_pos, metadata=metadata)
+        except TypeError:
+            self.predictor.update(track_id, world_pos)
 
     def _on_playback_control(self, topic: str, payload: dict):
         self.logger.info(f"Playback control: {payload}")

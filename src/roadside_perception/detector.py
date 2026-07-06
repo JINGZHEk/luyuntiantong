@@ -1,14 +1,15 @@
-import numpy as np
-from typing import Optional
+from typing import Any
 from src.utils import setup_logger, ErrorCode
 
 
 class Detector:
-    """YOLOv8-based object detector for roadside perception."""
+    """Roadside detector supporting YOLO inference and annotation replay."""
 
     def __init__(self, model_name: str = "yolov8n", confidence: float = 0.4,
-                 iou_threshold: float = 0.5, target_classes: list = None):
+                 iou_threshold: float = 0.5, target_classes: list = None,
+                 mode: str = "yolo"):
         self.logger = setup_logger("roadside.detector")
+        self.mode = mode
         self.confidence = confidence
         self.iou_threshold = iou_threshold
         self.target_classes = target_classes or ["person", "car", "truck", "bicycle"]
@@ -17,7 +18,10 @@ class Detector:
             0: "person", 1: "bicycle", 2: "car", 3: "motorcycle",
             5: "bus", 7: "truck"
         }
-        self._load_model(model_name)
+        if self.mode not in ("annotations", "yolo", "auto"):
+            raise ValueError(f"Unsupported detector mode: {self.mode}")
+        if self.mode in ("yolo", "auto"):
+            self._load_model(model_name)
 
     def _load_model(self, model_name: str):
         try:
@@ -28,7 +32,7 @@ class Detector:
             self.logger.error(f"[{ErrorCode.E1001}] Model load failed: {e}")
             self.model = None
 
-    def detect(self, image: np.ndarray) -> list:
+    def detect(self, image: Any) -> list:
         """
         Run detection on a single frame.
         Returns list of dicts: {bbox, class, confidence, track_id}
@@ -78,12 +82,15 @@ class Detector:
             cls_name = ann.get("class", "person")
             if cls_name not in self.target_classes:
                 continue
-            detections.append({
+            detection = {
                 "track_id": ann["track_id"],
                 "class": cls_name,
                 "bbox": ann.get("bbox", [0, 0, 50, 120]),
                 "confidence": ann.get("confidence", 0.95),
                 "world_pos": ann.get("world_pos"),
                 "velocity": ann.get("velocity"),
-            })
+            }
+            if "occlusion_level" in ann:
+                detection["occlusion_level"] = ann["occlusion_level"]
+            detections.append(detection)
         return detections

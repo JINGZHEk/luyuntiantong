@@ -146,7 +146,42 @@
 {"type": "event", "data": {...}}
 ```
 
-### 2.3 历史回放
+### 2.3 Demo 控制
+
+#### POST `/demo/start`
+
+启动内置端到端 demo loop。
+
+**参数**:
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| fps | float | 帧率，默认 `10`，范围 1-30 |
+| scenario | string | 鬼探头强度，`light` / `moderate` / `heavy`，默认 `moderate` |
+
+#### POST `/demo/step`
+
+推进单帧 demo。可通过 `scenario` 参数临时选择场景强度。
+
+#### POST `/demo/stop`
+
+停止 demo loop。
+
+#### GET `/demo/status`
+
+返回 demo 运行状态：
+
+```json
+{
+  "running": true,
+  "frame_index": 42,
+  "scene_id": "scene_001",
+  "scenario": "heavy",
+  "available_scenarios": ["light", "moderate", "heavy"],
+  "fps": 10.0
+}
+```
+
+### 2.4 历史回放
 
 #### GET `/replay/{scene_id}`
 
@@ -175,7 +210,7 @@
 }
 ```
 
-### 2.4 高危事件管理
+### 2.5 高危事件管理
 
 #### GET `/events`
 
@@ -210,7 +245,7 @@
 
 返回单个事件详情，含完整回放数据。
 
-### 2.5 系统指标
+### 2.6 系统指标
 
 #### GET `/metrics`
 
@@ -240,29 +275,144 @@
 }
 ```
 
-### 2.6 场景配置
+### 2.7 模型评估
+
+#### GET `/evaluation`
+
+返回面向前端 `/evaluation` 页的评估报告。默认读取离线评估产物 `data/mini_split/evaluation.json`；也可通过 `report=stgnn_checkpoint` 切换到 `data/mini_split/stgnn_evaluation.json`。如设置环境变量 `V2X_EVALUATION_DIR`，上述两个文件会从该目录读取；如设置 `V2X_EVALUATION_REPORT`，则在未指定 `report` 时优先读取该单文件报告。当离线报告不存在时，回退到已持久化的 demo runtime 数据聚合结果。
+
+报告包括样本帧、事件数、平均处理延迟、端到端延迟、提前预警时间、估计 FPS、基线对比、消融结果和 `targetStatus` 指标达标状态。目录级离线评估报告会额外返回 `clip_count` 与 `clips`，用于查看多 replay clip 聚合来源。
+
+**参数**:
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| scene_id | string | 场景 ID，默认 `scene_001` |
+| report | string | 可选报告 key：`mini_split` / `stgnn_checkpoint` / `configured` |
+
+**响应**:
+```json
+{
+  "source": "mini_split_offline_batch",
+  "scene_id": "mini_split_batch",
+  "clip_count": 2,
+  "sample_count": 120,
+  "event_count": 2,
+  "high_risk_frames": 34,
+  "min_ttc": 0.08,
+  "metrics": {
+    "precision": 1.0,
+    "recall": 0.567,
+    "f1Score": 0.724,
+    "ade": 0.92,
+    "fde": 1.57,
+    "occAde": 1.12,
+    "occAcc": 0.82,
+    "avgLatency": 30.98,
+    "e2eLatency": 42.0,
+    "leadTime": 1.86,
+    "fps": 9.78
+  },
+  "targetStatus": [
+    {
+      "key": "ade",
+      "metric": "ADE",
+      "value": 0.92,
+      "target": "< 1 m",
+      "status": "pass",
+      "pass": true,
+      "unit": "m"
+    }
+  ],
+  "baselines": [
+    {
+      "model": "V2X Demo Runtime",
+      "precision": 1.0,
+      "recall": 0.567,
+      "f1Score": 0.724,
+      "ade": 0.92,
+      "fde": 1.57,
+      "latency": 30.98
+    }
+  ],
+  "ablations": [
+    {
+      "variant": "Full Demo Loop",
+      "f1Score": 0.724,
+      "ade": 0.92,
+      "fde": 1.57,
+      "description": "当前端到端 demo runtime 聚合结果"
+    }
+  ]
+}
+```
+
+#### GET `/evaluation/reports`
+
+列出当前后端可发现的评估报告，供前端选择器切换报告源。
+
+**参数**:
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| scene_id | string | 场景 ID，默认 `scene_001` |
+
+**响应**:
+```json
+{
+  "reports": [
+    {
+      "key": "mini_split",
+      "label": "DAIR Mini Split Offline",
+      "path": "data/mini_split/evaluation.json",
+      "available": true,
+      "source": "mini_split_offline",
+      "scene_id": "demo_dair_001",
+      "sample_count": 60
+    },
+    {
+      "key": "stgnn_checkpoint",
+      "label": "OccAware-STGNN Checkpoint",
+      "path": "data/mini_split/stgnn_evaluation.json",
+      "available": true,
+      "source": "stgnn_checkpoint_dry_run",
+      "scene_id": "demo_dair_001",
+      "sample_count": 23
+    }
+  ]
+}
+```
+
+### 2.8 场景配置
 
 #### GET `/config/{scene_id}`
 #### PUT `/config/{scene_id}`
 
+读取或更新指定场景的运行配置。该接口主要服务前端 `/settings` 页，配置会持久化到 `data/runtime_config.json`。`PUT` 支持部分字段更新，但当前前端会提交完整配置。
+
+**字段说明**:
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| scene_id | string | 场景 ID，仅响应中返回 |
+| riskThreshold | number | 风险分告警阈值，范围 0-1 |
+| ttcThreshold | number | TTC 告警阈值，范围 0-10 秒 |
+| refreshInterval | number | 前端数据刷新间隔，范围 500-60000 毫秒 |
+| cloudApiBaseUrl | string | Cloud API Base URL，必须以 `http://` 或 `https://` 开头 |
+
 ```json
 {
   "scene_id": "scene_001",
-  "roadside_nodes": [
-    {
-      "node_id": "roadside_001",
-      "position": [0, 0, 5],
-      "rotation": [0, -30, 0],
-      "camera_fov": 90
-    }
-  ],
-  "road_layout": {
-    "lanes": 2,
-    "width": 7.0,
-    "occlusion_zones": [
-      {"type": "building", "bbox": [5, -2, 8, 2]}
-    ]
-  }
+  "riskThreshold": 0.8,
+  "ttcThreshold": 1.8,
+  "refreshInterval": 5000,
+  "cloudApiBaseUrl": "http://localhost:8001/api/v1"
+}
+```
+
+无效配置返回 `400`：
+
+```json
+{
+  "detail": "riskThreshold must be between 0 and 1"
 }
 ```
 

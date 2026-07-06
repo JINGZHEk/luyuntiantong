@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - "codex/**"
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-ci.txt
+
+      - name: Run backend tests
+        run: |
+          python -m unittest tests.test_deployment_config tests.test_mqtt_broker_demo tests.test_embedded_mqtt_broker_demo tests.test_demo_engine tests.test_dataset_manifest tests.test_dair_dataset_discovery tests.test_mini_split_evaluation tests.test_model_readiness tests.test_yolo_image_inference tests.test_yolo_detection_evaluation tests.test_yolo_detection_script tests.test_stgnn_predictor tests.test_stgnn_model tests.test_stgnn_training_data tests.test_stgnn_training_script tests.test_stgnn_checkpoint_evaluation tests.test_algorithm_pipeline -v
+
+      - name: Verify brokerless MQTT flow
+        run: |
+          python scripts/verify_inmemory_mqtt_demo.py --scenario heavy --frames 80 --verify-fallback
+
+      - name: Verify M2 demo sample evaluation
+        run: |
+          python scripts/verify_m2_demo_sample.py --frames 60 --horizon 30
+
+      - name: Check model readiness diagnostics
+        run: |
+          python scripts/verify_model_readiness.py
+
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run frontend unit tests
+        working-directory: frontend
+        run: npm run test:unit
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build

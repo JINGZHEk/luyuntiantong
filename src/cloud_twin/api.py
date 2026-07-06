@@ -2,16 +2,20 @@ import asyncio
 import json
 import time
 from typing import Set
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from src.utils import load_config, get_config_path, setup_logger
 from src.cloud_twin.data_store import DataStore
+from src.cloud_twin.demo_engine import DemoEngine
+from src.cloud_twin.runtime_config import RuntimeConfigStore, RuntimeConfigError
 
 
 logger = setup_logger("cloud.api")
 store: DataStore = None
+demo_engine: DemoEngine = None
+config_store: RuntimeConfigStore = None
 ws_clients: Set[WebSocket] = set()
 _recent_messages: list = []
 _message_buffer_size = 200
@@ -19,12 +23,23 @@ _message_buffer_size = 200
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global store
+    global store, demo_engine, config_store
     config = load_config(get_config_path("cloud.yaml"))
-    db_path = config.get("database", {}).get("path", "data/v2x_cloud.db")
-    store = DataStore(db_path)
+    if store is None:
+        db_path = config.get("database", {}).get("path", "data/v2x_cloud.db")
+        store = DataStore(db_path)
+    if config_store is None:
+        runtime_config_path = config.get("runtime_config", {}).get("path", "data/runtime_config.json")
+        config_store = RuntimeConfigStore(runtime_config_path)
+    demo_engine = DemoEngine(
+        store=store,
+        broadcaster=broadcast_to_clients,
+        scene_id=config.get("scene_id", "scene_001"),
+    )
     logger.info("Cloud API started")
     yield
+    if demo_engine:
+        await demo_engine.stop()
     logger.info("Cloud API shutdown")
 
 
@@ -141,8 +156,56 @@ async def get_metrics():
     }
 
 
+@app.get("/api/v1/evaluation")
+async def get_evaluation(scene_id: str = "scene_001", report: str = None):
+    return store.get_evaluation_report(scene_id=scene_id, report_key=report)
+
+
+@app.get("/api/v1/evaluation/reports")
+async def get_evaluation_reports(scene_id: str = "scene_001"):
+    return {"reports": store.list_evaluation_reports(scene_id=scene_id)}
+
+
+@app.get("/api/v1/config/{scene_id}")
+async def get_scene_config(scene_id: str):
+    return config_store.get_scene_config(scene_id)
+
+
+@app.put("/api/v1/config/{scene_id}")
+async def update_scene_config(scene_id: str, payload: dict):
+    try:
+        return config_store.update_scene_config(scene_id, payload)
+    except RuntimeConfigError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.get("/api/v1/messages/recent")
 async def get_recent_messages(limit: int = Query(default=50, le=200)):
     """Get recent MQTT messages buffered in memory."""
     messages = _recent_messages[-limit:]
     return {"messages": [json.loads(m) for m in messages]}
+
+
+# ─── Demo Control APIs ──────────────────────────────────────
+
+@app.post("/api/v1/demo/start")
+async def start_demo(
+    fps: float = Query(default=10.0, ge=1.0, le=30.0),
+    scenario: str = Query(default="moderate"),
+):
+    return await demo_engine.start(fps=fps, scenario=scenario)
+
+
+@app.post("/api/v1/demo/stop")
+async def stop_demo():
+    return await demo_engine.stop()
+
+
+@app.post("/api/v1/demo/step")
+async def step_demo(scenario: str = Query(default=None)):
+    return await demo_engine.step_once(scenario=scenario)
+
+
+@app.get("/api/v1/demo/status")
+async def demo_status():
+    return demo_engine.status()

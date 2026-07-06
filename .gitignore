@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Logs
+logs/
+*.log
+
+# Runtime data and local databases
+data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Model checkpoints and exported inference artifacts
+*.pt
+*.pth
+*.onnx
+*.engine
+*.torchscript
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+frontend/.tmp-tests/
+frontend/.vite/
+frontend/.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local temporary files generated during documentation/startup checks
+_*.md
+_tmp_*.py
+gen_intro.py
+gen_startup.py
+gen_docs_win.py

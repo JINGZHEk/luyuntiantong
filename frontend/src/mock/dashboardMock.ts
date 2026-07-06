@@ -1,4 +1,4 @@
-import { SystemMetrics, ModelMetrics } from '@/types/metrics';
+import { SystemMetrics } from '@/types/metrics';
 import { LogEntry, RiskLevel, TimeSeriesPoint } from '@/types/common';
 import { randomBetween, randomId, randomInt, pickRandom } from '@/shared/utils/helpers';
 import dayjs from 'dayjs';

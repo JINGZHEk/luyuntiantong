@@ -16,8 +16,13 @@ export const ConnectionPanel: React.FC = () => {
         <Descriptions.Item label="状态">
           <Badge
             status={connection.connected ? 'success' : 'error'}
-            text={connection.connected ? '已连接' : '已断开'}
+            text={connection.connected ? 'Cloud API 已连接' : 'Mock fallback'}
           />
+        </Descriptions.Item>
+        <Descriptions.Item label="数据源">
+          <Tag color={connection.source === 'live' ? 'green' : 'gold'}>
+            {connection.source === 'live' ? '实时 WebSocket' : '本地模拟'}
+          </Tag>
         </Descriptions.Item>
         <Descriptions.Item label="Broker">
           <Tag color="blue">{connection.broker}</Tag>

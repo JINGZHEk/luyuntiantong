@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Row, Col, Statistic } from 'antd';
+import { Card, Row, Col } from 'antd';
 import { AnimatedNumber } from '@/shared/components/AnimatedNumber';
 import { ModelMetrics } from '@/types/metrics';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -19,7 +19,19 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ metrics }) => {
     { label: 'F1 Score', value: metrics.f1Score, decimals: 3, color: CHART_COLORS.tertiary },
     { label: 'ADE (m)', value: metrics.ade, decimals: 2, color: CHART_COLORS.quaternary },
     { label: 'FDE (m)', value: metrics.fde, decimals: 2, color: CHART_COLORS.quinary },
+    ...(typeof metrics.occAde === 'number'
+      ? [{ label: 'Occ-ADE (m)', value: metrics.occAde, decimals: 2, color: CHART_COLORS.line3 }]
+      : []),
+    ...(typeof metrics.occAcc === 'number'
+      ? [{ label: 'Occ-Acc', value: metrics.occAcc, decimals: 3, color: CHART_COLORS.line2 }]
+      : []),
     { label: 'Latency (ms)', value: metrics.avgLatency, decimals: 1, color: colors.accent },
+    ...(typeof metrics.e2eLatency === 'number'
+      ? [{ label: 'E2E-Lat (ms)', value: metrics.e2eLatency, decimals: 1, color: CHART_COLORS.line4 }]
+      : []),
+    ...(typeof metrics.leadTime === 'number'
+      ? [{ label: 'Lead-Time (s)', value: metrics.leadTime, decimals: 2, color: CHART_COLORS.line3 }]
+      : []),
   ];
 
   return (

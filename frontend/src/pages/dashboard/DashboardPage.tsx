@@ -1,5 +1,5 @@
 import React from 'react';
-import { Row, Col, Typography } from 'antd';
+import { Row, Col } from 'antd';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { KpiBar } from '@/widgets/kpi-bar/KpiBar';
 import { RiskList } from '@/widgets/risk-list/RiskList';
@@ -8,8 +8,6 @@ import { IntersectionScene } from '@/features/three-scene/IntersectionScene';
 import { LineChart } from '@/entities/charts/LineChart';
 import { CHART_COLORS } from '@/constants/colors';
 import { PageLoading } from '@/shared/components/PageLoading';
-
-const { Title } = Typography;
 
 const DashboardPage: React.FC = () => {
   const {

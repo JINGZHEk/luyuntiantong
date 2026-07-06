@@ -16,14 +16,85 @@ services:
       context: .
       dockerfile: deployment/Dockerfile
     container_name: v2x-cloud-api
+    command: python -m uvicorn src.cloud_twin.api:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
     depends_on:
       - mosquitto
     environment:
-      - MQTT_HOST=mosquitto
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
     volumes:
       - ./data:/app/data
       - ./configs:/app/configs
       - ./logs:/app/logs
     restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: deployment/frontend.Dockerfile
+    container_name: v2x-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - cloud-api
+    restart: unless-stopped
+
+  cloud-agent:
+    build:
+      context: .
+      dockerfile: deployment/Dockerfile
+    container_name: v2x-cloud-agent
+    profiles: ["mqtt-demo"]
+    command: python -m src.cloud_twin.cloud_agent --api-host 0.0.0.0 --api-port 8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mosquitto
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+    volumes:
+      - ./data:/app/data
+      - ./configs:/app/configs
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  vehicle-agent:
+    build:
+      context: .
+      dockerfile: deployment/Dockerfile
+    container_name: v2x-vehicle-agent
+    profiles: ["mqtt-demo"]
+    command: python -m src.vehicle_decision.vehicle_agent
+    depends_on:
+      - mosquitto
+      - cloud-agent
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+    volumes:
+      - ./configs:/app/configs
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  replay-engine:
+    build:
+      context: .
+      dockerfile: deployment/Dockerfile
+    container_name: v2x-replay-engine
+    profiles: ["mqtt-demo"]
+    command: python -m src.roadside_perception.replay_engine --fps 10
+    depends_on:
+      - mosquitto
+      - vehicle-agent
+      - cloud-agent
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+    volumes:
+      - ./configs:/app/configs
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: "no"

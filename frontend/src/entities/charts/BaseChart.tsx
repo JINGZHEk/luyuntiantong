@@ -1,8 +1,36 @@
 import React, { useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
+import ReactEChartsCore from 'echarts-for-react/lib/core';
+import {
+  BarChart as EChartsBarChart,
+  GaugeChart as EChartsGaugeChart,
+  LineChart as EChartsLineChart,
+  RadarChart as EChartsRadarChart,
+} from 'echarts/charts';
+import {
+  GridComponent,
+  LegendComponent,
+  RadarComponent,
+  TitleComponent,
+  TooltipComponent,
+} from 'echarts/components';
+import * as echarts from 'echarts/core';
+import { CanvasRenderer } from 'echarts/renderers';
 import type { EChartsOption } from 'echarts';
 import { useSettingsStore } from '@/store/settingsStore';
 import { THEME_COLORS } from '@/constants/colors';
+
+echarts.use([
+  EChartsBarChart,
+  EChartsGaugeChart,
+  EChartsLineChart,
+  EChartsRadarChart,
+  GridComponent,
+  LegendComponent,
+  RadarComponent,
+  TitleComponent,
+  TooltipComponent,
+  CanvasRenderer,
+]);
 
 interface BaseChartProps {
   option: EChartsOption;
@@ -31,7 +59,8 @@ export const BaseChart: React.FC<BaseChartProps> = ({
   );
 
   return (
-    <ReactECharts
+    <ReactEChartsCore
+      echarts={echarts}
       option={mergedOption}
       style={{ height, width: '100%', ...style }}
       opts={{ renderer: 'canvas' }}

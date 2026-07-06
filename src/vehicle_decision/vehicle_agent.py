@@ -8,13 +8,14 @@ import numpy as np
 
 from src.utils import load_config, get_config_path, setup_logger
 from src.communication import MQTTClient, VehicleStatus, DecisionMessage, make_timestamp
+from src.communication.mqtt_config import apply_mqtt_env_overrides
 from src.vehicle_decision import RiskAssessor, BrakeController, FallbackManager
 
 
 class VehicleAgent:
     def __init__(self, config_path: str = None):
         self.config = load_config(config_path or get_config_path("vehicle.yaml"))
-        mqtt_config = load_config(get_config_path("mqtt.yaml"))
+        mqtt_config = apply_mqtt_env_overrides(load_config(get_config_path("mqtt.yaml")))
         self.logger = setup_logger("vehicle_agent", log_dir="logs")
 
         self.vehicle_id = self.config.get("vehicle_id", "vehicle_001")
@@ -101,6 +102,7 @@ class VehicleAgent:
         # Publish vehicle status
         status = VehicleStatus(
             timestamp=timestamp,
+            frame_id=frame_id,
             vehicle_id=self.vehicle_id,
             position=self.position.tolist(),
             velocity=self.velocity.tolist(),
@@ -117,6 +119,7 @@ class VehicleAgent:
         # Publish decision
         decision = DecisionMessage(
             timestamp=timestamp,
+            frame_id=frame_id,
             vehicle_id=self.vehicle_id,
             risk_level=risk.level,
             ttc=risk.ttc,

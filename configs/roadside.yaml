@@ -2,6 +2,7 @@ node_id: roadside_001
 scene_id: scene_001
 
 detection:
+  mode: annotations
   model: yolov8n
   confidence_threshold: 0.4
   iou_threshold: 0.5
@@ -9,10 +10,12 @@ detection:
   input_size: 640
 
 prediction:
+  backend: constant_velocity
   history_length: 10
   predict_steps: 30
   predict_horizon_sec: 3.0
   smoothing_alpha: 0.3
+  model_path:
 
 occlusion:
   area_ratio_threshold: 0.6

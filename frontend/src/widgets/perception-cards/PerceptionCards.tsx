@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Row, Col, Descriptions, Tag, Badge, Statistic, Progress } from 'antd';
+import { Card, Row, Col, Descriptions, Tag, Badge } from 'antd';
 import {
   RadarChartOutlined,
   CarOutlined,

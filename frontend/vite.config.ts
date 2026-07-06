@@ -16,5 +16,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('echarts')) return 'vendor-echarts';
+          if (id.includes('three') || id.includes('@react-three')) return 'vendor-three';
+          return undefined;
+        },
+      },
+    },
   },
 });

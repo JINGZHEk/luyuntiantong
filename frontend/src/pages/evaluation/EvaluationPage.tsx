@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Row, Col, Card, Button, message, Result, Table, Typography } from 'antd';
+import { Row, Col, Card, Button, message, Result, Table, Tag, Space, Statistic, Select } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import { useEvaluationStore } from '@/store/evaluationStore';
 import { MetricCards } from '@/widgets/metric-cards/MetricCards';
@@ -7,15 +7,22 @@ import { BarChart } from '@/entities/charts/BarChart';
 import { BaseChart } from '@/entities/charts/BaseChart';
 import { CHART_COLORS } from '@/constants/colors';
 import { PageLoading } from '@/shared/components/PageLoading';
-import { useSettingsStore } from '@/store/settingsStore';
-import { THEME_COLORS } from '@/constants/colors';
-
-const { Title } = Typography;
 
 const EvaluationPage: React.FC = () => {
-  const { metrics, baselines, ablations, pageState, loadData, setError } = useEvaluationStore();
-  const theme = useSettingsStore((s) => s.theme);
-  const colors = THEME_COLORS[theme];
+  const {
+    metrics,
+    baselines,
+    ablations,
+    targetStatus,
+    reports,
+    selectedReportKey,
+    source,
+    summary,
+    pageState,
+    loadData,
+    selectReport,
+    setError,
+  } = useEvaluationStore();
 
   useEffect(() => {
     loadData();
@@ -35,6 +42,7 @@ const EvaluationPage: React.FC = () => {
   }
 
   const baselineCategories = baselines.map((b) => b.model);
+  const selectedReport = reports.find((item) => item.key === selectedReportKey);
 
   const radarOption = {
     tooltip: {},
@@ -81,9 +89,80 @@ const EvaluationPage: React.FC = () => {
     { title: '说明', dataIndex: 'description', key: 'desc' },
   ];
 
+  const targetColumns = [
+    { title: '指标', dataIndex: 'metric', key: 'metric' },
+    {
+      title: '当前值',
+      dataIndex: 'value',
+      key: 'value',
+      render: (value: number | null) => (typeof value === 'number' ? value.toFixed(2) : '--'),
+    },
+    { title: '目标', dataIndex: 'target', key: 'target' },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => {
+        const color = status === 'pass' ? 'green' : status === 'fail' ? 'red' : 'default';
+        const label = status === 'pass' ? '达标' : status === 'fail' ? '未达标' : '待测';
+        return <Tag color={color}>{label}</Tag>;
+      },
+    },
+  ];
+
   return (
     <div>
+      <Card className="glass-card" size="small" style={{ marginBottom: 12 }}>
+        <Row gutter={[12, 12]} align="middle">
+          <Col xs={24} md={6}>
+            <Space>
+              <span>数据源</span>
+              <Tag color={source === 'live' ? 'green' : 'gold'}>{source === 'live' ? 'live' : 'mock'}</Tag>
+              {selectedReport?.source && <Tag color="blue">{selectedReport.source}</Tag>}
+            </Space>
+          </Col>
+          <Col xs={24} md={6}>
+            <Select
+              size="small"
+              style={{ width: '100%' }}
+              value={selectedReportKey}
+              onChange={(value) => void selectReport(value)}
+              options={reports.map((item) => ({
+                value: item.key,
+                label: `${item.label}${item.available ? '' : '（未生成）'}`,
+                disabled: !item.available,
+              }))}
+            />
+          </Col>
+          <Col xs={12} md={4}>
+            <Statistic title="样本帧" value={summary.sampleCount} />
+          </Col>
+          <Col xs={12} md={4}>
+            <Statistic title="高危事件" value={summary.eventCount} />
+          </Col>
+          <Col xs={12} md={4}>
+            <Statistic title="最低 TTC" value={summary.minTtc ?? 0} precision={2} suffix="s" />
+          </Col>
+        </Row>
+      </Card>
+
       <MetricCards metrics={metrics} />
+
+      {targetStatus.length > 0 && (
+        <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
+          <Col span={24}>
+            <Card className="glass-card" title="指标达标状态" size="small">
+              <Table
+                dataSource={targetStatus}
+                columns={targetColumns}
+                rowKey="key"
+                size="small"
+                pagination={false}
+              />
+            </Card>
+          </Col>
+        </Row>
+      )}
 
       <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
         <Col xs={24} lg={12}>

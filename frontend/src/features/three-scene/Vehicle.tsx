@@ -21,7 +21,7 @@ export const Vehicle: React.FC<VehicleProps> = ({
 }) => {
   const groupRef = useRef<THREE.Group>(null);
 
-  useFrame((_, delta) => {
+  useFrame(() => {
     if (groupRef.current && riskLevel === 'critical') {
       groupRef.current.children.forEach((child) => {
         if (child instanceof THREE.Mesh) {

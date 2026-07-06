@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layout, Menu, Typography, Badge } from 'antd';
+import { Layout, Menu, Badge } from 'antd';
 import {
   DashboardOutlined,
   MonitorOutlined,
@@ -14,7 +14,6 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { THEME_COLORS } from '@/constants/colors';
 
 const { Header, Sider, Content } = Layout;
-const { Title } = Typography;
 
 const menuItems = [
   { key: '/', icon: <DashboardOutlined />, label: '总览大屏' },

@@ -1,0 +1,26 @@
+name: v2x-ghost-algorithm
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip>=24.0
+  - numpy>=1.24
+  - pyyaml>=6.0
+  - scipy>=1.11
+  - pandas>=2.0
+  - pytorch>=2.2
+  - torchvision>=0.17
+  - cpuonly
+  - pip:
+      - ultralytics>=8.1.0
+      - lap>=0.5.12
+      - torch-geometric>=2.4.0
+      - paho-mqtt>=1.6.1
+      - fastapi>=0.110.0
+      - uvicorn[standard]>=0.29.0
+      - websockets>=12.0
+      - python-json-logger>=2.0.7
+      - jsonschema>=4.21.0

@@ -13,24 +13,37 @@ import {
   toLogEntry,
   toMonitorMessage,
 } from '@/services/websocketService';
+import { buildWebSocketUrl } from '@/services/runtimeConfig';
 
 export function useMockRealtime() {
   const refreshInterval = useSettingsStore((s) => s.refreshInterval);
+  const cloudApiBaseUrl = useSettingsStore((s) => s.cloudApiBaseUrl);
   const updateDashboard = useDashboardStore((s) => s.update);
   const addLog = useDashboardStore((s) => s.addLog);
   const addMessage = useMonitorStore((s) => s.addMessage);
+  const setCloudConnected = useMonitorStore((s) => s.setCloudConnected);
+  const updateFromPerception = useMonitorStore((s) => s.updateFromPerception);
+  const updateFromVehicleStatus = useMonitorStore((s) => s.updateFromVehicleStatus);
+  const updateFromDecision = useMonitorStore((s) => s.updateFromDecision);
+  const addCloudEvent = useMonitorStore((s) => s.addCloudEvent);
   const metricsRef = useRef(useDashboardStore.getState().metrics);
   const wsConnected = useRef(false);
 
   // Try to connect to real backend WebSocket
   useEffect(() => {
-    wsService.connect();
+    wsService.connect(buildWebSocketUrl(cloudApiBaseUrl));
+
+    const unsubscribeConnection = wsService.onConnectionChange((connected) => {
+      wsConnected.current = connected;
+      setCloudConnected(connected);
+    });
 
     const unsubscribe = wsService.onMessage((type, data) => {
       wsConnected.current = true;
 
       // Update dashboard from real data
       if (type === 'perception') {
+        updateFromPerception(data);
         const riskItems = perceptionToRiskItems(data);
         if (riskItems.length > 0) {
           const trendPoint = {
@@ -43,11 +56,20 @@ export function useMockRealtime() {
       }
 
       if (type === 'decision') {
+        updateFromDecision(data);
         const metrics = decisionToMetrics(data, metricsRef.current);
         const trendPoint = decisionToTrendPoint(data);
         const riskItems = useDashboardStore.getState().riskItems;
         updateDashboard(metrics, riskItems, trendPoint);
         metricsRef.current = { ...metricsRef.current, ...metrics };
+      }
+
+      if (type === 'vehicle_status') {
+        updateFromVehicleStatus(data);
+      }
+
+      if (type === 'event') {
+        addCloudEvent(data);
       }
 
       // Always add logs and monitor messages from real data
@@ -60,9 +82,20 @@ export function useMockRealtime() {
 
     return () => {
       unsubscribe();
+      unsubscribeConnection();
       wsService.disconnect();
     };
-  }, [updateDashboard, addLog, addMessage]);
+  }, [
+    updateDashboard,
+    addLog,
+    addMessage,
+    setCloudConnected,
+    updateFromPerception,
+    updateFromVehicleStatus,
+    updateFromDecision,
+    addCloudEvent,
+    cloudApiBaseUrl,
+  ]);
 
   // Fallback to mock data when WebSocket is not connected
   useInterval(() => {

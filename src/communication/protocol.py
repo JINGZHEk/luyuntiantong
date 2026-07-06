@@ -53,6 +53,7 @@ class VehicleStatus:
     velocity: list  # [vx, vy]
     heading: float
     speed: float
+    frame_id: Optional[int] = None
     acceleration: list = field(default_factory=lambda: [0.0, 0.0])
     mode: str = "cooperative"
     risk_level: str = "SAFE"
@@ -69,6 +70,7 @@ class DecisionMessage:
     ttc: float
     collision_prob: float
     brake_decel: float
+    frame_id: Optional[int] = None
     target_object: Optional[dict] = None
     mode: str = "cooperative"
     fusion_weight: float = 1.0
@@ -76,6 +78,7 @@ class DecisionMessage:
     def to_dict(self) -> dict:
         return {
             "timestamp": self.timestamp,
+            "frame_id": self.frame_id,
             "vehicle_id": self.vehicle_id,
             "risk_level": self.risk_level,
             "ttc": self.ttc,

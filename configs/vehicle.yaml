@@ -3,7 +3,7 @@ scene_id: scene_001
 
 ego:
   initial_position: [50.0, 0.0]
-  initial_velocity: [8.0, 0.0]
+  initial_velocity: [-8.0, 0.0]
   initial_heading: 180.0
   max_deceleration: 8.0
   min_speed: 0.1

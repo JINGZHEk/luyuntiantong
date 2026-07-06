@@ -1,6 +1,6 @@
 import { ReplayEvent, ReplayFrame, ReplayObstacle, ReplayPedestrian, ReplayVehicle } from '@/types/event';
 import { RiskLevel } from '@/types/common';
-import { randomBetween, randomId, randomInt, pickRandom } from '@/shared/utils/helpers';
+import { randomId, randomInt, pickRandom } from '@/shared/utils/helpers';
 import dayjs from 'dayjs';
 
 function generateFrames(frameCount: number): ReplayFrame[] {

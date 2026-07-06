@@ -11,14 +11,24 @@ from typing import Optional
 
 from src.utils import load_config, get_config_path, setup_logger
 from src.communication import MQTTClient, make_timestamp
+from src.communication.mqtt_config import apply_mqtt_env_overrides
 from src.cloud_twin.data_store import DataStore
 from src.cloud_twin.api import app, broadcast_to_clients, store as _store_ref
+
+
+def apply_api_overrides(config: dict, host: str = None, port: int = None) -> dict:
+    api_config = config.setdefault("api", {})
+    if host:
+        api_config["host"] = host
+    if port is not None:
+        api_config["port"] = int(port)
+    return config
 
 
 class CloudAgent:
     def __init__(self, config_path: str = None):
         self.config = load_config(config_path or get_config_path("cloud.yaml"))
-        mqtt_config = load_config(get_config_path("mqtt.yaml"))
+        mqtt_config = apply_mqtt_env_overrides(load_config(get_config_path("mqtt.yaml")))
         self.logger = setup_logger("cloud_agent", log_dir="logs")
 
         self.scene_id = self.config.get("scene_id", "scene_001")
@@ -71,6 +81,16 @@ class CloudAgent:
         self._broadcast("perception", payload)
 
     def _on_vehicle_status(self, topic: str, payload: dict):
+        frame_id = payload.get("frame_id", int(time.time() * 10) % 100000)
+        timestamp = payload.get("timestamp", make_timestamp())
+
+        self.store.store_frame(
+            frame_id=frame_id,
+            timestamp=timestamp,
+            scene_id=self.scene_id,
+            vehicle_status=payload,
+        )
+
         self._broadcast("vehicle_status", payload)
 
     def _on_decision(self, topic: str, payload: dict):
@@ -171,9 +191,12 @@ def run_api_server(cloud_agent: CloudAgent):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Cloud Twin Agent")
     parser.add_argument("--config", default=None, help="Config file path")
+    parser.add_argument("--api-host", default=None, help="Override API host")
+    parser.add_argument("--api-port", type=int, default=None, help="Override API port")
     args = parser.parse_args()
 
     agent = CloudAgent(config_path=args.config)
+    apply_api_overrides(agent.config, host=args.api_host, port=args.api_port)
     agent.start()
     print(f"Cloud agent running with API server...")
 

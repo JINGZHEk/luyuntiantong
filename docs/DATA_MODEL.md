@@ -98,6 +98,65 @@ DAIR-V2X/
 | 推理时间 | <50ms (RTX 3060) |
 | 目标设备 | Jetson Orin / PC GPU |
 
+当前工程状态：
+
+- `src/roadside_perception/stgnn_predictor.py` 已提供 OccAware-STGNN 接入适配器和 Roadside Agent 配置入口。
+- `src/roadside_perception/stgnn_model.py` 已提供可导出的 PyTorch 模型骨架，包含密集图注意力、时序 GRU、轨迹预测头和遮挡分类头。
+- `src/dataset/stgnn_training_data.py` 和 `scripts/build_stgnn_training_data.py` 已能从 replay clip 导出监督训练样本。
+- `scripts/train_stgnn.py --dry-run` 可在轻量环境中校验样本形状、训练参数和 checkpoint 输出路径；在健康 torch 环境中可执行监督训练并导出 TorchScript checkpoint。
+- `scripts/evaluate_stgnn_checkpoint.py --dry-run` 可在轻量环境中校验 checkpoint 评估报告结构；在健康 torch 环境中可加载训练后 TorchScript checkpoint 并输出 ADE、FDE、Occ-ADE、Occ-Acc、FPS 和延迟指标。
+- `scripts/verify_algorithm_pipeline.py` 可将 M2 样例生成、ST-GNN 样本导出、checkpoint dry-run 或真实小样本训练评估串成统一验收入口。
+- `scripts/export_stgnn_checkpoint.py --describe` 可查看模型规格；在健康的 Python 3.10/3.11 算法环境中，可用该脚本导出 TorchScript checkpoint。
+- 适配器会从轨迹历史构建节点特征 `[cx, cy, w, h, vx, vy, cls, occ_score]`，并在配置 `prediction.model_path` 后尝试加载 TorchScript checkpoint。
+- 未配置或未成功加载 checkpoint 时，系统明确回落到常速度 baseline；该 fallback 只证明工程链路可运行，不代表 OccAware-STGNN 指标。
+- 完整真实 DAIR-V2X 训练、训练后 checkpoint 和指标复核仍是后续工作；随机初始化 checkpoint 仅用于集成测试。
+
+当前训练样本 JSONL 格式：
+
+```json
+{
+  "sample_id": "scene_000012_1",
+  "scene_id": "scene",
+  "frame_id": 12,
+  "track_id": 1,
+  "class": "person",
+  "history_length": 8,
+  "predict_steps": 30,
+  "input_features": [[0.0, 0.0, 30.0, 40.0, 0.0, 0.0, 1.0, 0.667]],
+  "target_trajectory": [[1.0, 0.5]],
+  "occlusion_label": 2
+}
+```
+
+其中 `input_features` 的每一行固定为 `[cx, cy, w, h, vx, vy, class_id, occ_score]`，`target_trajectory` 为当前帧之后的未来世界坐标序列。
+
+训练入口：
+
+```powershell
+python scripts\train_stgnn.py --samples data\stgnn_training\samples.jsonl --output models\occaware_stgnn.ts --dry-run
+python scripts\train_stgnn.py --samples data\stgnn_training\samples.jsonl --output models\occaware_stgnn.ts --epochs 50 --batch-size 32
+```
+
+第一条命令用于当前轻量环境的配置验证；第二条命令需要 `environment-algorithm.yml` 对应的算法环境。
+
+checkpoint 评估入口：
+
+```powershell
+python scripts\evaluate_stgnn_checkpoint.py --samples data\stgnn_training\samples.jsonl --checkpoint models\occaware_stgnn.ts --output data\mini_split\stgnn_evaluation.json --dry-run
+python scripts\evaluate_stgnn_checkpoint.py --samples data\stgnn_training\samples.jsonl --checkpoint models\occaware_stgnn.ts --output data\mini_split\stgnn_evaluation.json --batch-size 32
+```
+
+第一条命令只验证报告结构和输入路径，不导入 torch，`targetStatus` 中模型指标保持 `unknown`；第二条命令需要真实可加载的训练后 checkpoint。生成 `data/mini_split/stgnn_evaluation.json` 后，后端可通过 `/api/v1/evaluation?report=stgnn_checkpoint` 读取，前端评估页也可通过报告选择器切换到该数据源。
+
+统一算法流水线验收：
+
+```powershell
+python scripts\verify_algorithm_pipeline.py --work-dir data\algorithm_validation --frames 60 --horizon 30
+python scripts\verify_algorithm_pipeline.py --work-dir data\algorithm_validation_pipeline --frames 32 --horizon 5 --real-stgnn --python D:\Anaconda\envs\v2x-ghost-algorithm\python.exe --epochs 8 --batch-size 4 --hidden-dim 32
+```
+
+第二条命令会执行真实 ST-GNN 小样本训练和 TorchScript checkpoint 评估，可证明算法环境与工程接口打通；若 ADE/FDE 未达标，应视为烟测结果，不作为研究指标结论。
+
 ### 2.2 模型结构细节
 
 ```
@@ -170,6 +229,7 @@ temporal_window: 8  # 帧
 | Occ-Acc | Occlusion Classification Accuracy | 遮挡等级分类准确率 | ≥ 70% |
 | FPS | Frames Per Second | 每秒推理帧数 | ≥ 10 |
 | E2E-Lat | End-to-End Latency | 感知到决策总延迟 | < 100ms |
+| Lead-Time | Early Warning Lead Time | 路侧首次遮挡预警到目标暴露/事件触发的提前量 | ≥ 1.5s |
 
 ### 2.5 Baseline 对比
 

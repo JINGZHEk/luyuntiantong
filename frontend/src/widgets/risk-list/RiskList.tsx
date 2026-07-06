@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Card, Table, Select, Tag } from 'antd';
+import { Card, Table, Select } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { RiskTag } from '@/shared/components/RiskTag';
 import { RiskItem } from '@/mock/dashboardMock';
-import { riskLevelToNumber } from '@/shared/utils/format';
 import { useSettingsStore } from '@/store/settingsStore';
 import { THEME_COLORS } from '@/constants/colors';
 
@@ -29,7 +28,7 @@ export const RiskList: React.FC<RiskListProps> = ({ items }) => {
       title: '目标',
       dataIndex: 'target',
       width: 90,
-      render: (text: string, record: RiskItem) => (
+      render: (text: string) => (
         <span style={{ color: colors.accent }}>{text}</span>
       ),
     },

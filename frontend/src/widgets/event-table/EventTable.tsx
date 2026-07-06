@@ -4,9 +4,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined } from '@ant-design/icons';
 import { ReplayEvent } from '@/types/event';
 import { RiskTag } from '@/shared/components/RiskTag';
-import { formatDate } from '@/shared/utils/format';
 import { useSettingsStore } from '@/store/settingsStore';
-import { THEME_COLORS } from '@/constants/colors';
 
 interface EventTableProps {
   events: ReplayEvent[];
@@ -35,8 +33,6 @@ export const EventTable: React.FC<EventTableProps> = ({
   onSelect,
 }) => {
   const theme = useSettingsStore((s) => s.theme);
-  const colors = THEME_COLORS[theme];
-
   const filtered = events.filter((e) => {
     const matchSearch =
       !searchText ||

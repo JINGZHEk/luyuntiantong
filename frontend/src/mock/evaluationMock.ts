@@ -1,4 +1,4 @@
-import { BaselineComparison, AblationResult, ModelMetrics } from '@/types/metrics';
+import { BaselineComparison, AblationResult, ModelMetrics, TargetStatus } from '@/types/metrics';
 
 export function getModelMetrics(): ModelMetrics {
   return {
@@ -8,6 +8,8 @@ export function getModelMetrics(): ModelMetrics {
     ade: 0.42,
     fde: 0.87,
     avgLatency: 23.5,
+    e2eLatency: 42.0,
+    leadTime: 2.1,
     fps: 42.3,
   };
 }
@@ -31,6 +33,18 @@ export function getAblationResults(): AblationResult[] {
     { variant: 'w/o V2X Comm', f1Score: 0.812, ade: 0.78, fde: 1.45, description: '去除V2X通信（仅车端）' },
     { variant: 'w/o Trajectory', f1Score: 0.901, ade: 0.52, fde: 1.02, description: '去除轨迹预测模块' },
     { variant: 'w/o Attention', f1Score: 0.889, ade: 0.55, fde: 1.08, description: '去除注意力机制' },
+  ];
+}
+
+export function getTargetStatus(): TargetStatus[] {
+  return [
+    { key: 'ade', metric: 'ADE', value: 0.42, target: '< 1 m', status: 'pass', pass: true, unit: 'm' },
+    { key: 'fde', metric: 'FDE', value: 0.87, target: '< 2 m', status: 'pass', pass: true, unit: 'm' },
+    { key: 'occAde', metric: 'Occ-ADE', value: null, target: '< 1.5 m', status: 'unknown', pass: null, unit: 'm' },
+    { key: 'occAcc', metric: 'Occ-Acc', value: null, target: '>= 70%', status: 'unknown', pass: null, unit: 'ratio' },
+    { key: 'fps', metric: 'FPS', value: 42.3, target: '>= 10 fps', status: 'pass', pass: true, unit: 'fps' },
+    { key: 'e2eLatency', metric: 'E2E-Lat', value: 42.0, target: '< 100 ms', status: 'pass', pass: true, unit: 'ms' },
+    { key: 'leadTime', metric: 'Lead-Time', value: 2.1, target: '>= 1.5 s', status: 'pass', pass: true, unit: 's' },
   ];
 }
 

@@ -11,7 +11,7 @@ from typing import Generator
 
 from src.utils import load_config, get_config_path, setup_logger
 from src.communication import MQTTClient, make_timestamp
-from src.roadside_perception import RoadsideAgent
+from src.roadside_perception.roadside_agent import RoadsideAgent
 
 
 class ReplayEngine:

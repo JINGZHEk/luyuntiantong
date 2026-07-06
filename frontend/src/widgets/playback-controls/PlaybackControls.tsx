@@ -5,7 +5,6 @@ import {
   PauseCircleOutlined,
   StepForwardOutlined,
   StepBackwardOutlined,
-  FastForwardOutlined,
 } from '@ant-design/icons';
 import { PlaybackState } from '@/types/event';
 import { SPEED_OPTIONS } from '@/constants/config';

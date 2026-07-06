@@ -14,7 +14,11 @@ export interface ModelMetrics {
   f1Score: number;
   ade: number;
   fde: number;
+  occAde?: number;
+  occAcc?: number;
   avgLatency: number;
+  e2eLatency?: number;
+  leadTime?: number;
   fps: number;
 }
 
@@ -34,4 +38,37 @@ export interface AblationResult {
   ade: number;
   fde: number;
   description: string;
+}
+
+export interface TargetStatus {
+  key: string;
+  metric: string;
+  value: number | null;
+  target: string;
+  status: 'pass' | 'fail' | 'unknown';
+  pass: boolean | null;
+  unit: string;
+}
+
+export interface EvaluationReport {
+  source: string;
+  scene_id: string;
+  sample_count: number;
+  event_count: number;
+  high_risk_frames: number;
+  min_ttc: number | null;
+  metrics: ModelMetrics;
+  targetStatus?: TargetStatus[];
+  baselines: BaselineComparison[];
+  ablations: AblationResult[];
+}
+
+export interface EvaluationReportDescriptor {
+  key: string;
+  label: string;
+  path?: string;
+  available: boolean;
+  source: string | null;
+  scene_id?: string | null;
+  sample_count: number;
 }
