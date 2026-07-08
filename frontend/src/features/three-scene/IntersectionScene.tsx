@@ -1,11 +1,17 @@
 import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Text } from '@react-three/drei';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import * as THREE from 'three';
 import { Road } from './Road';
 import { Vehicle } from './Vehicle';
 import { Pedestrian } from './Pedestrian';
 import { Obstacle } from './Obstacle';
 import { TrajectoryLine } from './TrajectoryLine';
+import { TrafficLight } from './TrafficLight';
+import { BuildingWireframe } from './BuildingWireframe';
+import { OcclusionZone } from './OcclusionZone';
+import { DataFlowParticles } from './DataFlowParticles';
 import { ReplayFrame } from '@/types/event';
 
 interface SceneData {
@@ -37,17 +43,51 @@ interface IntersectionSceneProps {
   replayFrame?: ReplayFrame;
   height?: number | string;
   showLabel?: boolean;
+  cameraMode?: 'orbit' | 'follow' | 'cinematic';
 }
 
-function SceneContent({ sceneData, showLabel }: { sceneData: SceneData; showLabel: boolean }) {
+function SceneContent({
+  sceneData,
+  showLabel,
+  cameraMode = 'orbit',
+}: {
+  sceneData: SceneData;
+  showLabel: boolean;
+  cameraMode?: 'orbit' | 'follow' | 'cinematic';
+}) {
   return (
     <>
-      <ambientLight intensity={0.4} />
-      <directionalLight position={[20, 30, 10]} intensity={0.8} castShadow />
-      <pointLight position={[0, 15, 0]} intensity={0.6} color="#00d4ff" />
+      {/* Enhanced lighting */}
+      <ambientLight intensity={0.3} />
+      <directionalLight position={[20, 30, 10]} intensity={0.5} castShadow />
+      <pointLight position={[0, 12, 0]} intensity={0.8} color="#00d4ff" distance={30} />
+      <pointLight position={[-15, 8, -15]} intensity={0.4} color="#00ff88" distance={25} />
+      <pointLight position={[15, 8, 15]} intensity={0.3} color="#a855f7" distance={25} />
 
+      {/* Fog */}
+      <fogExp2 attach="fog" args={['#050816', 0.012]} />
+
+      {/* Road */}
       <Road />
 
+      {/* Traffic lights at 4 corners */}
+      <TrafficLight state="red" position={[8, 0, 8]} />
+      <TrafficLight state="green" position={[-8, 0, -8]} />
+      <TrafficLight state="yellow" position={[8, 0, -8]} />
+      <TrafficLight state="green" position={[-8, 0, 8]} />
+
+      {/* Buildings at corners */}
+      <BuildingWireframe position={[15, 0, 15]} size={[6, 22, 6]} seed={42} />
+      <BuildingWireframe position={[-15, 0, -15]} size={[5, 16, 7]} seed={99} />
+      <BuildingWireframe position={[15, 0, -15]} size={[7, 26, 5]} seed={77} />
+
+      {/* Occlusion zone near pedestrian */}
+      <OcclusionZone position={[5, 0, -3]} size={[4, 3, 3]} />
+
+      {/* Data flow particles */}
+      <DataFlowParticles count={150} />
+
+      {/* Vehicles */}
       {sceneData.vehicles.map((v) => (
         <React.Fragment key={v.id}>
           <Vehicle
@@ -62,6 +102,7 @@ function SceneContent({ sceneData, showLabel }: { sceneData: SceneData; showLabe
         </React.Fragment>
       ))}
 
+      {/* Pedestrians */}
       {sceneData.pedestrians.map((p) => (
         <Pedestrian
           key={p.id}
@@ -72,10 +113,12 @@ function SceneContent({ sceneData, showLabel }: { sceneData: SceneData; showLabe
         />
       ))}
 
+      {/* Obstacles */}
       {sceneData.obstacles.map((o) => (
         <Obstacle key={o.id} position={o.position} size={o.size} type={o.type} />
       ))}
 
+      {/* Scene label */}
       {showLabel && (
         <Text
           position={[0, 8, 0]}
@@ -83,13 +126,12 @@ function SceneContent({ sceneData, showLabel }: { sceneData: SceneData; showLabe
           color="#00d4ff"
           anchorX="center"
           anchorY="middle"
+          outlineWidth={0.02}
+          outlineColor="#050816"
         >
           V2X 路口场景
         </Text>
       )}
-
-      {/* Ground grid */}
-      <gridHelper args={[60, 60, '#1a1a2e', '#1a1a2e']} position={[0, -0.02, 0]} />
     </>
   );
 }
@@ -173,6 +215,7 @@ export const IntersectionScene: React.FC<IntersectionSceneProps> = ({
   replayFrame,
   height = 500,
   showLabel = false,
+  cameraMode = 'orbit',
 }) => {
   let data: SceneData;
   if (replayFrame) {
@@ -182,20 +225,29 @@ export const IntersectionScene: React.FC<IntersectionSceneProps> = ({
   }
 
   return (
-    <div style={{ height, width: '100%', borderRadius: 8, overflow: 'hidden' }}>
+    <div className="tech-border" style={{ height, width: '100%', borderRadius: 8, overflow: 'hidden' }}>
       <Canvas shadows>
-        <PerspectiveCamera makeDefault position={[25, 20, 25]} fov={50} />
+        <PerspectiveCamera
+          makeDefault
+          position={cameraMode === 'cinematic' ? [15, 8, 20] : [25, 20, 25]}
+          fov={cameraMode === 'cinematic' ? 60 : 50}
+        />
         <OrbitControls
           enableDamping
           dampingFactor={0.05}
           minDistance={10}
           maxDistance={60}
           maxPolarAngle={Math.PI / 2.2}
+          autoRotate={cameraMode === 'cinematic'}
+          autoRotateSpeed={0.5}
         />
         <Suspense fallback={null}>
-          <SceneContent sceneData={data} showLabel={showLabel} />
+          <SceneContent sceneData={data} showLabel={showLabel} cameraMode={cameraMode} />
         </Suspense>
-        <fog attach="fog" args={['#0a0e1a', 40, 80]} />
+        {/* Bloom postprocessing */}
+        <EffectComposer>
+          <Bloom luminanceThreshold={0.4} intensity={0.8} radius={0.4} />
+        </EffectComposer>
       </Canvas>
     </div>
   );

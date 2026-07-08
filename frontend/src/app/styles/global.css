@@ -1,3 +1,7 @@
+/* ═══════════════════════════════════════════════════════════
+   Global Styles — 路云天瞳 V2X 平台
+   ═══════════════════════════════════════════════════════════ */
+
 * {
   margin: 0;
   padding: 0;
@@ -14,8 +18,16 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(135deg, #050816 0%, #0a0e1a 50%, #0d1424 100%);
+  background-image:
+    linear-gradient(135deg, #050816 0%, #0a0e1a 50%, #0d1424 100%),
+    linear-gradient(rgba(0, 212, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.015) 1px, transparent 1px);
+  background-size: 100% 100%, 40px 40px, 40px 40px;
+  background-attachment: fixed, fixed, fixed;
 }
 
+/* ═══ Scrollbar ═══ */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -34,24 +46,159 @@ body {
   background: rgba(0, 212, 255, 0.5);
 }
 
+/* ═══ Glass Card ═══ */
 .glass-card {
   background: rgba(16, 24, 48, 0.85) !important;
   border: 1px solid rgba(0, 212, 255, 0.15) !important;
   backdrop-filter: blur(12px);
-  box-shadow: 0 0 20px rgba(0, 212, 255, 0.05);
-  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(0, 212, 255, 0.5) 50%, transparent 100%);
+  opacity: 0.6;
 }
 
 .glass-card:hover {
   border-color: rgba(0, 212, 255, 0.3) !important;
-  box-shadow: 0 0 30px rgba(0, 212, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 212, 255, 0.12);
+  transform: translateY(-2px);
 }
 
+/* ═══ Tech Border — 四角L型装饰 ═══ */
+.tech-border {
+  position: relative;
+}
+
+.tech-border::before,
+.tech-border::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: rgba(0, 212, 255, 0.5);
+  border-style: solid;
+  pointer-events: none;
+}
+
+.tech-border::before {
+  top: 0;
+  left: 0;
+  border-width: 1px 0 0 1px;
+}
+
+.tech-border::after {
+  bottom: 0;
+  right: 0;
+  border-width: 0 1px 1px 0;
+}
+
+/* ═══ Data Pulse — 数据脉冲 ═══ */
+.data-pulse {
+  animation: dataPulse 2s ease-in-out infinite;
+}
+
+@keyframes dataPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4); }
+  50% { opacity: 0.7; box-shadow: 0 0 0 8px rgba(0, 255, 136, 0); }
+}
+
+/* ═══ Scan Line — 扫描线 ═══ */
+.scan-line {
+  position: relative;
+  overflow: hidden;
+}
+
+.scan-line::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.6), transparent);
+  animation: scanLine 3s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes scanLine {
+  0% { transform: translateY(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(var(--scan-height, 200px)); opacity: 0; }
+}
+
+/* ═══ Skeleton — 骨架屏 ═══ */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 212, 255, 0.05) 25%,
+    rgba(0, 212, 255, 0.15) 50%,
+    rgba(0, 212, 255, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ═══ Empty State ═══ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: #8892a4;
+  text-align: center;
+}
+
+/* ═══ Fade In Stagger — 错开入场 ═══ */
+.fade-in-stagger > :nth-child(1) { animation: fadeInUp 0.4s ease-out 0s both; }
+.fade-in-stagger > :nth-child(2) { animation: fadeInUp 0.4s ease-out 0.08s both; }
+.fade-in-stagger > :nth-child(3) { animation: fadeInUp 0.4s ease-out 0.16s both; }
+.fade-in-stagger > :nth-child(4) { animation: fadeInUp 0.4s ease-out 0.24s both; }
+.fade-in-stagger > :nth-child(5) { animation: fadeInUp 0.4s ease-out 0.32s both; }
+.fade-in-stagger > :nth-child(6) { animation: fadeInUp 0.4s ease-out 0.40s both; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══ Number Flip — 数字翻转 ═══ */
+.number-flip {
+  animation: numberFlip 0.3s ease-out;
+}
+
+@keyframes numberFlip {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══ Neon Text ═══ */
 .neon-text {
   color: #00d4ff;
   text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
 }
 
+/* ═══ Risk Blink Critical ═══ */
 .risk-blink-critical {
   animation: riskBlink 1s ease-in-out infinite;
 }
@@ -61,6 +208,7 @@ body {
   50% { opacity: 0.4; }
 }
 
+/* ═══ Fade In ═══ */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -70,6 +218,7 @@ body {
   animation: fadeIn 0.4s ease-out;
 }
 
+/* ═══ Count Up ═══ */
 @keyframes countUp {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -79,6 +228,61 @@ body {
   animation: countUp 0.6s ease-out;
 }
 
+/* ═══ Layout Utilities ═══ */
+.flex-row { display: flex; flex-direction: row; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.gap-xs { gap: 4px; }
+.gap-sm { gap: 8px; }
+.gap-md { gap: 12px; }
+.gap-lg { gap: 16px; }
+
+/* ═══ Text Utilities ═══ */
+.text-xs { font-size: 10px; }
+.text-sm { font-size: 12px; }
+.text-base { font-size: 14px; }
+.text-lg { font-size: 16px; }
+.text-xl { font-size: 20px; }
+.text-xxl { font-size: 28px; }
+.text-bold { font-weight: 700; }
+.text-accent { color: #00d4ff; }
+.text-secondary { color: #8892a4; }
+.text-mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+.text-display { font-family: 'Orbitron', sans-serif; }
+
+/* ═══ Spacing Utilities ═══ */
+.p-xs { padding: 4px; }
+.p-sm { padding: 8px; }
+.p-md { padding: 12px; }
+.p-lg { padding: 16px; }
+.m-sm { margin: 8px; }
+.m-md { margin: 12px; }
+
+/* ═══ Radius Utilities ═══ */
+.radius-sm { border-radius: 4px; }
+.radius-md { border-radius: 8px; }
+.radius-lg { border-radius: 12px; }
+
+/* ═══ CSS Variables ═══ */
+:root {
+  --color-bg: #0a0e1a;
+  --color-accent: #00d4ff;
+  --color-success: #00ff88;
+  --color-danger: #ff4d4f;
+  --color-warning: #faad14;
+  --color-text: #e0e6f0;
+  --color-text-secondary: #8892a4;
+  --color-card-bg: rgba(16, 24, 48, 0.85);
+  --color-card-border: rgba(0, 212, 255, 0.15);
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-base: 16px;
+  --spacing-lg: 20px;
+  --spacing-xl: 24px;
+}
+
+/* ═══ Light Theme Overrides ═══ */
 .light-theme .glass-card {
   background: #ffffff !important;
   border: 1px solid #e8e8e8 !important;
@@ -91,7 +295,16 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+.light-theme .glass-card::before {
+  background: linear-gradient(90deg, transparent 0%, rgba(22, 119, 255, 0.3) 50%, transparent 100%);
+}
+
 .light-theme .neon-text {
   color: #1677ff;
   text-shadow: none;
+}
+
+.light-theme body {
+  background: #f0f2f5;
+  background-image: none;
 }

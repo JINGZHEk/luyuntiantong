@@ -10,6 +10,7 @@ import {
 } from '@/mock/monitorMock';
 import { MESSAGE_MAX_ENTRIES, MQTT_TOPICS } from '@/constants/config';
 import { buildWebSocketUrl } from '@/services/runtimeConfig';
+import { wsService } from '@/services/websocketService';
 import {
   CloudObjectPayload,
   CloudEventPayload,
@@ -52,7 +53,7 @@ interface MonitorState {
   addCloudEvent: (payload: CloudEventPayload) => void;
 }
 
-export const useMonitorStore = create<MonitorState>((set) => ({
+export const useMonitorStore = create<MonitorState>((set, get) => ({
   connection: {
     connected: true,
     broker: 'ws://localhost:9001',
@@ -71,10 +72,15 @@ export const useMonitorStore = create<MonitorState>((set) => ({
   cloudEvents: generateInitialCloudEvents(),
   pageState: { loading: false, error: null },
 
-  toggleConnection: () =>
-    set((state) => ({
-      connection: { ...state.connection, connected: !state.connection.connected },
-    })),
+  toggleConnection: () => {
+    const state = get();
+    if (state.connection.connected) {
+      wsService.disconnect();
+    } else {
+      wsService.connect();
+    }
+    // 连接状态由 wsService 的 onConnectionChange 回调更新
+  },
 
   toggleTopic: (topic) =>
     set((state) => ({

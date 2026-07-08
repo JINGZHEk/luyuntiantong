@@ -179,11 +179,15 @@ class DataStore:
             sql += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
             rows = conn.execute(sql, params).fetchall()
-            total_row = conn.execute(
-                "SELECT COUNT(*) FROM events WHERE 1=1" +
-                (f" AND scene_id='{scene_id}'" if scene_id else "") +
-                (f" AND severity='{severity}'" if severity else ""),
-            ).fetchone()
+            count_sql = "SELECT COUNT(*) FROM events WHERE 1=1"
+            count_params = []
+            if scene_id:
+                count_sql += " AND scene_id = ?"
+                count_params.append(scene_id)
+            if severity:
+                count_sql += " AND severity = ?"
+                count_params.append(severity)
+            total_row = conn.execute(count_sql, count_params).fetchone()
             total = total_row[0] if total_row else 0
             return total, [self._row_to_event_dict(r) for r in rows]
 

@@ -11,13 +11,6 @@ export interface Velocity {
   vy: number;
 }
 
-export interface BBox {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
 export interface TimeSeriesPoint {
   time: string;
   value: number;
@@ -29,14 +22,6 @@ export interface LogEntry {
   level: 'info' | 'warn' | 'error' | 'debug';
   source: string;
   message: string;
-}
-
-export interface KpiItem {
-  label: string;
-  value: number;
-  unit: string;
-  trend?: 'up' | 'down' | 'stable';
-  trendValue?: number;
 }
 
 export type ThemeMode = 'dark' | 'light';

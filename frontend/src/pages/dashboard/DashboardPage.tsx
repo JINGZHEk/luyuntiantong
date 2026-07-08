@@ -1,5 +1,6 @@
 import React from 'react';
 import { Row, Col, Tag } from 'antd';
+import { DashboardOutlined } from '@ant-design/icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { KpiBar } from '@/widgets/kpi-bar/KpiBar';
 import { RiskList } from '@/widgets/risk-list/RiskList';
@@ -8,6 +9,7 @@ import { IntersectionScene } from '@/features/three-scene/IntersectionScene';
 import { LineChart } from '@/entities/charts/LineChart';
 import { CHART_COLORS } from '@/constants/colors';
 import { PageLoading } from '@/shared/components/PageLoading';
+import { PageHeader } from '@/shared/components/PageHeader';
 
 const DashboardPage: React.FC = () => {
   const {
@@ -25,11 +27,18 @@ const DashboardPage: React.FC = () => {
 
   if (pageState.loading) return <PageLoading />;
 
-  return (
+    return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <Tag color={source === 'live' ? 'green' : 'gold'}>{source === 'live' ? 'live' : 'mock'}</Tag>
-      </div>
+      <PageHeader
+        title="总览大屏"
+        subtitle="V2X 遮挡行人主动安全防御 · 实时态势感知"
+        icon={<DashboardOutlined />}
+        extra={
+          <Tag color={source === 'live' ? 'green' : 'gold'} style={{ marginRight: 0 }}>
+            {source === 'live' ? 'LIVE' : 'MOCK'}
+          </Tag>
+        }
+      />
       <KpiBar metrics={metrics} />
 
       <Row gutter={12} style={{ marginTop: 12 }}>
@@ -38,7 +47,7 @@ const DashboardPage: React.FC = () => {
         </Col>
 
         <Col xs={24} lg={13}>
-          <div className="glass-card" style={{ borderRadius: 8, overflow: 'hidden' }}>
+          <div className="glass-card tech-border" style={{ borderRadius: 8, overflow: 'hidden' }}>
             <IntersectionScene height={420} showLabel />
           </div>
         </Col>

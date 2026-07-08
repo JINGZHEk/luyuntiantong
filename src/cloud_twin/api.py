@@ -47,7 +47,7 @@ app = FastAPI(title="V2X Cloud Twin API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -101,7 +101,7 @@ async def health():
 async def get_frame(frame_id: int):
     frame = store.get_frame(frame_id)
     if frame is None:
-        return {"error": "Frame not found"}, 404
+        raise HTTPException(status_code=404, detail="Frame not found")
     return frame
 
 
@@ -130,7 +130,7 @@ async def get_events(scene_id: str = None, severity: str = None,
 async def get_event_detail(event_id: str):
     result = store.get_event_replay(event_id)
     if result is None:
-        return {"error": "Event not found"}, 404
+        raise HTTPException(status_code=404, detail="Event not found")
     return result
 
 

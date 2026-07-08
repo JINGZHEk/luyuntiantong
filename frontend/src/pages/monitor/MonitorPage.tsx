@@ -7,6 +7,7 @@ import { MessagePanel } from '@/widgets/message-panel/MessagePanel';
 import { PerceptionCards } from '@/widgets/perception-cards/PerceptionCards';
 import { useMonitorStore } from '@/store/monitorStore';
 import { PageLoading } from '@/shared/components/PageLoading';
+import { PageHeader } from '@/shared/components/PageHeader';
 import { DemoStatus, demoApi } from '@/services/demoApi';
 
 const MonitorPage: React.FC = () => {
@@ -64,8 +65,12 @@ const MonitorPage: React.FC = () => {
     );
   }
 
-  return (
+    return (
     <div>
+      <PageHeader
+        title="实时监控"
+        subtitle="路侧感知 · 车端决策 · 云端事件 实时数据流"
+      />
       <Card className="glass-card" size="small" style={{ marginBottom: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <Space wrap>

@@ -13,22 +13,3 @@ export interface CloudEvent {
   resolved: boolean;
   description: string;
 }
-
-export interface CloudFusionResult {
-  fusionId: string;
-  timestamp: string;
-  vehicleIds: string[];
-  sensorIds: string[];
-  fusedObjectCount: number;
-  latency: number;
-  confidence: number;
-}
-
-export interface CloudAlert {
-  alertId: string;
-  eventId: string;
-  timestamp: string;
-  riskLevel: RiskLevel;
-  message: string;
-  acknowledged: boolean;
-}

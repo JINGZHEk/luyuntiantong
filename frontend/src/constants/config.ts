@@ -6,7 +6,6 @@ export const REPLAY_FPS = 10;
 export const DEFAULT_RISK_THRESHOLD = 0.7;
 export const DEFAULT_TTC_THRESHOLD = 3.0;
 
-export const MQTT_DEFAULT_BROKER = 'ws://localhost:9001';
 export const MQTT_TOPICS = {
   roadsidePerception: 'v2x/roadside/perception',
   vehicleState: 'v2x/vehicle/state',

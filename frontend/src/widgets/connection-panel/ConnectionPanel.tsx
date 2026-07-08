@@ -6,12 +6,13 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { useMonitorStore } from '@/store/monitorStore';
+import { wsService } from '@/services/websocketService';
 
 export const ConnectionPanel: React.FC = () => {
   const { connection, toggleConnection } = useMonitorStore();
 
   return (
-    <Card className="glass-card" title="MQTT 连接面板" size="small">
+    <Card className="glass-card" title="WebSocket 连接面板" size="small">
       <Descriptions column={1} size="small">
         <Descriptions.Item label="状态">
           <Badge
@@ -40,7 +41,10 @@ export const ConnectionPanel: React.FC = () => {
         >
           {connection.connected ? '断开连接' : '建立连接'}
         </Button>
-        <Button icon={<ReloadOutlined />} disabled={!connection.connected}>
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={() => wsService.connect()}
+        >
           重新连接
         </Button>
       </Space>

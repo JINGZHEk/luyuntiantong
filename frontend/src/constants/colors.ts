@@ -5,6 +5,29 @@ export const RISK_COLORS = {
   critical: '#ff4d4f',
 } as const;
 
+export const GRADIENTS = {
+  cyan: 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)',
+  green: 'linear-gradient(135deg, #00ff88 0%, #00cc6a 100%)',
+  purple: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)',
+  danger: 'linear-gradient(135deg, #ff4d4f 0%, #cc3333 100%)',
+  warning: 'linear-gradient(135deg, #faad14 0%, #cc8800 100%)',
+  bg: 'linear-gradient(135deg, #050816 0%, #0a0e1a 50%, #0d1424 100%)',
+  glowLine: 'linear-gradient(90deg, transparent, #00d4ff, transparent)',
+  cardTop: 'linear-gradient(90deg, transparent 0%, rgba(0, 212, 255, 0.5) 50%, transparent 100%)',
+} as const;
+
+export const SEMANTIC_COLORS = {
+  live: '#00ff88',
+  mock: '#faad14',
+  online: '#00ff88',
+  offline: '#ff4d4f',
+  connecting: '#faad14',
+  low: '#52c41a',
+  medium: '#faad14',
+  high: '#ff7a45',
+  critical: '#ff4d4f',
+} as const;
+
 export const CHART_COLORS = {
   primary: '#00d4ff',
   secondary: '#00ff88',

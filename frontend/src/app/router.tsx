@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { MainLayout } from './layout/MainLayout';
 import { PageLoading } from '@/shared/components/PageLoading';
+import { Toast } from '@/shared/components/Toast';
 
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
 const MonitorPage = lazy(() => import('@/pages/monitor/MonitorPage'));
@@ -9,6 +10,7 @@ const ReplayPage = lazy(() => import('@/pages/replay/ReplayPage'));
 const EvaluationPage = lazy(() => import('@/pages/evaluation/EvaluationPage'));
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
 const NotFoundPage = lazy(() => import('@/pages/not-found/NotFoundPage'));
+const PresentationPage = lazy(() => import('@/pages/presentation/PresentationPage'));
 
 function withSuspense(Component: React.LazyExoticComponent<React.FC>) {
   return (
@@ -20,8 +22,17 @@ function withSuspense(Component: React.LazyExoticComponent<React.FC>) {
 
 export const router = createBrowserRouter([
   {
+    path: '/presentation',
+    element: withSuspense(PresentationPage),
+  },
+  {
     path: '/',
-    element: <MainLayout />,
+    element: (
+      <>
+        <MainLayout />
+        <Toast />
+      </>
+    ),
     children: [
       { index: true, element: withSuspense(DashboardPage) },
       { path: 'monitor', element: withSuspense(MonitorPage) },

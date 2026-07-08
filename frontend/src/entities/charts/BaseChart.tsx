@@ -18,6 +18,9 @@ import { CanvasRenderer } from 'echarts/renderers';
 import type { EChartsOption } from 'echarts';
 import { useSettingsStore } from '@/store/settingsStore';
 import { THEME_COLORS } from '@/constants/colors';
+import { registerV2XTheme } from '@/constants/echarts-theme';
+
+registerV2XTheme();
 
 echarts.use([
   EChartsBarChart,
@@ -65,7 +68,7 @@ export const BaseChart: React.FC<BaseChartProps> = ({
       style={{ height, width: '100%', ...style }}
       opts={{ renderer: 'canvas' }}
       showLoading={loading}
-      theme={theme === 'dark' ? 'dark' : undefined}
+      theme={theme === 'dark' ? 'v2x-dark' : undefined}
     />
   );
 };

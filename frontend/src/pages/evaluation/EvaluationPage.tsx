@@ -7,6 +7,7 @@ import { BarChart } from '@/entities/charts/BarChart';
 import { BaseChart } from '@/entities/charts/BaseChart';
 import { CHART_COLORS } from '@/constants/colors';
 import { PageLoading } from '@/shared/components/PageLoading';
+import { downloadJson } from '@/shared/utils/helpers';
 
 const EvaluationPage: React.FC = () => {
   const {
@@ -229,7 +230,13 @@ const EvaluationPage: React.FC = () => {
               <Button
                 icon={<DownloadOutlined />}
                 size="small"
-                onClick={() => message.info('导出功能将在接入后端后启用')}
+                onClick={() => {
+                  downloadJson(
+                    { metrics, baselines, ablations, targetStatus, summary, selectedReportKey },
+                    `evaluation-report-${selectedReportKey || 'default'}.json`,
+                  );
+                  message.success('报告已导出');
+                }}
               >
                 导出报告
               </Button>
