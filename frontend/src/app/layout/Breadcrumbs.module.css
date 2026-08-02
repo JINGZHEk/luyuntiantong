@@ -1,0 +1,13 @@
+.breadcrumbs {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.breadcrumbs :global(.ant-breadcrumb-link),
+.breadcrumbs :global(.ant-breadcrumb-separator) {
+  color: var(--color-text-secondary);
+}
+
+.breadcrumbs a:hover {
+  color: var(--color-accent);
+}

@@ -22,6 +22,29 @@ export const NAV_ITEMS = [
   { key: '/settings', label: '系统设置', icon: 'SettingOutlined' },
 ] as const;
 
+export const ROUTE_META = {
+  '/': {
+    label: '总览大屏',
+    description: '实时路口态势与风险信号',
+  },
+  '/monitor': {
+    label: '实时监控',
+    description: '路侧感知、车端决策与云端链路',
+  },
+  '/replay': {
+    label: '事件回放',
+    description: '还原事件帧与风险演化轨迹',
+  },
+  '/evaluation': {
+    label: '模型评估',
+    description: '指标达标、基线对比与消融结果',
+  },
+  '/settings': {
+    label: '系统设置',
+    description: '主题、阈值、接口与配置同步',
+  },
+} as const;
+
 export const SPEED_OPTIONS = [
   { label: '0.5x', value: 0.5 },
   { label: '1x', value: 1 },

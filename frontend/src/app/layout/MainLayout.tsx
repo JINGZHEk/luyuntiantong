@@ -1,18 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Badge } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Badge, Button, Layout, Menu, Tooltip } from 'antd';
 import {
   DashboardOutlined,
-  MonitorOutlined,
-  PlayCircleOutlined,
   ExperimentOutlined,
+  MenuUnfoldOutlined,
+  MonitorOutlined,
+  MoonOutlined,
+  PlayCircleOutlined,
   SettingOutlined,
+  SunOutlined,
 } from '@ant-design/icons';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Breadcrumbs } from './Breadcrumbs';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
+import { useDashboardStore } from '@/store/dashboardStore';
+import { useMonitorStore } from '@/store/monitorStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { THEME_COLORS } from '@/constants/colors';
-import { NAV_ITEMS } from '@/constants/config';
+import { NAV_ITEMS, ROUTE_META } from '@/constants/config';
+import styles from './MainLayout.module.css';
 
 const { Header, Sider, Content } = Layout;
 
@@ -30,240 +35,139 @@ const menuItems = NAV_ITEMS.map((item) => ({
   label: item.label,
 }));
 
-const routeTitles: Record<string, string> = {
-  '/': '总览大屏',
-  '/monitor': '实时监控',
-  '/replay': '事件回放',
-  '/evaluation': '模型评估',
-  '/settings': '系统设置',
+const fallbackRoute = {
+  label: 'V2X 平台',
+  description: '路云天瞳数字孪生感知平台',
 };
 
-// SVG Logo — 雷达盾牌造型
 const BrandLogo: React.FC<{ collapsed: boolean }> = ({ collapsed }) => (
-  <div
-    style={{
-      height: 56,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: collapsed ? '0' : '0 16px',
-      justifyContent: 'center',
-      borderBottom: '1px solid rgba(0, 212, 255, 0.1)',
-      position: 'relative',
-    }}
-  >
-    <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-      <defs>
-        <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#00d4ff" />
-          <stop offset="100%" stopColor="#0099cc" />
-        </linearGradient>
-      </defs>
-      {/* Shield outline */}
-      <path
-        d="M16 2 L28 8 L28 18 C28 24 22 29 16 31 C10 29 4 24 4 18 L4 8 Z"
-        stroke="url(#logoGrad)"
-        strokeWidth="1.5"
-        fill="rgba(0, 212, 255, 0.08)"
-      />
-      {/* Radar circles */}
-      <circle cx="16" cy="14" r="8" stroke="url(#logoGrad)" strokeWidth="1" fill="none" opacity="0.5" />
-      <circle cx="16" cy="14" r="5" stroke="url(#logoGrad)" strokeWidth="1" fill="none" opacity="0.7" />
-      <circle cx="16" cy="14" r="2" fill="#00d4ff" />
-      {/* Radar sweep */}
-      <path d="M16 14 L24 14" stroke="url(#logoGrad)" strokeWidth="1" opacity="0.8" />
-    </svg>
-    {!collapsed && (
-      <span
-        style={{
-          fontFamily: "'Orbitron', sans-serif",
-          fontSize: 16,
-          fontWeight: 700,
-          color: '#e0e6f0',
-          whiteSpace: 'nowrap',
-          letterSpacing: '0.05em',
-        }}
-      >
-        路云天瞳
-      </span>
-    )}
-    {/* Bottom gradient line */}
-    <div
-      style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: '1px',
-        background: 'linear-gradient(90deg, transparent, #00d4ff, transparent)',
-        opacity: 0.4,
-      }}
-    />
+  <div className={styles.brand}>
+    <img className={styles.brandMark} src="/brand-mark.svg" alt="" aria-hidden="true" />
+    {!collapsed && <span className={styles.brandText}>路云天瞳</span>}
+    <span className={styles.brandLine} aria-hidden="true" />
   </div>
 );
 
-// Bottom status area
-const StatusArea: React.FC = () => (
-  <div
-    style={{
-      padding: '16px 20px',
-      borderTop: '1px solid rgba(0, 212, 255, 0.1)',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 6,
-    }}
-  >
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+const StatusArea: React.FC<{ connected: boolean; source: 'live' | 'mock' }> = ({ connected, source }) => (
+  <div className={styles.statusArea}>
+    <div className={styles.statusHeading}>
       <span
-        className="data-pulse"
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          background: '#00ff88',
-          display: 'inline-block',
-        }}
+        className={`${styles.statusDot} ${connected ? styles.statusOnline : styles.statusOffline} ${connected ? 'data-pulse' : ''}`}
+        aria-hidden="true"
       />
-      <span
-        style={{
-          fontSize: 11,
-          color: '#8892a4',
-          letterSpacing: '0.1em',
-        }}
-      >
-        SYSTEM ONLINE
-      </span>
+      <span>{connected ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE'}</span>
     </div>
-    <span style={{ fontSize: 10, color: '#555', fontFamily: "'JetBrains Mono', monospace" }}>
-      API Latency: 12ms
-    </span>
+    <div className={styles.statusMeta}>
+      <span>API LATENCY</span>
+      <strong>12ms</strong>
+    </div>
+    <div className={styles.statusMeta}>
+      <span>DATA SOURCE</span>
+      <strong className={source === 'live' ? styles.liveText : styles.mockText}>
+        {source.toUpperCase()}
+      </strong>
+    </div>
   </div>
 );
 
-// Live clock
 const LiveClock: React.FC = () => {
-  const [time, setTime] = useState(new Date());
+  const [time, setTime] = useState(() => new Date());
+
   useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    const timer = window.setInterval(() => setTime(new Date()), 1000);
+    return () => window.clearInterval(timer);
   }, []);
+
   return (
-    <span
-      style={{
-        fontFamily: "'Orbitron', sans-serif",
-        fontSize: 13,
-        color: '#8892a4',
-        letterSpacing: '0.05em',
-      }}
-    >
+    <time className={styles.clock} dateTime={time.toISOString()}>
       {time.toLocaleTimeString('zh-CN', { hour12: false })}
-    </span>
+    </time>
   );
 };
 
 export const MainLayout: React.FC = () => {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth <= 900);
   const navigate = useNavigate();
   const location = useLocation();
-  const theme = useSettingsStore((s) => s.theme);
-  const colors = THEME_COLORS[theme];
+  const theme = useSettingsStore((state) => state.theme);
+  const setTheme = useSettingsStore((state) => state.setTheme);
+  const connection = useMonitorStore((state) => state.connection);
+  const source = useDashboardStore((state) => state.source);
+  const routeMeta = ROUTE_META[location.pathname as keyof typeof ROUTE_META] || fallbackRoute;
 
-  const pageTitle = routeTitles[location.pathname] || 'V2X 平台';
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 900px)');
+    const handleChange = (event: MediaQueryListEvent) => setCollapsed(event.matches);
+    media.addEventListener('change', handleChange);
+    return () => media.removeEventListener('change', handleChange);
+  }, []);
 
   return (
-    <Layout style={{ height: '100vh' }}>
+    <Layout className={styles.layout}>
       <Sider
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
-        width={200}
-        style={{
-          background: colors.siderBg,
-          borderRight: `1px solid ${colors.cardBorder}`,
-          display: 'flex',
-          flexDirection: 'column',
-        }}
+        width={220}
+        collapsedWidth={72}
+        className={`${styles.sider} ${collapsed ? styles.siderCollapsed : ''}`}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div className={styles.siderInner}>
           <BrandLogo collapsed={collapsed} />
           <Menu
             mode="inline"
             selectedKeys={[location.pathname]}
             items={menuItems}
             onClick={({ key }) => navigate(key)}
-            style={{
-              background: 'transparent',
-              borderRight: 0,
-              flex: 1,
-            }}
+            className={styles.menu}
           />
-          <StatusArea />
+          <StatusArea connected={connection.connected} source={source} />
         </div>
       </Sider>
 
-      <Layout>
-        <Header
-          style={{
-            background: colors.headerBg,
-            borderBottom: `1px solid ${colors.cardBorder}`,
-            padding: '0 20px',
-            height: 48,
-            lineHeight: '48px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 16, fontWeight: 600, color: colors.text }}>
-              {pageTitle}
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            {/* Data source label */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span
-                className="data-pulse"
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: '#00ff88',
-                  display: 'inline-block',
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: "'Orbitron', sans-serif",
-                  fontSize: 11,
-                  color: '#00ff88',
-                  letterSpacing: '0.1em',
-                }}
-              >
-                LIVE
-              </span>
+      <Layout className={styles.mainLayout}>
+        <Header className={styles.header}>
+          <div className={styles.headerLeft}>
+            <Button
+              type="text"
+              className={styles.mobileMenuButton}
+              icon={<MenuUnfoldOutlined />}
+              aria-label={collapsed ? '打开导航菜单' : '收起导航菜单'}
+              onClick={() => setCollapsed((value) => !value)}
+            />
+            <div className={styles.headerTitles}>
+              <Breadcrumbs />
+              <div className={styles.headerPageLine}>
+                <span className={styles.headerPageTitle}>{routeMeta.label}</span>
+                <span className={styles.headerPageDescription}>{routeMeta.description}</span>
+              </div>
             </div>
-            {/* WebSocket status */}
+          </div>
+
+          <div className={styles.headerRight}>
+            <div className={styles.sourceBadge} aria-label={`数据源：${source === 'live' ? '实时' : '演示'}`}>
+              <span className={source === 'live' ? `${styles.sourceDot} ${styles.sourceLive}` : `${styles.sourceDot} ${styles.sourceMock}`} />
+              <span className={source === 'live' ? styles.liveText : styles.mockText}>{source.toUpperCase()}</span>
+            </div>
             <Badge
-              status="success"
-              text={
-                <span style={{ fontSize: 12, color: colors.textSecondary }}>
-                  WebSocket 已连接
-                </span>
-              }
+              status={connection.connected ? 'success' : 'error'}
+              text={<span className={styles.connectionText}>{connection.connected ? 'WebSocket 已连接' : 'WebSocket 已断开'}</span>}
             />
             <LiveClock />
+            <Tooltip title={theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'}>
+              <button
+                type="button"
+                className={styles.themeButton}
+                aria-label={theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              >
+                {theme === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+              </button>
+            </Tooltip>
           </div>
         </Header>
 
-        <Content
-          style={{
-            padding: 20,
-            overflow: 'auto',
-            background: colors.bg,
-          }}
-        >
-          <Breadcrumbs />
+        <Content className={styles.content}>
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>
