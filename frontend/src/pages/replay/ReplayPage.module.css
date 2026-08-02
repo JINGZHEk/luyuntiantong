@@ -1,0 +1,25 @@
+.page {
+  min-width: 0;
+}
+
+.section {
+  margin-top: var(--spacing-md);
+}
+
+.sceneCard {
+  overflow: hidden;
+}
+
+.sceneCard :global(.ant-card-body) {
+  padding: 0;
+}
+
+.sideStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.emptyCard {
+  margin-top: var(--spacing-md);
+}

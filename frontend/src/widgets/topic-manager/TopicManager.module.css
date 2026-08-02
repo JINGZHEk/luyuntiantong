@@ -1,0 +1,12 @@
+.topic {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.badgeActive :global(.ant-badge-count) {
+  background: var(--color-success);
+}
+
+.badgeInactive :global(.ant-badge-count) {
+  background: var(--color-text-muted);
+}

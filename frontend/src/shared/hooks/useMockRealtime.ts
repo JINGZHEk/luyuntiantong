@@ -14,6 +14,7 @@ import {
   toMonitorMessage,
 } from '@/services/websocketService';
 import { buildWebSocketUrl } from '@/services/runtimeConfig';
+import { showToast } from '@/shared/components/toastService';
 
 export function useMockRealtime() {
   const refreshInterval = useSettingsStore((s) => s.refreshInterval);
@@ -70,6 +71,9 @@ export function useMockRealtime() {
 
       if (type === 'event') {
         addCloudEvent(data);
+        if ('severity' in data && data.severity === 'critical') {
+          showToast('检测到高危遮挡事件', 'error');
+        }
       }
 
       // Always add logs and monitor messages from real data

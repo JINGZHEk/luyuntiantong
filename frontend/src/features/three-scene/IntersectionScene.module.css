@@ -1,0 +1,10 @@
+.scene {
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.scene :global(canvas) {
+  display: block;
+}

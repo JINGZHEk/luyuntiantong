@@ -27,12 +27,12 @@ export const Road: React.FC = () => {
       {/* Main road - horizontal */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
         <planeGeometry args={[60, 12]} />
-        <meshStandardMaterial color="#1a1a2e" emissive="#0a0e1a" emissiveIntensity={0.5} roughness={0.8} />
+        <meshStandardMaterial color="#1a1a2e" emissive="#0a0e1a" emissiveIntensity={0.1} roughness={0.8} metalness={0.2} />
       </mesh>
       {/* Main road - vertical */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
         <planeGeometry args={[12, 60]} />
-        <meshStandardMaterial color="#1a1a2e" emissive="#0a0e1a" emissiveIntensity={0.5} roughness={0.8} />
+        <meshStandardMaterial color="#1a1a2e" emissive="#0a0e1a" emissiveIntensity={0.1} roughness={0.8} metalness={0.2} />
       </mesh>
 
       {/* Center lines - horizontal (breathing) */}
@@ -84,23 +84,23 @@ export const Road: React.FC = () => {
       {/* Sidewalks */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 9]}>
         <planeGeometry args={[60, 6]} />
-        <meshStandardMaterial color="#1a1a2e" roughness={0.9} />
+        <meshStandardMaterial color="#2a2a3a" emissive="#0a0e1a" emissiveIntensity={0.05} roughness={0.9} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, -9]}>
         <planeGeometry args={[60, 6]} />
-        <meshStandardMaterial color="#1a1a2e" roughness={0.9} />
+        <meshStandardMaterial color="#2a2a3a" emissive="#0a0e1a" emissiveIntensity={0.05} roughness={0.9} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[9, 0.05, 0]}>
         <planeGeometry args={[6, 60]} />
-        <meshStandardMaterial color="#1a1a2e" roughness={0.9} />
+        <meshStandardMaterial color="#2a2a3a" emissive="#0a0e1a" emissiveIntensity={0.05} roughness={0.9} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-9, 0.05, 0]}>
         <planeGeometry args={[6, 60]} />
-        <meshStandardMaterial color="#1a1a2e" roughness={0.9} />
+        <meshStandardMaterial color="#2a2a3a" emissive="#0a0e1a" emissiveIntensity={0.05} roughness={0.9} />
       </mesh>
 
       {/* Ground grid - custom colors */}
-      <gridHelper args={[60, 60, 'rgba(0, 212, 255, 0.1)', 'rgba(0, 212, 255, 0.03)']} position={[0, -0.02, 0]} />
+      <gridHelper args={[60, 60, '#16465a', '#0c1e34']} position={[0, -0.02, 0]} />
     </group>
   );
 };

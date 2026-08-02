@@ -6,7 +6,6 @@ interface AnimatedNumberProps {
   duration?: number;
   prefix?: string;
   suffix?: string;
-  style?: React.CSSProperties;
   className?: string;
 }
 
@@ -16,7 +15,6 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
   duration = 600,
   prefix = '',
   suffix = '',
-  style,
   className,
 }) => {
   const [display, setDisplay] = useState(value);
@@ -46,7 +44,7 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
   }, [value, duration]);
 
   return (
-    <span className={`count-up ${className || ''}`} style={style}>
+    <span className={`count-up ${className || ''}`}>
       {prefix}
       {display.toFixed(decimals)}
       {suffix}

@@ -12,6 +12,7 @@ interface LineChartProps {
   height?: number | string;
   yAxisName?: string;
   smooth?: boolean;
+  threshold?: number;
 }
 
 export const LineChart: React.FC<LineChartProps> = ({
@@ -22,11 +23,10 @@ export const LineChart: React.FC<LineChartProps> = ({
   height = 200,
   yAxisName,
   smooth = true,
+  threshold,
 }) => {
   const option = useMemo(
     () => {
-      const hexColor = color.startsWith('#') ? color : CHART_COLORS.primary;
-
       return {
         title: title ? { text: title, textStyle: { fontSize: 13, fontWeight: 600 }, left: 'center' } : undefined,
         tooltip: {
@@ -51,22 +51,32 @@ export const LineChart: React.FC<LineChartProps> = ({
             type: 'line' as const,
             data: data.map((d) => d.value),
             smooth,
-            symbol: 'none',
-            lineStyle: { color, width: 2.5, shadowColor: color, shadowBlur: 8 },
+            showSymbol: false,
+            symbol: 'circle',
+            lineStyle: { color, width: 2, shadowColor: color, shadowBlur: 8 },
             areaStyle: {
               color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: `${hexColor}40` },
-                { offset: 1, color: `${hexColor}00` },
+                { offset: 0, color: areaColor },
+                { offset: 1, color: 'rgba(0, 0, 0, 0)' },
               ]),
             },
             emphasis: {
+              scale: true,
+              itemStyle: { borderWidth: 2, borderColor: '#fff' },
               lineStyle: { width: 3 },
+            },
+            markLine: threshold === undefined ? undefined : {
+              silent: true,
+              symbol: 'none',
+              lineStyle: { color: CHART_COLORS.quaternary, type: 'dashed' as const },
+              label: { formatter: `阈值 ${threshold}` },
+              data: [{ yAxis: threshold }],
             },
           },
         ],
       };
     },
-    [data, title, color, areaColor, yAxisName, smooth],
+    [data, title, color, areaColor, yAxisName, smooth, threshold],
   );
 
   return <BaseChart option={option} height={height} />;

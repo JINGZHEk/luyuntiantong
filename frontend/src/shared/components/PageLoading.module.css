@@ -1,0 +1,11 @@
+.page {
+  display: flex;
+  min-height: 300px;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinnerContent {
+  padding: 50px;
+}

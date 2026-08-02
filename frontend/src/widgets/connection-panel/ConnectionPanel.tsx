@@ -7,9 +7,11 @@ import {
 } from '@ant-design/icons';
 import { useMonitorStore } from '@/store/monitorStore';
 import { wsService } from '@/services/websocketService';
+import styles from './ConnectionPanel.module.css';
 
 export const ConnectionPanel: React.FC = () => {
-  const { connection, toggleConnection } = useMonitorStore();
+  const connection = useMonitorStore((state) => state.connection);
+  const toggleConnection = useMonitorStore((state) => state.toggleConnection);
 
   return (
     <Card className="glass-card" title="WebSocket 连接面板" size="small">
@@ -29,10 +31,10 @@ export const ConnectionPanel: React.FC = () => {
           <Tag color="blue">{connection.broker}</Tag>
         </Descriptions.Item>
         <Descriptions.Item label="Client ID">
-          <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{connection.clientId}</span>
+          <span className={styles.clientId}>{connection.clientId}</span>
         </Descriptions.Item>
       </Descriptions>
-      <Space style={{ marginTop: 12 }}>
+      <Space className={styles.actions} wrap>
         <Button
           type={connection.connected ? 'default' : 'primary'}
           danger={connection.connected}

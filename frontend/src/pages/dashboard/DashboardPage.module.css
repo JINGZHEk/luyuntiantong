@@ -1,0 +1,85 @@
+.page {
+  min-width: 0;
+}
+
+.sourceTag {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.kpiSection {
+  margin-bottom: var(--spacing-md);
+}
+
+.overviewGrid {
+  display: grid;
+  grid-template-columns: minmax(220px, 20%) minmax(420px, 1fr) minmax(220px, 25%);
+  align-items: stretch;
+  gap: var(--spacing-md);
+}
+
+.riskColumn,
+.sceneCard,
+.chartStack {
+  min-width: 0;
+}
+
+.riskColumn {
+  min-height: 420px;
+}
+
+.sceneCard {
+  min-height: 420px;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+}
+
+.sceneCard :global(.tech-border) {
+  height: 100%;
+}
+
+.chartStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.chartCard {
+  min-height: 132px;
+  padding: 4px;
+}
+
+.logSection {
+  margin-top: var(--spacing-md);
+}
+
+@media (max-width: 1180px) {
+  .overviewGrid {
+    grid-template-columns: minmax(220px, 30%) minmax(0, 1fr);
+  }
+
+  .chartStack {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .overviewGrid,
+  .chartStack {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .riskColumn,
+  .sceneCard {
+    min-height: 0;
+  }
+
+  .sceneCard {
+    min-height: 320px;
+  }
+}

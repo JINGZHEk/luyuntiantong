@@ -1,11 +1,13 @@
 import React from 'react';
 import { Card, List, Switch, Badge, Typography } from 'antd';
 import { useMonitorStore } from '@/store/monitorStore';
+import styles from './TopicManager.module.css';
 
 const { Text } = Typography;
 
 export const TopicManager: React.FC = () => {
-  const { topics, toggleTopic } = useMonitorStore();
+  const topics = useMonitorStore((state) => state.topics);
+  const toggleTopic = useMonitorStore((state) => state.toggleTopic);
 
   return (
     <Card className="glass-card" title="Topic 订阅管理" size="small">
@@ -25,7 +27,7 @@ export const TopicManager: React.FC = () => {
             <List.Item.Meta
               title={
                 <Text
-                  style={{ fontFamily: 'monospace', fontSize: 12 }}
+                  className={styles.topic}
                   type={item.active ? undefined : 'secondary'}
                 >
                   {item.topic}
@@ -36,7 +38,7 @@ export const TopicManager: React.FC = () => {
                   count={item.messageCount}
                   overflowCount={999}
                   size="small"
-                  style={{ backgroundColor: item.active ? '#52c41a' : '#999' }}
+                  className={item.active ? styles.badgeActive : styles.badgeInactive}
                 />
               }
             />

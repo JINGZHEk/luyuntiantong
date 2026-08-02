@@ -36,6 +36,9 @@
   --color-success: #00ff88;
   --color-warning: #faad14;
   --color-danger: #ff4d4f;
+  --color-purple: #a855f7;
+  --color-orange: #f97316;
+  --color-pink: #ec4899;
   --color-text: #e0e6f0;
   --color-text-secondary: #8892a4;
   --color-text-muted: #5d6880;
@@ -60,6 +63,9 @@
   --color-success: #389e0d;
   --color-warning: #d89614;
   --color-danger: #d9363e;
+  --color-purple: #722ed1;
+  --color-orange: #d4380d;
+  --color-pink: #c41d7f;
   --color-text: #1f1f1f;
   --color-text-secondary: #595959;
   --color-text-muted: #8c8c8c;

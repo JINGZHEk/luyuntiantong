@@ -1,101 +1,38 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Card, Col, Row } from 'antd';
 import {
-  ApiOutlined,
   ArrowDownOutlined,
   ArrowUpOutlined,
-  ClockCircleOutlined,
-  DisconnectOutlined,
-  WarningOutlined,
 } from '@ant-design/icons';
 import { AnimatedNumber } from '@/shared/components/AnimatedNumber';
 import { Sparkline } from '@/shared/components/Sparkline';
-import { RISK_COLORS, CHART_COLORS, SEMANTIC_COLORS } from '@/constants/colors';
 import { SystemMetrics } from '@/types/metrics';
 import { getTrendDirection, getTrendPercent, TrendDirection } from './trend';
+import { buildKpiItems } from './kpi-utils';
 import styles from './KpiBar.module.css';
 
 interface KpiBarProps {
   metrics: SystemMetrics;
 }
 
-interface KpiCardData {
-  key: keyof SystemMetrics;
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  decimals: number;
-  suffix: string;
-  colorClass: string;
-  sparkColor: string;
-}
-
-const metricKeys: KpiCardData['key'][] = [
-  'onlineDevices',
-  'avgLatency',
-  'packetLossRate',
-  'todayHighRiskEvents',
-];
-
 const trendIcon: Record<Exclude<TrendDirection, 'stable'>, React.ReactNode> = {
   up: <ArrowUpOutlined />,
   down: <ArrowDownOutlined />,
 };
 
-export function buildKpiItems(metrics: SystemMetrics): KpiCardData[] {
-  return [
-    {
-      key: 'onlineDevices',
-      icon: <ApiOutlined className={styles.iconSuccess} />,
-      label: '在线设备数',
-      value: metrics.onlineDevices,
-      decimals: 0,
-      suffix: '台',
-      colorClass: styles.valueSuccess,
-      sparkColor: SEMANTIC_COLORS.online,
-    },
-    {
-      key: 'avgLatency',
-      icon: <ClockCircleOutlined className={styles.iconAccent} />,
-      label: '平均时延',
-      value: metrics.avgLatency,
-      decimals: 1,
-      suffix: 'ms',
-      colorClass: styles.valueAccent,
-      sparkColor: CHART_COLORS.primary,
-    },
-    {
-      key: 'packetLossRate',
-      icon: <DisconnectOutlined className={styles.iconWarning} />,
-      label: '丢包率',
-      value: metrics.packetLossRate * 100,
-      decimals: 2,
-      suffix: '%',
-      colorClass: styles.valueWarning,
-      sparkColor: RISK_COLORS.medium,
-    },
-    {
-      key: 'todayHighRiskEvents',
-      icon: <WarningOutlined className={styles.iconDanger} />,
-      label: '今日高危事件',
-      value: metrics.todayHighRiskEvents,
-      decimals: 0,
-      suffix: '次',
-      colorClass: styles.valueDanger,
-      sparkColor: RISK_COLORS.critical,
-    },
-  ];
-}
-
 export const KpiBar: React.FC<KpiBarProps> = ({ metrics }) => {
   const historyRef = useRef<Record<string, number[]>>({});
   const previousRef = useRef<Record<string, number>>({});
-  const items = buildKpiItems(metrics);
+  const items = useMemo(
+    () => buildKpiItems(metrics),
+    [metrics],
+  );
 
   useEffect(() => {
     items.forEach((item) => {
       const history = historyRef.current[item.key] || [];
       historyRef.current[item.key] = [...history, item.value].slice(-20);
+      previousRef.current[item.key] = item.value;
     });
   }, [items]);
 
@@ -106,7 +43,6 @@ export const KpiBar: React.FC<KpiBarProps> = ({ metrics }) => {
         const direction = getTrendDirection(item.value, previous);
         const percent = getTrendPercent(item.value, previous);
         const trendClass = direction === 'up' ? styles.trendUp : styles.trendDown;
-        previousRef.current[item.key] = item.value;
         const trendLabel = percent === null ? '暂无趋势数据' : `${percent >= 0 ? '+' : ''}${percent.toFixed(1)}%`;
 
         return (
@@ -144,5 +80,3 @@ export const KpiBar: React.FC<KpiBarProps> = ({ metrics }) => {
     </Row>
   );
 };
-
-export { metricKeys };

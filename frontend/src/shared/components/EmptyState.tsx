@@ -1,5 +1,6 @@
 import React from 'react';
 import { InboxOutlined } from '@ant-design/icons';
+import styles from './EmptyState.module.css';
 
 interface EmptyStateProps {
   icon?: React.ReactNode;
@@ -8,16 +9,16 @@ interface EmptyStateProps {
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
-  icon = <InboxOutlined style={{ fontSize: 32, color: '#555' }} />,
+  icon = <InboxOutlined className={styles.icon} />,
   title = '暂无数据',
   description,
 }) => {
   return (
-    <div className="empty-state">
+    <div className={`empty-state ${styles.emptyState}`}>
       {icon}
-      <span style={{ fontSize: 13, color: '#8892a4' }}>{title}</span>
+      <span className={styles.title}>{title}</span>
       {description && (
-        <span style={{ fontSize: 11, color: '#555' }}>{description}</span>
+        <span className={styles.description}>{description}</span>
       )}
     </div>
   );

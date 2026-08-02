@@ -50,6 +50,9 @@ export const BaseChart: React.FC<BaseChartProps> = ({
 }) => {
   const theme = useSettingsStore((s) => s.theme);
   const colors = THEME_COLORS[theme];
+  const devicePixelRatio = typeof window === 'undefined'
+    ? 1
+    : Math.min(window.devicePixelRatio || 1, 2);
 
   const mergedOption = useMemo(
     () => ({
@@ -63,12 +66,15 @@ export const BaseChart: React.FC<BaseChartProps> = ({
 
   return (
     <ReactEChartsCore
+      key={theme}
       echarts={echarts}
       option={mergedOption}
       style={{ height, width: '100%', ...style }}
-      opts={{ renderer: 'canvas' }}
+      opts={{ renderer: 'canvas', devicePixelRatio }}
+      notMerge
+      lazyUpdate
       showLoading={loading}
-      theme={theme === 'dark' ? 'v2x-dark' : undefined}
+      theme={theme === 'dark' ? 'v2x-dark' : 'v2x-light'}
     />
   );
 };

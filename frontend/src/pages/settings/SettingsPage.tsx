@@ -1,47 +1,43 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Card,
-  Form,
-  Switch,
-  Input,
-  InputNumber,
   Button,
-  Space,
-  Row,
+  Card,
   Col,
   Divider,
+  Form,
+  Input,
+  InputNumber,
   message,
+  Row,
   Select,
+  Space,
   Typography,
 } from 'antd';
-import {
-  DownloadOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
+import { DownloadOutlined, SettingOutlined, UploadOutlined } from '@ant-design/icons';
 import { useSettingsStore } from '@/store/settingsStore';
 import { downloadJson, uploadJson } from '@/shared/utils/helpers';
 import { buildWebSocketUrl, normalizeApiBaseUrl } from '@/services/runtimeConfig';
 import { fetchSceneConfig, saveSceneConfig } from '@/services/settingsApi';
+import { PageHeader } from '@/shared/components/PageHeader';
+import styles from './SettingsPage.module.css';
 
 const { Text } = Typography;
 
 const SettingsPage: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'loaded' | 'saved' | 'failed'>('idle');
-  const {
-    theme,
-    cloudApiBaseUrl,
-    riskThreshold,
-    ttcThreshold,
-    refreshInterval,
-    setTheme,
-    setCloudApiBaseUrl,
-    setRiskThreshold,
-    setTtcThreshold,
-    setRefreshInterval,
-    exportConfig,
-    importConfig,
-  } = useSettingsStore();
+  const theme = useSettingsStore((state) => state.theme);
+  const cloudApiBaseUrl = useSettingsStore((state) => state.cloudApiBaseUrl);
+  const riskThreshold = useSettingsStore((state) => state.riskThreshold);
+  const ttcThreshold = useSettingsStore((state) => state.ttcThreshold);
+  const refreshInterval = useSettingsStore((state) => state.refreshInterval);
+  const setTheme = useSettingsStore((state) => state.setTheme);
+  const setCloudApiBaseUrl = useSettingsStore((state) => state.setCloudApiBaseUrl);
+  const setRiskThreshold = useSettingsStore((state) => state.setRiskThreshold);
+  const setTtcThreshold = useSettingsStore((state) => state.setTtcThreshold);
+  const setRefreshInterval = useSettingsStore((state) => state.setRefreshInterval);
+  const exportConfig = useSettingsStore((state) => state.exportConfig);
+  const importConfig = useSettingsStore((state) => state.importConfig);
 
   const loadCloudConfig = async () => {
     setSyncing(true);
@@ -59,7 +55,7 @@ const SettingsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadCloudConfig();
+    void loadCloudConfig();
     // Only auto-load once on page entry; manual edits should not retrigger a fetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -89,8 +85,7 @@ const SettingsPage: React.FC = () => {
   };
 
   const handleExport = () => {
-    const config = exportConfig();
-    downloadJson(config, 'v2x-platform-config.json');
+    downloadJson(exportConfig(), 'v2x-platform-config.json');
     message.success('配置已导出');
   };
 
@@ -99,29 +94,45 @@ const SettingsPage: React.FC = () => {
       const config = await uploadJson();
       importConfig(config as Record<string, unknown>);
       message.success('配置已导入');
-    } catch (e) {
+    } catch {
       message.error('导入失败：无效的配置文件');
     }
   };
 
   return (
-    <div>
+    <div className={styles.page}>
+      <PageHeader
+        eyebrow="PLATFORM CONFIGURATION"
+        title="系统设置"
+        subtitle="主题、阈值、接口与配置同步"
+        icon={<SettingOutlined />}
+      />
+
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
           <Card className="glass-card" title="外观设置" size="small">
             <Form layout="vertical">
               <Form.Item label="主题模式">
-                <Space>
-                  <Switch
-                    checked={theme === 'dark'}
-                    onChange={(checked) => setTheme(checked ? 'dark' : 'light')}
-                    checkedChildren="深色"
-                    unCheckedChildren="浅色"
-                  />
-                  <Text type="secondary">
-                    当前：{theme === 'dark' ? '深色模式' : '浅色模式'}
-                  </Text>
-                </Space>
+                <div className={styles.themeOptions} role="group" aria-label="主题模式">
+                  <button
+                    type="button"
+                    className={`${styles.themeOption} ${theme === 'dark' ? styles.themeOptionActive : ''}`}
+                    aria-pressed={theme === 'dark'}
+                    onClick={() => setTheme('dark')}
+                  >
+                    <span className={`${styles.themePreview} ${styles.darkPreview}`} aria-hidden="true" />
+                    <span><strong>深空暗色</strong><small>适合实时态势与大屏</small></span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.themeOption} ${theme === 'light' ? styles.themeOptionActive : ''}`}
+                    aria-pressed={theme === 'light'}
+                    onClick={() => setTheme('light')}
+                  >
+                    <span className={`${styles.themePreview} ${styles.lightPreview}`} aria-hidden="true" />
+                    <span><strong>清晰浅色</strong><small>适合评估与配置</small></span>
+                  </button>
+                </div>
               </Form.Item>
             </Form>
           </Card>
@@ -130,11 +141,11 @@ const SettingsPage: React.FC = () => {
         <Col xs={24} md={12}>
           <Card className="glass-card" title="数据刷新" size="small">
             <Form layout="vertical">
-              <Form.Item label="数据刷新频率">
+              <Form.Item label="数据刷新频率" extra="刷新频率只影响 mock 数据轮询，不改变 WebSocket 推送频率。">
                 <Select
                   value={refreshInterval}
                   onChange={setRefreshInterval}
-                  style={{ width: 200 }}
+                  className={styles.control}
                   options={[
                     { label: '1 秒', value: 1000 },
                     { label: '2 秒（默认）', value: 2000 },
@@ -150,16 +161,13 @@ const SettingsPage: React.FC = () => {
         <Col xs={24} md={12}>
           <Card className="glass-card" title="云端服务" size="small">
             <Form layout="vertical">
-              <Form.Item label="Cloud API 地址">
+              <Form.Item label="Cloud API 地址" extra={`WebSocket：${buildWebSocketUrl(cloudApiBaseUrl)}`}>
                 <Input
                   value={cloudApiBaseUrl}
-                  onChange={(e) => setCloudApiBaseUrl(e.target.value)}
+                  onChange={(event) => setCloudApiBaseUrl(event.target.value)}
                   onBlur={() => setCloudApiBaseUrl(normalizeApiBaseUrl(cloudApiBaseUrl))}
                   placeholder="http://localhost:8000/api/v1"
                 />
-                <div style={{ marginTop: 4 }}>
-                  <Text type="secondary">WebSocket：{buildWebSocketUrl(cloudApiBaseUrl)}</Text>
-                </div>
               </Form.Item>
             </Form>
           </Card>
@@ -168,37 +176,27 @@ const SettingsPage: React.FC = () => {
         <Col xs={24} md={12}>
           <Card className="glass-card" title="告警阈值配置" size="small">
             <Form layout="vertical">
-              <Form.Item label="风险分阈值（超过则告警）">
+              <Form.Item label="风险分阈值（超过则告警）" extra={`当风险评分超过 ${riskThreshold} 时触发高危告警`}>
                 <InputNumber
                   min={0}
                   max={1}
                   step={0.05}
                   value={riskThreshold}
-                  onChange={(v) => v !== null && setRiskThreshold(v)}
-                  style={{ width: 200 }}
+                  onChange={(value) => value !== null && setRiskThreshold(value)}
+                  className={styles.control}
                   addonAfter="分"
                 />
-                <div style={{ marginTop: 4 }}>
-                  <Text type="secondary">
-                    当风险评分超过 {riskThreshold} 时触发高危告警
-                  </Text>
-                </div>
               </Form.Item>
-              <Form.Item label="TTC 阈值（低于则告警）">
+              <Form.Item label="TTC 阈值（低于则告警）" extra={`当 TTC 低于 ${ttcThreshold}s 时触发碰撞预警`}>
                 <InputNumber
                   min={0}
                   max={10}
                   step={0.5}
                   value={ttcThreshold}
-                  onChange={(v) => v !== null && setTtcThreshold(v)}
-                  style={{ width: 200 }}
+                  onChange={(value) => value !== null && setTtcThreshold(value)}
+                  className={styles.control}
                   addonAfter="秒"
                 />
-                <div style={{ marginTop: 4 }}>
-                  <Text type="secondary">
-                    当 TTC 低于 {ttcThreshold}s 时触发碰撞预警
-                  </Text>
-                </div>
               </Form.Item>
             </Form>
           </Card>
@@ -206,28 +204,14 @@ const SettingsPage: React.FC = () => {
 
         <Col xs={24} md={12}>
           <Card className="glass-card" title="云端配置同步" size="small">
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <Text type="secondary">
-                当前场景：scene_001
-              </Text>
-              <Space>
-                <Button loading={syncing} onClick={loadCloudConfig}>
-                  从云端加载
-                </Button>
-                <Button type="primary" loading={syncing} onClick={handleSaveCloudConfig}>
-                  保存到云端
-                </Button>
+            <Space direction="vertical" size="middle" className={styles.fullWidth}>
+              <Text type="secondary">当前场景：scene_001</Text>
+              <Space wrap>
+                <Button loading={syncing} onClick={loadCloudConfig}>从云端加载</Button>
+                <Button type="primary" loading={syncing} onClick={handleSaveCloudConfig}>保存到云端</Button>
               </Space>
-              <Text type={syncStatus === 'failed' ? 'danger' : 'secondary'}>
-                状态：{
-                  syncStatus === 'loaded'
-                    ? '已加载云端配置'
-                    : syncStatus === 'saved'
-                      ? '已保存云端配置'
-                      : syncStatus === 'failed'
-                        ? '云端同步失败'
-                        : '等待同步'
-                }
+              <Text className={syncStatus === 'failed' ? styles.syncFailed : styles.syncStatus}>
+                状态：{syncStatus === 'loaded' ? '已加载云端配置' : syncStatus === 'saved' ? '已保存云端配置' : syncStatus === 'failed' ? '云端同步失败' : '等待同步'}
               </Text>
             </Space>
           </Card>
@@ -235,22 +219,18 @@ const SettingsPage: React.FC = () => {
 
         <Col xs={24} md={12}>
           <Card className="glass-card" title="配置管理" size="small">
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <Text type="secondary">
-                导出当前平台配置为 JSON 文件，或从文件导入配置。
-              </Text>
-              <Space>
-                <Button icon={<DownloadOutlined />} onClick={handleExport}>
-                  导出配置
-                </Button>
-                <Button icon={<UploadOutlined />} onClick={handleImport}>
-                  导入配置
-                </Button>
+            <Space direction="vertical" size="middle" className={styles.fullWidth}>
+              <Text type="secondary">导出当前平台配置为 JSON 文件，或从文件导入配置。</Text>
+              <Space wrap>
+                <Button icon={<DownloadOutlined />} onClick={handleExport}>导出配置</Button>
+                <Button icon={<UploadOutlined />} onClick={handleImport}>导入配置</Button>
               </Space>
-              <Divider style={{ margin: '12px 0' }} />
-              <Text type="secondary">系统版本：V2X-Ghost Platform v1.0.0</Text>
-              <Text type="secondary">构建环境：Vite + React + TypeScript</Text>
-              <Text type="secondary">数据模式：Cloud API + Mock fallback</Text>
+              <Divider className={styles.divider} />
+              <div className={styles.versionList}>
+                <Text type="secondary">系统版本：V2X-Ghost Platform v1.0.0</Text>
+                <Text type="secondary">构建环境：Vite + React + TypeScript</Text>
+                <Text type="secondary">数据模式：Cloud API + Mock fallback</Text>
+              </div>
             </Space>
           </Card>
         </Col>

@@ -2,35 +2,31 @@ import React from 'react';
 import { Card, Row, Col } from 'antd';
 import { AnimatedNumber } from '@/shared/components/AnimatedNumber';
 import { ModelMetrics } from '@/types/metrics';
-import { useSettingsStore } from '@/store/settingsStore';
-import { THEME_COLORS, CHART_COLORS } from '@/constants/colors';
+import styles from './MetricCards.module.css';
 
 interface MetricCardsProps {
   metrics: ModelMetrics;
 }
 
 export const MetricCards: React.FC<MetricCardsProps> = ({ metrics }) => {
-  const theme = useSettingsStore((s) => s.theme);
-  const colors = THEME_COLORS[theme];
-
   const items = [
-    { label: 'Precision', value: metrics.precision, decimals: 3, color: CHART_COLORS.primary },
-    { label: 'Recall', value: metrics.recall, decimals: 3, color: CHART_COLORS.secondary },
-    { label: 'F1 Score', value: metrics.f1Score, decimals: 3, color: CHART_COLORS.tertiary },
-    { label: 'ADE (m)', value: metrics.ade, decimals: 2, color: CHART_COLORS.quaternary },
-    { label: 'FDE (m)', value: metrics.fde, decimals: 2, color: CHART_COLORS.quinary },
+    { label: 'Precision', value: metrics.precision, decimals: 3, colorClass: styles.precision },
+    { label: 'Recall', value: metrics.recall, decimals: 3, colorClass: styles.recall },
+    { label: 'F1 Score', value: metrics.f1Score, decimals: 3, colorClass: styles.f1 },
+    { label: 'ADE (m)', value: metrics.ade, decimals: 2, colorClass: styles.ade },
+    { label: 'FDE (m)', value: metrics.fde, decimals: 2, colorClass: styles.fde },
     ...(typeof metrics.occAde === 'number'
-      ? [{ label: 'Occ-ADE (m)', value: metrics.occAde, decimals: 2, color: CHART_COLORS.line3 }]
+      ? [{ label: 'Occ-ADE (m)', value: metrics.occAde, decimals: 2, colorClass: styles.occAde }]
       : []),
     ...(typeof metrics.occAcc === 'number'
-      ? [{ label: 'Occ-Acc', value: metrics.occAcc, decimals: 3, color: CHART_COLORS.line2 }]
+      ? [{ label: 'Occ-Acc', value: metrics.occAcc, decimals: 3, colorClass: styles.occAcc }]
       : []),
-    { label: 'Latency (ms)', value: metrics.avgLatency, decimals: 1, color: colors.accent },
+    { label: 'Latency (ms)', value: metrics.avgLatency, decimals: 1, colorClass: styles.latency },
     ...(typeof metrics.e2eLatency === 'number'
-      ? [{ label: 'E2E-Lat (ms)', value: metrics.e2eLatency, decimals: 1, color: CHART_COLORS.line4 }]
+      ? [{ label: 'E2E-Lat (ms)', value: metrics.e2eLatency, decimals: 1, colorClass: styles.e2eLatency }]
       : []),
     ...(typeof metrics.leadTime === 'number'
-      ? [{ label: 'Lead-Time (s)', value: metrics.leadTime, decimals: 2, color: CHART_COLORS.line3 }]
+      ? [{ label: 'Lead-Time (s)', value: metrics.leadTime, decimals: 2, colorClass: styles.leadTime }]
       : []),
   ];
 
@@ -38,13 +34,13 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ metrics }) => {
     <Row gutter={[12, 12]}>
       {items.map((item) => (
         <Col xs={12} sm={8} md={4} key={item.label}>
-          <Card className="glass-card" size="small">
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 4 }}>
+          <Card className={`glass-card ${styles.card}`} size="small">
+            <div className={styles.content}>
+              <div className={styles.label}>
                 {item.label}
               </div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: item.color }}>
-                <AnimatedNumber value={item.value} decimals={item.decimals} />
+              <div className={`${styles.value} ${item.colorClass}`}>
+                <AnimatedNumber value={item.value} decimals={item.decimals} className={styles.number} />
               </div>
             </div>
           </Card>

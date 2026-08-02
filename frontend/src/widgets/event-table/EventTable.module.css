@@ -1,0 +1,36 @@
+.filters {
+  width: 100%;
+  margin-bottom: var(--spacing-md);
+}
+
+.search {
+  width: 200px;
+}
+
+.typeSelect {
+  width: 120px;
+}
+
+.eventId {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.clickableRow {
+  cursor: pointer;
+}
+
+.selectedRow {
+  cursor: pointer;
+}
+
+.selectedRow :global(td) {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent) !important;
+}
+
+@media (max-width: 540px) {
+  .search,
+  .typeSelect {
+    width: 100%;
+  }
+}

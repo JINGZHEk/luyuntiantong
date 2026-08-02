@@ -1,0 +1,33 @@
+.iconAccent,
+.iconSuccess,
+.iconWarning {
+  margin-right: 8px;
+}
+
+.iconAccent { color: var(--color-accent); }
+.iconSuccess { color: var(--color-success); }
+.iconWarning { color: var(--color-warning); }
+
+.badgeAccent :global(.ant-badge-count) {
+  background: var(--color-accent);
+}
+
+.ttc {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.ttcCritical {
+  color: var(--color-danger);
+}
+
+.eventId {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.empty {
+  padding: 20px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}

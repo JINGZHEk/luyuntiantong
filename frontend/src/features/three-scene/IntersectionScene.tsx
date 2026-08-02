@@ -1,5 +1,5 @@
-import React, { Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
+import React, { Suspense, useMemo } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Text } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
@@ -13,6 +13,8 @@ import { BuildingWireframe } from './BuildingWireframe';
 import { OcclusionZone } from './OcclusionZone';
 import { DataFlowParticles } from './DataFlowParticles';
 import { ReplayFrame } from '@/types/event';
+import { useSettingsStore } from '@/store/settingsStore';
+import styles from './IntersectionScene.module.css';
 
 interface SceneData {
   vehicles: {
@@ -50,22 +52,32 @@ function SceneContent({
   sceneData,
   showLabel,
   cameraMode = 'orbit',
+  theme,
 }: {
   sceneData: SceneData;
   showLabel: boolean;
   cameraMode?: 'orbit' | 'follow' | 'cinematic';
+  theme: 'dark' | 'light';
 }) {
+  const ego = sceneData.vehicles.find((vehicle) => vehicle.isEgo) || sceneData.vehicles[0];
+  const egoTarget: [number, number, number] = ego
+    ? [ego.position.x, ego.position.y + 0.4, ego.position.z]
+    : [0, 0, 0];
+  const fogColor = theme === 'dark' ? '#050816' : '#edf4ff';
+  const primaryLight = theme === 'dark' ? '#00d4ff' : '#1677ff';
+  const accentLight = theme === 'dark' ? '#00ff88' : '#389e0d';
+
   return (
     <>
       {/* Enhanced lighting */}
       <ambientLight intensity={0.3} />
       <directionalLight position={[20, 30, 10]} intensity={0.5} castShadow />
-      <pointLight position={[0, 12, 0]} intensity={0.8} color="#00d4ff" distance={30} />
-      <pointLight position={[-15, 8, -15]} intensity={0.4} color="#00ff88" distance={25} />
-      <pointLight position={[15, 8, 15]} intensity={0.3} color="#a855f7" distance={25} />
+      <pointLight position={[0, 12, 0]} intensity={theme === 'dark' ? 0.8 : 0.35} color={primaryLight} distance={30} />
+      <pointLight position={[-15, 8, -15]} intensity={theme === 'dark' ? 0.4 : 0.2} color={accentLight} distance={25} />
+      <pointLight position={[15, 8, 15]} intensity={theme === 'dark' ? 0.3 : 0.12} color="#a855f7" distance={25} />
 
       {/* Fog */}
-      <fogExp2 attach="fog" args={['#050816', 0.012]} />
+      <fogExp2 attach="fog" args={[fogColor, theme === 'dark' ? 0.012 : 0.008]} />
 
       {/* Road */}
       <Road />
@@ -132,9 +144,30 @@ function SceneContent({
           V2X 路口场景
         </Text>
       )}
+      <CameraController mode={cameraMode} target={egoTarget} />
     </>
   );
 }
+
+const CameraController: React.FC<{
+  mode: 'orbit' | 'follow' | 'cinematic';
+  target: [number, number, number];
+}> = ({ mode, target }) => {
+  const { camera } = useThree();
+  const lookTarget = useMemo(() => new THREE.Vector3(), []);
+  const desiredPosition = useMemo(() => new THREE.Vector3(), []);
+
+  useFrame(() => {
+    if (mode !== 'follow') return;
+    const [x, y, z] = target;
+    desiredPosition.set(x + 10, y + 7, z + 12);
+    camera.position.lerp(desiredPosition, 0.04);
+    lookTarget.set(x, y, z);
+    camera.lookAt(lookTarget);
+  });
+
+  return null;
+};
 
 const defaultSceneData: SceneData = {
   vehicles: [
@@ -217,6 +250,7 @@ export const IntersectionScene: React.FC<IntersectionSceneProps> = ({
   showLabel = false,
   cameraMode = 'orbit',
 }) => {
+  const theme = useSettingsStore((state) => state.theme);
   let data: SceneData;
   if (replayFrame) {
     data = replayFrameToSceneData(replayFrame);
@@ -225,7 +259,7 @@ export const IntersectionScene: React.FC<IntersectionSceneProps> = ({
   }
 
   return (
-    <div className="tech-border" style={{ height, width: '100%', borderRadius: 8, overflow: 'hidden' }}>
+    <div className={`tech-border ${styles.scene}`} style={{ height }}>
       <Canvas shadows>
         <PerspectiveCamera
           makeDefault
@@ -238,15 +272,16 @@ export const IntersectionScene: React.FC<IntersectionSceneProps> = ({
           minDistance={10}
           maxDistance={60}
           maxPolarAngle={Math.PI / 2.2}
+          enabled={cameraMode !== 'follow'}
           autoRotate={cameraMode === 'cinematic'}
-          autoRotateSpeed={0.5}
+          autoRotateSpeed={0.3}
         />
         <Suspense fallback={null}>
-          <SceneContent sceneData={data} showLabel={showLabel} cameraMode={cameraMode} />
+          <SceneContent sceneData={data} showLabel={showLabel} cameraMode={cameraMode} theme={theme} />
         </Suspense>
         {/* Bloom postprocessing */}
         <EffectComposer>
-          <Bloom luminanceThreshold={0.4} intensity={0.8} radius={0.4} />
+          <Bloom luminanceThreshold={theme === 'dark' ? 0.4 : 0.7} intensity={theme === 'dark' ? 0.8 : 0.35} radius={0.4} />
         </EffectComposer>
       </Canvas>
     </div>

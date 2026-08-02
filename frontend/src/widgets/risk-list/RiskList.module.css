@@ -98,10 +98,10 @@
   box-shadow: 0 0 8px transparent;
 }
 
-.row[data-risk-level='low'] .riskLine { background: var(--risk-low, #52c41a); box-shadow: 0 0 8px rgba(82, 196, 26, 0.35); }
-.row[data-risk-level='medium'] .riskLine { background: var(--color-warning); box-shadow: 0 0 8px rgba(250, 173, 20, 0.35); }
-.row[data-risk-level='high'] .riskLine { background: #ff7a45; box-shadow: 0 0 8px rgba(255, 122, 69, 0.35); }
-.row[data-risk-level='critical'] .riskLine { background: var(--color-danger); box-shadow: 0 0 8px rgba(255, 77, 79, 0.45); }
+.row[data-risk-level='low'] .riskLine { background: var(--color-success); box-shadow: 0 0 8px color-mix(in srgb, var(--color-success) 35%, transparent); }
+.row[data-risk-level='medium'] .riskLine { background: var(--color-warning); box-shadow: 0 0 8px color-mix(in srgb, var(--color-warning) 35%, transparent); }
+.row[data-risk-level='high'] .riskLine { background: var(--color-orange); box-shadow: 0 0 8px color-mix(in srgb, var(--color-orange) 35%, transparent); }
+.row[data-risk-level='critical'] .riskLine { background: var(--color-danger); box-shadow: 0 0 8px color-mix(in srgb, var(--color-danger) 45%, transparent); }
 
 .rank,
 .score strong {
@@ -164,13 +164,13 @@
 
 .row[data-risk-level='low'] .rank,
 .row[data-risk-level='low'] .score strong,
-.row[data-risk-level='low'] .score span { color: #52c41a; }
+.row[data-risk-level='low'] .score span { color: var(--color-success); }
 .row[data-risk-level='medium'] .rank,
 .row[data-risk-level='medium'] .score strong,
 .row[data-risk-level='medium'] .score span { color: var(--color-warning); }
 .row[data-risk-level='high'] .rank,
 .row[data-risk-level='high'] .score strong,
-.row[data-risk-level='high'] .score span { color: #ff7a45; }
+.row[data-risk-level='high'] .score span { color: var(--color-orange); }
 .row[data-risk-level='critical'] .rank,
 .row[data-risk-level='critical'] .score strong,
 .row[data-risk-level='critical'] .score span { color: var(--color-danger); }

@@ -1,18 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Alert } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
+import { registerToast, ToastType } from './toastService';
+import styles from './Toast.module.css';
 
 interface ToastState {
   visible: boolean;
   message: string;
   type: 'info' | 'warning' | 'error';
 }
-
-let externalShow: ((message: string, type?: 'info' | 'warning' | 'error') => void) | null = null;
-
-export const showToast = (message: string, type: 'info' | 'warning' | 'error' = 'info') => {
-  if (externalShow) externalShow(message, type);
-};
 
 export const Toast: React.FC = () => {
   const [state, setState] = useState<ToastState>({
@@ -21,13 +17,12 @@ export const Toast: React.FC = () => {
     type: 'info',
   });
 
-  const show = useCallback((message: string, type: 'info' | 'warning' | 'error' = 'info') => {
+  const show = useCallback((message: string, type: ToastType = 'info') => {
     setState({ visible: true, message, type });
   }, []);
 
   useEffect(() => {
-    externalShow = show;
-    return () => { externalShow = null; };
+    return registerToast(show);
   }, [show]);
 
   useEffect(() => {
@@ -41,36 +36,27 @@ export const Toast: React.FC = () => {
 
   if (!state.visible) return null;
 
-  const alertType = state.type === 'error' ? 'error' : state.type === 'warning' ? 'warning' : 'info';
+  const alertType: 'info' | 'warning' | 'error' = state.type === 'error'
+    ? 'error'
+    : state.type === 'warning'
+      ? 'warning'
+      : 'info';
+  const typeClass = state.type === 'error'
+    ? styles.error
+    : state.type === 'warning'
+      ? styles.warning
+      : styles.info;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 20,
-        right: 20,
-        zIndex: 1070,
-        animation: 'fadeIn 0.3s ease-out',
-        minWidth: 300,
-        maxWidth: 450,
-      }}
-    >
+    <div className={`${styles.toast} ${typeClass}`} role={state.type === 'error' ? 'alert' : 'status'} aria-live="polite">
       <Alert
-        type={alertType as any}
+        type={alertType}
         showIcon
         icon={state.type === 'error' ? <ExclamationCircleOutlined /> : undefined}
         message={state.message}
         closable
         onClose={() => setState((s) => ({ ...s, visible: false }))}
-        style={{
-          backdropFilter: 'blur(12px)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-          border: `1px solid ${
-            state.type === 'error' ? 'rgba(255, 77, 79, 0.4)' :
-            state.type === 'warning' ? 'rgba(250, 173, 20, 0.4)' :
-            'rgba(0, 212, 255, 0.3)'
-          }`,
-        }}
+        className={styles.alert}
       />
     </div>
   );

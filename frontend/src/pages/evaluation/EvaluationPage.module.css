@@ -1,0 +1,85 @@
+.page {
+  min-width: 0;
+}
+
+.demoTag {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.summaryCard {
+  margin-bottom: var(--spacing-md);
+}
+
+.summaryLabel {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.reportSelect {
+  width: 100%;
+}
+
+.section {
+  margin-top: var(--spacing-md);
+}
+
+.targetList {
+  display: flex;
+  flex-direction: column;
+}
+
+.targetRow {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 110px 120px 70px;
+  align-items: center;
+  min-height: 48px;
+  gap: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+}
+
+.targetRow:last-child {
+  border-bottom: 0;
+}
+
+.targetMetric {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.targetMetric strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.targetMetric span,
+.targetGoal {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.targetValue {
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .targetRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 10px 0;
+  }
+
+  .targetGoal {
+    grid-column: 1;
+  }
+
+  .targetRow :global(.ant-tag) {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}

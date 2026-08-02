@@ -7,6 +7,7 @@ import { getAntdTheme } from './styles/theme';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useMockRealtime } from '@/shared/hooks/useMockRealtime';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
+import { Toast } from '@/shared/components/Toast';
 
 const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   useMockRealtime();
@@ -23,6 +24,7 @@ export const App: React.FC = () => {
         <div className="app-shell" data-theme={theme}>
           <RealtimeProvider>
             <RouterProvider router={router} />
+            <Toast />
           </RealtimeProvider>
         </div>
       </ConfigProvider>

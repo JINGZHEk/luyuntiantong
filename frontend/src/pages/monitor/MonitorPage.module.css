@@ -1,0 +1,43 @@
+.page {
+  min-width: 0;
+}
+
+.controlCard {
+  margin-bottom: var(--spacing-md);
+}
+
+.controlBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.statusGroup,
+.actionGroup {
+  flex-wrap: wrap;
+}
+
+.scenarioSelect {
+  width: 150px;
+}
+
+.section {
+  margin-top: var(--spacing-md);
+}
+
+@media (max-width: 680px) {
+  .controlBar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .actionGroup {
+    width: 100%;
+  }
+
+  .scenarioSelect {
+    width: 100%;
+  }
+}

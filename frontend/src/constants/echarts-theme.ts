@@ -1,6 +1,6 @@
 import * as echarts from 'echarts/core';
 
-const V2X_THEME = {
+const V2X_THEME: Parameters<typeof echarts.registerTheme>[1] = {
   color: ['#00d4ff', '#00ff88', '#a855f7', '#f97316', '#ec4899'],
   backgroundColor: 'transparent',
   textStyle: { color: '#8892a4', fontSize: 11 },
@@ -40,13 +40,45 @@ const V2X_THEME = {
   },
 };
 
+const V2X_LIGHT_THEME: Parameters<typeof echarts.registerTheme>[1] = {
+  color: ['#1677ff', '#389e0d', '#722ed1', '#d46b08', '#c41d7f'],
+  backgroundColor: 'transparent',
+  textStyle: { color: '#595959', fontSize: 11 },
+  title: {
+    textStyle: { color: '#1f1f1f', fontSize: 13, fontWeight: 600 },
+    subtextStyle: { color: '#8c8c8c', fontSize: 11 },
+  },
+  legend: { textStyle: { color: '#595959', fontSize: 11 }, inactiveColor: '#bfbfbf' },
+  tooltip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderColor: '#b7d7ff',
+    borderWidth: 1,
+    textStyle: { color: '#1f1f1f', fontSize: 12 },
+    extraCssText: 'box-shadow: 0 8px 24px rgba(0,0,0,0.12); border-radius: 6px;',
+  },
+  categoryAxis: {
+    axisLine: { lineStyle: { color: '#d9d9d9' } },
+    axisTick: { lineStyle: { color: '#d9d9d9' } },
+    axisLabel: { color: '#8c8c8c', fontSize: 10 },
+    splitLine: { show: false },
+  },
+  valueAxis: {
+    axisLine: { show: false },
+    axisTick: { show: false },
+    axisLabel: { color: '#8c8c8c', fontSize: 10 },
+    splitLine: { lineStyle: { color: '#f0f0f0' } },
+  },
+  grid: V2X_THEME.grid,
+};
+
 let registered = false;
 
 export function registerV2XTheme() {
-  if (!registered) {
-    echarts.registerTheme('v2x-dark', V2X_THEME as any);
-    registered = true;
-  }
+  if (registered) return;
+  echarts.registerTheme('v2x-dark', V2X_THEME);
+  echarts.registerTheme('v2x-light', V2X_LIGHT_THEME);
+  registered = true;
 }
 
+export { V2X_THEME, V2X_LIGHT_THEME };
 export default V2X_THEME;

@@ -1,0 +1,234 @@
+.presentation {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--app-background);
+  color: var(--color-text);
+}
+
+.topbar,
+.brandGroup,
+.backButton,
+.sourceBadge,
+.timeline {
+  display: flex;
+  align-items: center;
+}
+
+.topbar {
+  min-height: 72px;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--color-border);
+  flex: 0 0 72px;
+}
+
+.brandGroup {
+  min-width: 0;
+  gap: 16px;
+}
+
+.backButton {
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.backButton:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.titleGroup {
+  min-width: 0;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+
+.titleGroup h1 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sourceBadge {
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.sourceDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.sourceLive { background: var(--color-success); box-shadow: 0 0 10px color-mix(in srgb, var(--color-success) 75%, transparent); }
+.sourceMock { background: var(--color-warning); box-shadow: 0 0 10px color-mix(in srgb, var(--color-warning) 65%, transparent); }
+
+.clock {
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+}
+
+.main {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(0, 1.85fr) minmax(280px, 1fr);
+  gap: 12px;
+  padding: 12px 24px;
+}
+
+.sceneColumn,
+.dataColumn {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scenePanel {
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.riskPanel {
+  min-height: 0;
+  flex: 0 0 40%;
+  overflow: auto;
+}
+
+.chartStack {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+}
+
+.timeline {
+  min-height: 60px;
+  gap: 16px;
+  padding: 0 24px;
+  border-top: 1px solid var(--color-border);
+  flex: 0 0 60px;
+}
+
+.timelineLabel {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.timelineTrack {
+  position: relative;
+  height: 2px;
+  flex: 1;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-accent) 24%, transparent), transparent);
+}
+
+.timelineDot {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+}
+
+.risk_low { background: var(--color-success); box-shadow: 0 0 8px color-mix(in srgb, var(--color-success) 60%, transparent); }
+.risk_medium { background: var(--color-warning); box-shadow: 0 0 8px color-mix(in srgb, var(--color-warning) 60%, transparent); }
+.risk_high { background: var(--color-orange); box-shadow: 0 0 8px color-mix(in srgb, var(--color-orange) 60%, transparent); }
+.risk_critical { background: var(--color-danger); box-shadow: 0 0 8px color-mix(in srgb, var(--color-danger) 75%, transparent); }
+
+.position10 { left: 10%; }
+.position20 { left: 20%; }
+.position30 { left: 30%; }
+.position40 { left: 40%; }
+.position50 { left: 50%; }
+.position60 { left: 60%; }
+.position70 { left: 70%; }
+.position80 { left: 80%; }
+
+.eventCount {
+  color: var(--color-accent);
+  font-family: var(--font-display);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .presentation {
+    overflow: auto;
+  }
+
+  .topbar {
+    min-height: 64px;
+    padding: 0 12px;
+    flex-basis: 64px;
+  }
+
+  .main {
+    display: flex;
+    min-height: 720px;
+    flex-direction: column;
+    padding: 12px;
+  }
+
+  .scenePanel {
+    min-height: 420px;
+  }
+
+  .riskPanel,
+  .chartStack {
+    flex: 0 0 auto;
+  }
+
+  .timeline {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .titleGroup h1 {
+    font-size: 14px;
+  }
+
+  .backButton span,
+  .sourceBadge,
+  .clock {
+    display: none;
+  }
+}

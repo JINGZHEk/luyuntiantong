@@ -8,8 +8,7 @@ import {
 } from '@ant-design/icons';
 import { PlaybackState } from '@/types/event';
 import { SPEED_OPTIONS } from '@/constants/config';
-import { useSettingsStore } from '@/store/settingsStore';
-import { THEME_COLORS } from '@/constants/colors';
+import styles from './PlaybackControls.module.css';
 
 const { Text } = Typography;
 
@@ -28,9 +27,6 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   onSeek,
   onSpeedChange,
 }) => {
-  const theme = useSettingsStore((s) => s.theme);
-  const colors = THEME_COLORS[theme];
-
   const marks: Record<number, string> = {};
   playback.keyframes.forEach((kf) => {
     marks[kf] = '●';
@@ -38,8 +34,9 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
 
   return (
     <Card className="glass-card" size="small" title="播放控制器">
-      <div style={{ padding: '0 8px' }}>
+      <div className={styles.body}>
         <Slider
+          className={styles.slider}
           min={0}
           max={Math.max(playback.totalFrames - 1, 1)}
           value={playback.currentFrame}
@@ -48,18 +45,8 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
           tooltip={{
             formatter: (val) => `帧 ${val}/${playback.totalFrames}`,
           }}
-          styles={{
-            track: { background: colors.accent },
-          }}
         />
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginTop: 8,
-          }}
-        >
+        <div className={styles.footer}>
           <Space>
             <Tooltip title="上一帧">
               <Button
@@ -87,14 +74,14 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
           </Space>
 
           <Space>
-            <Text style={{ fontSize: 12, color: colors.textSecondary }}>
+            <Text className={styles.frameText}>
               {playback.currentFrame} / {playback.totalFrames} 帧
             </Text>
             <Select
+              className={styles.speedSelect}
               size="small"
               value={playback.speed}
               onChange={onSpeedChange}
-              style={{ width: 80 }}
               options={SPEED_OPTIONS}
             />
           </Space>

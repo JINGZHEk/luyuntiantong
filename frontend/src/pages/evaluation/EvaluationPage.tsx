@@ -1,29 +1,29 @@
 import React, { useEffect } from 'react';
-import { Row, Col, Card, Button, message, Result, Table, Tag, Space, Statistic, Select } from 'antd';
-import { DownloadOutlined } from '@ant-design/icons';
+import { Button, Card, Col, message, Result, Row, Select, Space, Statistic, Table, Tag } from 'antd';
+import { DownloadOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { useEvaluationStore } from '@/store/evaluationStore';
 import { MetricCards } from '@/widgets/metric-cards/MetricCards';
 import { BarChart } from '@/entities/charts/BarChart';
 import { BaseChart } from '@/entities/charts/BaseChart';
 import { CHART_COLORS } from '@/constants/colors';
 import { PageLoading } from '@/shared/components/PageLoading';
+import { PageHeader } from '@/shared/components/PageHeader';
 import { downloadJson } from '@/shared/utils/helpers';
+import styles from './EvaluationPage.module.css';
 
 const EvaluationPage: React.FC = () => {
-  const {
-    metrics,
-    baselines,
-    ablations,
-    targetStatus,
-    reports,
-    selectedReportKey,
-    source,
-    summary,
-    pageState,
-    loadData,
-    selectReport,
-    setError,
-  } = useEvaluationStore();
+  const metrics = useEvaluationStore((state) => state.metrics);
+  const baselines = useEvaluationStore((state) => state.baselines);
+  const ablations = useEvaluationStore((state) => state.ablations);
+  const targetStatus = useEvaluationStore((state) => state.targetStatus);
+  const reports = useEvaluationStore((state) => state.reports);
+  const selectedReportKey = useEvaluationStore((state) => state.selectedReportKey);
+  const source = useEvaluationStore((state) => state.source);
+  const summary = useEvaluationStore((state) => state.summary);
+  const pageState = useEvaluationStore((state) => state.pageState);
+  const loadData = useEvaluationStore((state) => state.loadData);
+  const selectReport = useEvaluationStore((state) => state.selectReport);
+  const setError = useEvaluationStore((state) => state.setError);
 
   useEffect(() => {
     loadData();
@@ -33,18 +33,20 @@ const EvaluationPage: React.FC = () => {
 
   if (pageState.error) {
     return (
-      <Result
-        status="error"
-        title="评估数据加载失败"
-        subTitle={pageState.error}
-        extra={<Button type="primary" onClick={() => setError(null)}>重试</Button>}
-      />
+      <div className={styles.page}>
+        <PageHeader eyebrow="MODEL VALIDATION" title="模型评估" subtitle="指标达标、基线对比与消融结果" icon={<ExperimentOutlined />} />
+        <Result
+          status="error"
+          title="评估数据加载失败"
+          subTitle={pageState.error}
+          extra={<Button type="primary" onClick={() => setError(null)}>重试</Button>}
+        />
+      </div>
     );
   }
 
-  const baselineCategories = baselines.map((b) => b.model);
+  const baselineCategories = baselines.map((baseline) => baseline.model);
   const selectedReport = reports.find((item) => item.key === selectedReportKey);
-
   const radarOption = {
     tooltip: {},
     legend: { bottom: 0, textStyle: { fontSize: 11 } },
@@ -64,19 +66,11 @@ const EvaluationPage: React.FC = () => {
     series: [
       {
         type: 'radar' as const,
-        data: baselines.slice(0, 3).map((b, i) => ({
-          value: [b.precision, b.recall, b.f1Score, Math.max(0, 1 - b.ade), Math.max(0, 1 - b.fde)],
-          name: b.model,
-          lineStyle: {
-            color: [CHART_COLORS.primary, CHART_COLORS.secondary, CHART_COLORS.tertiary][i],
-          },
-          areaStyle: {
-            color: [
-              'rgba(0,212,255,0.15)',
-              'rgba(0,255,136,0.15)',
-              'rgba(168,85,247,0.15)',
-            ][i],
-          },
+        data: baselines.slice(0, 3).map((baseline, index) => ({
+          value: [baseline.precision, baseline.recall, baseline.f1Score, Math.max(0, 1 - baseline.ade), Math.max(0, 1 - baseline.fde)],
+          name: baseline.model,
+          lineStyle: { color: [CHART_COLORS.primary, CHART_COLORS.secondary, CHART_COLORS.tertiary][index] },
+          areaStyle: { color: ['rgba(0,212,255,0.15)', 'rgba(0,255,136,0.15)', 'rgba(168,85,247,0.15)'][index] },
         })),
       },
     ],
@@ -84,50 +78,38 @@ const EvaluationPage: React.FC = () => {
 
   const ablationColumns = [
     { title: '变体', dataIndex: 'variant', key: 'variant' },
-    { title: 'F1 Score', dataIndex: 'f1Score', key: 'f1', render: (v: number) => v.toFixed(3) },
-    { title: 'ADE', dataIndex: 'ade', key: 'ade', render: (v: number) => v.toFixed(2) },
-    { title: 'FDE', dataIndex: 'fde', key: 'fde', render: (v: number) => v.toFixed(2) },
+    { title: 'F1 Score', dataIndex: 'f1Score', key: 'f1', render: (value: number) => value.toFixed(3) },
+    { title: 'ADE', dataIndex: 'ade', key: 'ade', render: (value: number) => value.toFixed(2) },
+    { title: 'FDE', dataIndex: 'fde', key: 'fde', render: (value: number) => value.toFixed(2) },
     { title: '说明', dataIndex: 'description', key: 'desc' },
   ];
 
-  const targetColumns = [
-    { title: '指标', dataIndex: 'metric', key: 'metric' },
-    {
-      title: '当前值',
-      dataIndex: 'value',
-      key: 'value',
-      render: (value: number | null) => (typeof value === 'number' ? value.toFixed(2) : '--'),
-    },
-    { title: '目标', dataIndex: 'target', key: 'target' },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => {
-        const color = status === 'pass' ? 'green' : status === 'fail' ? 'red' : 'default';
-        const label = status === 'pass' ? '达标' : status === 'fail' ? '未达标' : '待测';
-        return <Tag color={color}>{label}</Tag>;
-      },
-    },
-  ];
-
   return (
-    <div>
-      <Card className="glass-card" size="small" style={{ marginBottom: 12 }}>
-        <Row gutter={[12, 12]} align="middle">
-          <Col xs={24} md={6}>
-            <Space>
-              <span>数据源</span>
-              <Tag color={source === 'live' ? 'green' : 'gold'}>{source === 'live' ? 'live' : 'mock'}</Tag>
+    <div className={styles.page}>
+      <PageHeader
+        eyebrow="MODEL VALIDATION"
+        title="模型评估"
+        subtitle="指标达标、基线对比与消融结果"
+        icon={<ExperimentOutlined />}
+        extra={source === 'mock' ? <Tag className={styles.demoTag} color="gold">演示数据</Tag> : undefined}
+      />
+
+      <Card className={`glass-card ${styles.summaryCard}`} size="small">
+        <Row gutter={[16, 16]} align="middle">
+          <Col xs={24} md={7}>
+            <Space wrap>
+              <span className={styles.summaryLabel}>数据源</span>
+              <Tag color={source === 'live' ? 'green' : 'gold'}>{source === 'live' ? 'LIVE' : 'MOCK'}</Tag>
               {selectedReport?.source && <Tag color="blue">{selectedReport.source}</Tag>}
             </Space>
           </Col>
-          <Col xs={24} md={6}>
+          <Col xs={24} md={7}>
             <Select
               size="small"
-              style={{ width: '100%' }}
+              className={styles.reportSelect}
               value={selectedReportKey}
               onChange={(value) => void selectReport(value)}
+              aria-label="选择评估报告"
               options={reports.map((item) => ({
                 value: item.key,
                 label: `${item.label}${item.available ? '' : '（未生成）'}`,
@@ -135,49 +117,47 @@ const EvaluationPage: React.FC = () => {
               }))}
             />
           </Col>
-          <Col xs={12} md={4}>
-            <Statistic title="样本帧" value={summary.sampleCount} />
-          </Col>
-          <Col xs={12} md={4}>
-            <Statistic title="高危事件" value={summary.eventCount} />
-          </Col>
-          <Col xs={12} md={4}>
-            <Statistic title="最低 TTC" value={summary.minTtc ?? 0} precision={2} suffix="s" />
-          </Col>
+          <Col xs={8} md={3}><Statistic title="样本帧" value={summary.sampleCount} /></Col>
+          <Col xs={8} md={3}><Statistic title="高危事件" value={summary.eventCount} /></Col>
+          <Col xs={8} md={4}><Statistic title="最低 TTC" value={summary.minTtc ?? 0} precision={2} suffix="s" /></Col>
         </Row>
       </Card>
 
-      <MetricCards metrics={metrics} />
+      <section className={styles.section} aria-label="核心指标">
+        <MetricCards metrics={metrics} />
+      </section>
 
       {targetStatus.length > 0 && (
-        <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
-          <Col span={24}>
-            <Card className="glass-card" title="指标达标状态" size="small">
-              <Table
-                dataSource={targetStatus}
-                columns={targetColumns}
-                rowKey="key"
-                size="small"
-                pagination={false}
-              />
-            </Card>
-          </Col>
-        </Row>
+        <section className={styles.section} aria-label="指标达标状态">
+          <Card className="glass-card" title="指标达标状态" size="small">
+            <div className={styles.targetList} role="list">
+              {targetStatus.map((target) => (
+                <div key={target.key} className={styles.targetRow} role="listitem">
+                  <div className={styles.targetMetric}>
+                    <strong>{target.metric}</strong>
+                    <span>{target.unit}</span>
+                  </div>
+                  <span className={styles.targetValue}>{typeof target.value === 'number' ? target.value.toFixed(2) : '--'}</span>
+                  <span className={styles.targetGoal}>{target.target}</span>
+                  <Tag color={target.status === 'pass' ? 'green' : target.status === 'fail' ? 'red' : 'default'}>
+                    {target.status === 'pass' ? '达标' : target.status === 'fail' ? '未达标' : '待测'}
+                  </Tag>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </section>
       )}
 
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
+      <Row gutter={[12, 12]} className={styles.section}>
         <Col xs={24} lg={12}>
-          <Card
-            className="glass-card"
-            title="基线对比 — F1 / Precision / Recall"
-            size="small"
-          >
+          <Card className="glass-card" title="基线对比 — F1 / Precision / Recall" size="small">
             <BarChart
               categories={baselineCategories}
               series={[
-                { name: 'F1 Score', data: baselines.map((b) => b.f1Score), color: CHART_COLORS.primary },
-                { name: 'Precision', data: baselines.map((b) => b.precision), color: CHART_COLORS.secondary },
-                { name: 'Recall', data: baselines.map((b) => b.recall), color: CHART_COLORS.tertiary },
+                { name: 'F1 Score', data: baselines.map((baseline) => baseline.f1Score), color: CHART_COLORS.primary },
+                { name: 'Precision', data: baselines.map((baseline) => baseline.precision), color: CHART_COLORS.secondary },
+                { name: 'Recall', data: baselines.map((baseline) => baseline.recall), color: CHART_COLORS.tertiary },
               ]}
               height={320}
             />
@@ -190,18 +170,12 @@ const EvaluationPage: React.FC = () => {
         </Col>
       </Row>
 
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
+      <Row gutter={[12, 12]} className={styles.section}>
         <Col xs={24} lg={12}>
           <Card className="glass-card" title="消融实验 — F1 Score" size="small">
             <BarChart
-              categories={ablations.map((a) => a.variant)}
-              series={[
-                {
-                  name: 'F1 Score',
-                  data: ablations.map((a) => a.f1Score),
-                  color: CHART_COLORS.primary,
-                },
-              ]}
+              categories={ablations.map((ablation) => ablation.variant)}
+              series={[{ name: 'F1 Score', data: ablations.map((ablation) => ablation.f1Score), color: CHART_COLORS.primary }]}
               height={280}
             />
           </Card>
@@ -209,10 +183,10 @@ const EvaluationPage: React.FC = () => {
         <Col xs={24} lg={12}>
           <Card className="glass-card" title="消融实验 — ADE / FDE" size="small">
             <BarChart
-              categories={ablations.map((a) => a.variant)}
+              categories={ablations.map((ablation) => ablation.variant)}
               series={[
-                { name: 'ADE', data: ablations.map((a) => a.ade), color: CHART_COLORS.quaternary },
-                { name: 'FDE', data: ablations.map((a) => a.fde), color: CHART_COLORS.quinary },
+                { name: 'ADE', data: ablations.map((ablation) => ablation.ade), color: CHART_COLORS.quaternary },
+                { name: 'FDE', data: ablations.map((ablation) => ablation.fde), color: CHART_COLORS.quinary },
               ]}
               height={280}
             />
@@ -220,38 +194,27 @@ const EvaluationPage: React.FC = () => {
         </Col>
       </Row>
 
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
-        <Col span={24}>
-          <Card
-            className="glass-card"
-            title="消融实验详情"
-            size="small"
-            extra={
-              <Button
-                icon={<DownloadOutlined />}
-                size="small"
-                onClick={() => {
-                  downloadJson(
-                    { metrics, baselines, ablations, targetStatus, summary, selectedReportKey },
-                    `evaluation-report-${selectedReportKey || 'default'}.json`,
-                  );
-                  message.success('报告已导出');
-                }}
-              >
-                导出报告
-              </Button>
-            }
-          >
-            <Table
-              dataSource={ablations}
-              columns={ablationColumns}
-              rowKey="variant"
+      <section className={styles.section} aria-label="消融实验详情">
+        <Card
+          className="glass-card"
+          title="消融实验详情"
+          size="small"
+          extra={
+            <Button
+              icon={<DownloadOutlined />}
               size="small"
-              pagination={false}
-            />
-          </Card>
-        </Col>
-      </Row>
+              onClick={() => {
+                downloadJson({ metrics, baselines, ablations, targetStatus, summary, selectedReportKey }, `evaluation-report-${selectedReportKey || 'default'}.json`);
+                message.success('报告已导出');
+              }}
+            >
+              导出报告
+            </Button>
+          }
+        >
+          <Table dataSource={ablations} columns={ablationColumns} rowKey="variant" size="small" pagination={false} />
+        </Card>
+      </section>
     </div>
   );
 };

@@ -4,7 +4,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined } from '@ant-design/icons';
 import { ReplayEvent } from '@/types/event';
 import { RiskTag } from '@/shared/components/RiskTag';
-import { useSettingsStore } from '@/store/settingsStore';
+import styles from './EventTable.module.css';
 
 interface EventTableProps {
   events: ReplayEvent[];
@@ -32,7 +32,6 @@ export const EventTable: React.FC<EventTableProps> = ({
   onFilterType,
   onSelect,
 }) => {
-  const theme = useSettingsStore((s) => s.theme);
   const filtered = events.filter((e) => {
     const matchSearch =
       !searchText ||
@@ -49,7 +48,7 @@ export const EventTable: React.FC<EventTableProps> = ({
       dataIndex: 'eventId',
       width: 100,
       render: (id: string) => (
-        <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{id}</span>
+        <span className={styles.eventId}>{id}</span>
       ),
     },
     {
@@ -89,20 +88,20 @@ export const EventTable: React.FC<EventTableProps> = ({
 
   return (
     <Card className="glass-card" size="small" title="事件列表">
-      <Space style={{ marginBottom: 12, width: '100%' }} wrap>
+      <Space className={styles.filters} wrap>
         <Input
           placeholder="搜索事件..."
           prefix={<SearchOutlined />}
           size="small"
           value={searchText}
           onChange={(e) => onSearch(e.target.value)}
-          style={{ width: 200 }}
+          className={styles.search}
         />
         <Select
           size="small"
           value={filterType}
           onChange={onFilterType}
-          style={{ width: 120 }}
+          className={styles.typeSelect}
           options={[
             { label: '全部类型', value: 'all' },
             { label: '鬼探头', value: 'ghost_probe' },
@@ -120,16 +119,8 @@ export const EventTable: React.FC<EventTableProps> = ({
         pagination={{ pageSize: 5, size: 'small' }}
         onRow={(record) => ({
           onClick: () => onSelect(record),
-          style: {
-            cursor: 'pointer',
-            background:
-              record.eventId === selectedEventId
-                ? theme === 'dark'
-                  ? 'rgba(0, 212, 255, 0.1)'
-                  : 'rgba(22, 119, 255, 0.05)'
-                : undefined,
-          },
         })}
+        rowClassName={(record) => record.eventId === selectedEventId ? styles.selectedRow : styles.clickableRow}
       />
     </Card>
   );

@@ -3,27 +3,18 @@ import { Button, Card, Space } from 'antd';
 import { RiskItem } from '@/mock/dashboardMock';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { RiskLevel } from '@/types/common';
+import { sortRiskItems, SortField } from './risk-utils';
 import styles from './RiskList.module.css';
 
 interface RiskListProps {
   items: RiskItem[];
 }
 
-export type SortField = 'riskScore' | 'ttc' | 'timestamp';
-
 const sortLabels: Record<SortField, string> = {
   riskScore: '风险分',
   ttc: 'TTC',
   timestamp: '时间',
 };
-
-export function sortRiskItems(items: RiskItem[], sortBy: SortField): RiskItem[] {
-  return [...items].sort((a, b) => {
-    if (sortBy === 'riskScore') return b.riskScore - a.riskScore;
-    if (sortBy === 'ttc') return a.ttc - b.ttc;
-    return b.timestamp.localeCompare(a.timestamp);
-  });
-}
 
 const riskLabels: Record<RiskLevel, string> = {
   low: '低风险',

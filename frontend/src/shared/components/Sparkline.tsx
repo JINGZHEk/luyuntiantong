@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import styles from './Sparkline.module.css';
 
 interface SparklineProps {
   data: number[];
@@ -33,12 +34,12 @@ export const Sparkline: React.FC<SparklineProps> = ({
     return `${path} L${width},${height} L0,${height} Z`;
   }, [path, width, height]);
 
-  if (data.length < 2) return <svg width={width} height={height} />;
+  if (data.length < 2) return <svg width={width} height={height} className={styles.sparkline} />;
 
   const gradId = `spark-grad-${color.replace('#', '')}`;
 
   return (
-    <svg width={width} height={height} style={{ overflow: 'visible' }}>
+    <svg width={width} height={height} className={styles.sparkline}>
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.3" />

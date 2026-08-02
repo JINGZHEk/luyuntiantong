@@ -4,6 +4,7 @@ import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { Position, RiskLevel } from '@/types/common';
 import { RISK_COLORS } from '@/constants/colors';
+import { SensorCone } from './SensorCone';
 
 interface VehicleProps {
   position: Position;
@@ -125,18 +126,7 @@ export const Vehicle: React.FC<VehicleProps> = ({
       ))}
 
       {/* Sensor cone (ego only) */}
-      {isEgo && (
-        <mesh position={[3, 0.3, 0]} rotation={[0, 0, -Math.PI / 2]}>
-          <coneGeometry args={[6, 18, 16, 1, true]} />
-          <meshBasicMaterial
-            color="#00d4ff"
-            transparent
-            opacity={0.06}
-            depthWrite={false}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      )}
+      {isEgo && <SensorCone />}
 
       {/* Sensor ring (ego only, pulsing) */}
       {isEgo && (

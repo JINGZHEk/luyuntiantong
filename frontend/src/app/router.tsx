@@ -2,7 +2,6 @@ import React, { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { MainLayout } from './layout/MainLayout';
 import { PageLoading } from '@/shared/components/PageLoading';
-import { Toast } from '@/shared/components/Toast';
 
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
 const MonitorPage = lazy(() => import('@/pages/monitor/MonitorPage'));
@@ -28,10 +27,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: (
-      <>
-        <MainLayout />
-        <Toast />
-      </>
+      <MainLayout />
     ),
     children: [
       { index: true, element: withSuspense(DashboardPage) },

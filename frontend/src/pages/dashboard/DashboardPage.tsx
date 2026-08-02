@@ -1,5 +1,5 @@
 import React from 'react';
-import { Row, Col, Tag } from 'antd';
+import { Tag } from 'antd';
 import { DashboardOutlined } from '@ant-design/icons';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { KpiBar } from '@/widgets/kpi-bar/KpiBar';
@@ -10,87 +10,86 @@ import { LineChart } from '@/entities/charts/LineChart';
 import { CHART_COLORS } from '@/constants/colors';
 import { PageLoading } from '@/shared/components/PageLoading';
 import { PageHeader } from '@/shared/components/PageHeader';
+import styles from './DashboardPage.module.css';
 
 const DashboardPage: React.FC = () => {
-  const {
-    metrics,
-    riskItems,
-    trendTtc,
-    trendRisk,
-    trendBrake,
-    logs,
-    logFilter,
-    setLogFilter,
-    source,
-    pageState,
-  } = useDashboardStore();
+  const metrics = useDashboardStore((state) => state.metrics);
+  const riskItems = useDashboardStore((state) => state.riskItems);
+  const trendTtc = useDashboardStore((state) => state.trendTtc);
+  const trendRisk = useDashboardStore((state) => state.trendRisk);
+  const trendBrake = useDashboardStore((state) => state.trendBrake);
+  const logs = useDashboardStore((state) => state.logs);
+  const logFilter = useDashboardStore((state) => state.logFilter);
+  const setLogFilter = useDashboardStore((state) => state.setLogFilter);
+  const source = useDashboardStore((state) => state.source);
+  const pageState = useDashboardStore((state) => state.pageState);
 
   if (pageState.loading) return <PageLoading />;
 
-    return (
-    <div style={{ padding: 0 }}>
+  return (
+    <div className={styles.page}>
       <PageHeader
+        eyebrow="LIVE INTERSECTION TELEMETRY"
         title="总览大屏"
         subtitle="V2X 遮挡行人主动安全防御 · 实时态势感知"
         icon={<DashboardOutlined />}
         extra={
-          <Tag color={source === 'live' ? 'green' : 'gold'} style={{ marginRight: 0 }}>
-            {source === 'live' ? 'LIVE' : 'MOCK'}
+          <Tag className={styles.sourceTag} color={source === 'live' ? 'green' : 'gold'}>
+            {source === 'live' ? 'LIVE DATA' : '演示数据'}
           </Tag>
         }
       />
-      <KpiBar metrics={metrics} />
 
-      <Row gutter={12} style={{ marginTop: 12 }}>
-        <Col xs={24} lg={5}>
+      <section className={styles.kpiSection} aria-label="系统关键指标">
+        <KpiBar metrics={metrics} />
+      </section>
+
+      <section className={styles.overviewGrid} aria-label="实时路口态势">
+        <div className={styles.riskColumn}>
           <RiskList items={riskItems} />
-        </Col>
+        </div>
 
-        <Col xs={24} lg={13}>
-          <div className="glass-card tech-border" style={{ borderRadius: 8, overflow: 'hidden' }}>
-            <IntersectionScene height={420} showLabel />
+        <div className={`glass-card tech-border ${styles.sceneCard}`}>
+          <IntersectionScene height={420} showLabel />
+        </div>
+
+        <div className={styles.chartStack}>
+          <div className={`glass-card ${styles.chartCard}`}>
+            <LineChart
+              data={trendTtc}
+              title="TTC 趋势"
+              color={CHART_COLORS.primary}
+              height={125}
+              yAxisName="秒"
+              threshold={3}
+            />
           </div>
-        </Col>
-
-        <Col xs={24} lg={6}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div className="glass-card" style={{ borderRadius: 8, padding: 8 }}>
-              <LineChart
-                data={trendTtc}
-                title="TTC 趋势"
-                color={CHART_COLORS.primary}
-                height={125}
-                yAxisName="秒"
-              />
-            </div>
-            <div className="glass-card" style={{ borderRadius: 8, padding: 8 }}>
-              <LineChart
-                data={trendRisk}
-                title="风险分趋势"
-                color={CHART_COLORS.quaternary}
-                areaColor="rgba(249, 115, 22, 0.15)"
-                height={125}
-              />
-            </div>
-            <div className="glass-card" style={{ borderRadius: 8, padding: 8 }}>
-              <LineChart
-                data={trendBrake}
-                title="制动触发"
-                color={CHART_COLORS.quinary}
-                areaColor="rgba(236, 72, 153, 0.15)"
-                height={125}
-                smooth={false}
-              />
-            </div>
+          <div className={`glass-card ${styles.chartCard}`}>
+            <LineChart
+              data={trendRisk}
+              title="风险分趋势"
+              color={CHART_COLORS.quaternary}
+              areaColor="rgba(249, 115, 22, 0.15)"
+              height={125}
+              threshold={0.7}
+            />
           </div>
-        </Col>
-      </Row>
+          <div className={`glass-card ${styles.chartCard}`}>
+            <LineChart
+              data={trendBrake}
+              title="制动触发"
+              color={CHART_COLORS.quinary}
+              areaColor="rgba(236, 72, 153, 0.15)"
+              height={125}
+              smooth={false}
+            />
+          </div>
+        </div>
+      </section>
 
-      <Row gutter={12} style={{ marginTop: 12 }}>
-        <Col span={24}>
-          <LogStream logs={logs} filter={logFilter} onFilterChange={setLogFilter} />
-        </Col>
-      </Row>
+      <section className={styles.logSection} aria-label="实时日志">
+        <LogStream logs={logs} filter={logFilter} onFilterChange={setLogFilter} />
+      </section>
     </div>
   );
 };

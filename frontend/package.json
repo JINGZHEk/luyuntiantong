@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test:unit": "tsc -p tsconfig.test.json && node .tmp-tests/tests/runtimeConfig.test.js && node .tmp-tests/tests/settingsApi.test.js && node .tmp-tests/tests/evaluationApi.test.js && node .tmp-tests/tests/dashboardDataSource.test.js",
-    "test:ui": "vitest run",
+    "test:unit": "tsc -p tsconfig.test.json && node .tmp-tests/tests/runtimeConfig.test.js && node .tmp-tests/tests/settingsApi.test.js && node .tmp-tests/tests/evaluationApi.test.js && node .tmp-tests/tests/dashboardDataSource.test.js && npm run test:ui",
+    "test:ui": "vitest run --pool=threads --no-file-parallelism --maxWorkers=1",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },

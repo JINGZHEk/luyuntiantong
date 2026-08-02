@@ -2,6 +2,7 @@ import React from 'react';
 import { Tag } from 'antd';
 import { RiskLevel } from '@/types/common';
 import { RISK_COLORS } from '@/constants/colors';
+import styles from './RiskTag.module.css';
 
 interface RiskTagProps {
   level: RiskLevel;
@@ -20,8 +21,7 @@ export const RiskTag: React.FC<RiskTagProps> = ({ level, showText = true }) => {
   return (
     <Tag
       color={color}
-      className={level === 'critical' ? 'risk-blink-critical' : undefined}
-      style={{ fontWeight: level === 'critical' ? 700 : 500 }}
+      className={`${level === 'critical' ? 'risk-blink-critical ' : ''}${styles.tag}`}
     >
       {showText ? RISK_LABELS[level] : level.toUpperCase()}
     </Tag>

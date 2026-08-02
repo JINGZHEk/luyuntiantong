@@ -1,0 +1,54 @@
+.viewport {
+  height: 400px;
+  overflow: auto;
+}
+
+.item {
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-text) 3%, transparent);
+  cursor: pointer;
+}
+
+.item[data-topic='v2x/vehicle/state'] { border-left-color: var(--color-success); }
+.item[data-topic='v2x/cloud/event'] { border-left-color: var(--color-warning); }
+.item[data-topic='v2x/cloud/fusion'] { border-left-color: var(--color-purple); }
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.tag {
+  margin: 0;
+  font-size: 10px;
+}
+
+.timestamp {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+}
+
+.payload {
+  max-height: 36px;
+  overflow: hidden;
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: pre-wrap;
+  transition: max-height var(--duration-base) var(--ease-out);
+}
+
+.payloadExpanded {
+  max-height: 300px;
+}
+
+.empty {
+  padding: 20px;
+  text-align: center;
+}

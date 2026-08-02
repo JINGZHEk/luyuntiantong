@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { BaseChart } from './BaseChart';
 import { CHART_COLORS } from '@/constants/colors';
+import * as echarts from 'echarts/core';
 
 interface BarChartProps {
   categories: string[];
@@ -45,7 +46,13 @@ export const BarChart: React.FC<BarChartProps> = ({
           name: s.name,
           type: 'bar' as const,
           data: s.data,
-          itemStyle: { color: s.color || defaultColors[i % defaultColors.length] },
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: s.color || defaultColors[i % defaultColors.length] },
+              { offset: 1, color: 'rgba(0, 0, 0, 0.08)' },
+            ]),
+            borderRadius: horizontal ? [0, 5, 5, 0] : [5, 5, 0, 0],
+          },
           barMaxWidth: 40,
         })),
       };

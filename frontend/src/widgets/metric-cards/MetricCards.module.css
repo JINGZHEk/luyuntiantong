@@ -1,0 +1,40 @@
+.card {
+  height: 100%;
+}
+
+.content {
+  display: flex;
+  min-height: 74px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.label {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.value {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.precision,
+.latency { color: var(--color-accent); }
+.recall,
+.occAcc { color: var(--color-success); }
+.f1,
+.occAde,
+.leadTime { color: var(--color-purple); }
+.ade { color: var(--color-orange); }
+.fde { color: var(--color-pink); }
+.e2eLatency { color: var(--color-danger); }
+
+.number {
+  font-family: inherit;
+}

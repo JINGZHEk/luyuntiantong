@@ -7,13 +7,12 @@ import {
 } from '@ant-design/icons';
 import { RiskTag } from '@/shared/components/RiskTag';
 import { useMonitorStore } from '@/store/monitorStore';
-import { useSettingsStore } from '@/store/settingsStore';
-import { THEME_COLORS } from '@/constants/colors';
+import styles from './PerceptionCards.module.css';
 
 export const PerceptionCards: React.FC = () => {
-  const { roadsideData, vehicleData, cloudEvents } = useMonitorStore();
-  const theme = useSettingsStore((s) => s.theme);
-  const colors = THEME_COLORS[theme];
+  const roadsideData = useMonitorStore((state) => state.roadsideData);
+  const vehicleData = useMonitorStore((state) => state.vehicleData);
+  const cloudEvents = useMonitorStore((state) => state.cloudEvents);
   const latestEvent = cloudEvents[0];
 
   return (
@@ -21,9 +20,9 @@ export const PerceptionCards: React.FC = () => {
       <Col xs={24} md={8}>
         <Card
           className="glass-card"
-          title={
+            title={
             <span>
-              <RadarChartOutlined style={{ marginRight: 8, color: colors.accent }} />
+              <RadarChartOutlined className={styles.iconAccent} />
               路侧感知
             </span>
           }
@@ -34,7 +33,7 @@ export const PerceptionCards: React.FC = () => {
               <Tag color="cyan">{roadsideData.sensorId}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="检测目标数">
-              <Badge count={roadsideData.objects.length} style={{ backgroundColor: colors.accent }} />
+              <Badge count={roadsideData.objects.length} className={styles.badgeAccent} />
             </Descriptions.Item>
             <Descriptions.Item label="遮挡区域">
               {roadsideData.occlusionZones.length} 个
@@ -64,9 +63,9 @@ export const PerceptionCards: React.FC = () => {
       <Col xs={24} md={8}>
         <Card
           className="glass-card"
-          title={
+            title={
             <span>
-              <CarOutlined style={{ marginRight: 8, color: colors.success }} />
+              <CarOutlined className={styles.iconSuccess} />
               车端决策
             </span>
           }
@@ -83,7 +82,7 @@ export const PerceptionCards: React.FC = () => {
               <RiskTag level={vehicleData.decisionInfo.riskLevel} />
             </Descriptions.Item>
             <Descriptions.Item label="TTC">
-              <span style={{ fontWeight: 700, color: vehicleData.decisionInfo.ttc < 3 ? '#ff4d4f' : colors.text }}>
+              <span className={`${styles.ttc} ${vehicleData.decisionInfo.ttc < 3 ? styles.ttcCritical : ''}`}>
                 {vehicleData.decisionInfo.ttc.toFixed(1)}s
               </span>
             </Descriptions.Item>
@@ -105,9 +104,9 @@ export const PerceptionCards: React.FC = () => {
       <Col xs={24} md={8}>
         <Card
           className="glass-card"
-          title={
+            title={
             <span>
-              <CloudOutlined style={{ marginRight: 8, color: '#faad14' }} />
+              <CloudOutlined className={styles.iconWarning} />
               云端事件
             </span>
           }
@@ -116,7 +115,7 @@ export const PerceptionCards: React.FC = () => {
           {latestEvent ? (
             <Descriptions column={1} size="small">
               <Descriptions.Item label="事件ID">
-                <span style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                <span className={styles.eventId}>
                   {latestEvent.eventId}
                 </span>
               </Descriptions.Item>
@@ -137,7 +136,7 @@ export const PerceptionCards: React.FC = () => {
               </Descriptions.Item>
             </Descriptions>
           ) : (
-            <div style={{ textAlign: 'center', color: colors.textSecondary, padding: 20 }}>
+            <div className={styles.empty}>
               暂无事件
             </div>
           )}

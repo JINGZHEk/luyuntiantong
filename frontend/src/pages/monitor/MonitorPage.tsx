@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Row, Col, Result, Button, Card, Space, Tag, message, Select } from 'antd';
-import { PlayCircleOutlined, PauseCircleOutlined, StepForwardOutlined, SyncOutlined } from '@ant-design/icons';
+import { MonitorOutlined, PlayCircleOutlined, PauseCircleOutlined, StepForwardOutlined, SyncOutlined } from '@ant-design/icons';
 import { ConnectionPanel } from '@/widgets/connection-panel/ConnectionPanel';
 import { TopicManager } from '@/widgets/topic-manager/TopicManager';
 import { MessagePanel } from '@/widgets/message-panel/MessagePanel';
@@ -9,6 +9,7 @@ import { useMonitorStore } from '@/store/monitorStore';
 import { PageLoading } from '@/shared/components/PageLoading';
 import { PageHeader } from '@/shared/components/PageHeader';
 import { DemoStatus, demoApi } from '@/services/demoApi';
+import styles from './MonitorPage.module.css';
 
 const MonitorPage: React.FC = () => {
   const { messages, pageState, setError } = useMonitorStore();
@@ -66,24 +67,26 @@ const MonitorPage: React.FC = () => {
   }
 
     return (
-    <div>
+    <div className={styles.page}>
       <PageHeader
+        eyebrow="PIPELINE OBSERVABILITY"
         title="实时监控"
         subtitle="路侧感知 · 车端决策 · 云端事件 实时数据流"
+        icon={<MonitorOutlined />}
       />
-      <Card className="glass-card" size="small" style={{ marginBottom: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <Space wrap>
+      <Card className={`glass-card ${styles.controlCard}`} size="small">
+        <div className={styles.controlBar}>
+          <Space wrap className={styles.statusGroup}>
             <Tag color={demoStatus?.running ? 'green' : 'gold'}>
               {demoStatus?.running ? 'Demo running' : 'Demo idle'}
             </Tag>
             <Tag color="blue">frame {demoStatus?.frame_index ?? '-'}</Tag>
             <Tag color="cyan">{demoStatus?.scene_id ?? 'scene_001'} / {demoStatus?.scenario ?? scenario}</Tag>
           </Space>
-          <Space wrap>
+          <Space wrap className={styles.actionGroup}>
             <Select
               value={scenario}
-              style={{ width: 150 }}
+              className={styles.scenarioSelect}
               disabled={demoStatus?.running || busy}
               onChange={setScenario}
               options={(demoStatus?.available_scenarios ?? ['light', 'moderate', 'heavy']).map((item) => ({
@@ -131,13 +134,13 @@ const MonitorPage: React.FC = () => {
         </Col>
       </Row>
 
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
+      <Row gutter={[12, 12]} className={styles.section}>
         <Col span={24}>
           <PerceptionCards />
         </Col>
       </Row>
 
-      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
+      <Row gutter={[12, 12]} className={styles.section}>
         <Col span={24}>
           <MessagePanel messages={messages} />
         </Col>
