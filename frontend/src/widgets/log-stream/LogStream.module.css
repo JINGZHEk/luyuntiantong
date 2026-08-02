@@ -1,0 +1,167 @@
+.card :global(.ant-card-head) {
+  min-height: 48px;
+  padding: 0 14px;
+  border-bottom-color: var(--color-border);
+}
+
+.card :global(.ant-card-body) {
+  padding: 0;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.titleDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-accent) 68%, transparent);
+}
+
+.count,
+.timestamp,
+.message,
+.footer {
+  font-family: var(--font-mono);
+}
+
+.count {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.filter {
+  width: 92px;
+}
+
+.viewport {
+  --scan-height: 180px;
+  height: 180px;
+  overflow: auto;
+  padding: 8px 10px 4px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 86px 58px 88px minmax(0, 1fr);
+  align-items: center;
+  min-height: 24px;
+  gap: 8px;
+  padding: 3px 6px;
+  border-left: 2px solid transparent;
+  border-radius: 2px;
+  color: var(--color-text);
+  font-size: 11px;
+  line-height: 1.7;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.row:hover {
+  background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+}
+
+.errorRow {
+  border-left-color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 6%, transparent);
+}
+
+.timestamp {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.level {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.levelDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.row[data-log-level='info'] .levelDot { background: var(--color-accent); }
+.row[data-log-level='warn'] .levelDot { background: var(--color-warning); }
+.row[data-log-level='error'] .levelDot { background: var(--color-danger); }
+.row[data-log-level='debug'] .levelDot { background: var(--color-text-secondary); }
+
+.levelInfo { color: var(--color-accent); }
+.levelWarn { color: var(--color-warning); }
+.levelError { color: var(--color-danger); }
+.levelDebug { color: var(--color-text-secondary); }
+
+.source {
+  overflow: hidden;
+  color: var(--color-accent);
+  opacity: 0.86;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 10px;
+}
+
+.footerDivider {
+  width: 1px;
+  height: 12px;
+  background: var(--color-border);
+}
+
+.autoScroll {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  cursor: pointer;
+  user-select: none;
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 74px 54px minmax(0, 1fr);
+  }
+
+  .source {
+    display: none;
+  }
+
+  .footer {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+}

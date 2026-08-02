@@ -1,0 +1,189 @@
+.card {
+  height: 100%;
+}
+
+.card :global(.ant-card-head) {
+  min-height: 48px;
+  padding: 0 14px;
+  border-bottom-color: var(--color-border);
+}
+
+.card :global(.ant-card-body) {
+  max-height: 400px;
+  overflow: auto;
+  padding: 4px 8px 8px;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.liveDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-success);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-success) 65%, transparent);
+}
+
+.count {
+  margin-left: 2px;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.sortGroup {
+  display: flex;
+}
+
+.sortButton {
+  height: 24px;
+  padding: 0 7px;
+  color: var(--color-text-secondary) !important;
+  font-size: 10px;
+}
+
+.sortButton:hover,
+.sortActive {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent) !important;
+  color: var(--color-accent) !important;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  gap: 10px;
+  padding: 8px 10px 8px 14px;
+  border-radius: 5px;
+  background: transparent;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.row:hover {
+  background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+}
+
+.critical {
+  background: color-mix(in srgb, var(--color-danger) 7%, transparent);
+}
+
+.critical:hover {
+  background: color-mix(in srgb, var(--color-danger) 13%, transparent);
+}
+
+.riskLine {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 5px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--color-text-muted);
+  box-shadow: 0 0 8px transparent;
+}
+
+.row[data-risk-level='low'] .riskLine { background: var(--risk-low, #52c41a); box-shadow: 0 0 8px rgba(82, 196, 26, 0.35); }
+.row[data-risk-level='medium'] .riskLine { background: var(--color-warning); box-shadow: 0 0 8px rgba(250, 173, 20, 0.35); }
+.row[data-risk-level='high'] .riskLine { background: #ff7a45; box-shadow: 0 0 8px rgba(255, 122, 69, 0.35); }
+.row[data-risk-level='critical'] .riskLine { background: var(--color-danger); box-shadow: 0 0 8px rgba(255, 77, 79, 0.45); }
+
+.rank,
+.score strong {
+  font-family: var(--font-display);
+}
+
+.rank {
+  width: 28px;
+  flex: 0 0 28px;
+  color: var(--color-text-secondary);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.target {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.target strong {
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.target span {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score {
+  display: flex;
+  flex: 0 0 56px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.score strong {
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.score span {
+  color: var(--color-text-secondary);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.row[data-risk-level='low'] .rank,
+.row[data-risk-level='low'] .score strong,
+.row[data-risk-level='low'] .score span { color: #52c41a; }
+.row[data-risk-level='medium'] .rank,
+.row[data-risk-level='medium'] .score strong,
+.row[data-risk-level='medium'] .score span { color: var(--color-warning); }
+.row[data-risk-level='high'] .rank,
+.row[data-risk-level='high'] .score strong,
+.row[data-risk-level='high'] .score span { color: #ff7a45; }
+.row[data-risk-level='critical'] .rank,
+.row[data-risk-level='critical'] .score strong,
+.row[data-risk-level='critical'] .score span { color: var(--color-danger); }
+
+@media (max-width: 520px) {
+  .card :global(.ant-card-head) {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+  }
+
+  .card :global(.ant-card-extra) {
+    margin-inline-start: 0;
+  }
+}

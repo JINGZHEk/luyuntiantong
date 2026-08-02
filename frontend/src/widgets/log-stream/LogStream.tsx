@@ -1,67 +1,56 @@
-import React, { useRef, useEffect } from 'react';
-import { Card, Select, Tag } from 'antd';
+import React, { useEffect, useRef } from 'react';
+import { Card, Select, Switch } from 'antd';
 import { LogEntry } from '@/types/common';
-import { LOG_LEVEL_COLORS } from '@/constants/colors';
-import { useSettingsStore } from '@/store/settingsStore';
-import { THEME_COLORS } from '@/constants/colors';
+import { EmptyState } from '@/shared/components/EmptyState';
+import { filterLogs, LogFilter } from './log-utils';
+import styles from './LogStream.module.css';
 
 interface LogStreamProps {
   logs: LogEntry[];
-  filter: LogEntry['level'] | 'all';
-  onFilterChange: (filter: LogEntry['level'] | 'all') => void;
+  filter: LogFilter;
+  onFilterChange: (filter: LogFilter) => void;
+  autoScroll?: boolean;
+  onAutoScrollChange?: (value: boolean) => void;
 }
 
-const levelDotStyle = (color: string): React.CSSProperties => ({
-  width: 6,
-  height: 6,
-  borderRadius: '50%',
-  background: color,
-  display: 'inline-block',
-  flexShrink: 0,
-  boxShadow: `0 0 6px ${color}80`,
-});
+const levelLabels: Record<LogEntry['level'], string> = {
+  info: 'INFO',
+  warn: 'WARN',
+  error: 'ERROR',
+  debug: 'DEBUG',
+};
 
-export const LogStream: React.FC<LogStreamProps> = ({ logs, filter, onFilterChange }) => {
+const levelClassNames: Record<LogEntry['level'], string> = {
+  info: styles.levelInfo,
+  warn: styles.levelWarn,
+  error: styles.levelError,
+  debug: styles.levelDebug,
+};
+
+export const LogStream: React.FC<LogStreamProps> = ({
+  logs,
+  filter,
+  onFilterChange,
+  autoScroll = true,
+  onAutoScrollChange,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const theme = useSettingsStore((s) => s.theme);
-  const colors = THEME_COLORS[theme];
-
-  const filtered = filter === 'all' ? logs : logs.filter((l) => l.level === filter);
+  const filtered = filterLogs(logs, filter);
 
   useEffect(() => {
-    if (containerRef.current) {
+    if (containerRef.current && autoScroll) {
       containerRef.current.scrollTop = 0;
     }
-  }, [logs.length]);
+  }, [logs.length, autoScroll]);
 
   return (
     <Card
-      className="glass-card tech-border scan-line"
+      className={`glass-card tech-border scan-line ${styles.card}`}
       title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: '#00d4ff',
-              display: 'inline-block',
-              boxShadow: '0 0 6px #00d4ff80',
-            }}
-          />
-          <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>
-            实时日志流
-          </span>
-          <span
-            style={{
-              fontSize: 10,
-              color: colors.textSecondary,
-              fontFamily: "'JetBrains Mono', monospace",
-              marginLeft: 4,
-            }}
-          >
-            [{filtered.length}]
-          </span>
+        <div className={styles.title}>
+          <span className={styles.titleDot} aria-hidden="true" />
+          <span>实时日志流</span>
+          <span className={styles.count}>[{filtered.length}]</span>
         </div>
       }
       size="small"
@@ -70,7 +59,8 @@ export const LogStream: React.FC<LogStreamProps> = ({ logs, filter, onFilterChan
           size="small"
           value={filter}
           onChange={onFilterChange}
-          style={{ width: 90 }}
+          className={styles.filter}
+          aria-label="日志级别筛选"
           options={[
             { label: '全部', value: 'all' },
             { label: 'INFO', value: 'info' },
@@ -81,83 +71,43 @@ export const LogStream: React.FC<LogStreamProps> = ({ logs, filter, onFilterChan
         />
       }
     >
-      <div
-        ref={containerRef}
-        style={{
-          height: 180,
-          overflow: 'auto',
-          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-          fontSize: 11,
-          lineHeight: 1.8,
-          ['--scan-height' as any]: '180px',
-        }}
-      >
+      <div ref={containerRef} className={styles.viewport} role="log" aria-live="polite">
         {filtered.length === 0 ? (
-          <div style={{ color: colors.textSecondary, textAlign: 'center', padding: 20 }}>
-            暂无日志
-          </div>
+          <EmptyState title="暂无日志" description="调整筛选条件或等待新的数据链路消息" />
         ) : (
           filtered.map((log) => {
-            const levelColor = LOG_LEVEL_COLORS[log.level];
             const isError = log.level === 'error';
             return (
               <div
                 key={log.id}
-                className="fade-in"
-                style={{
-                  display: 'flex',
-                  gap: 8,
-                  padding: '2px 4px',
-                  borderRadius: 2,
-                  borderLeft: isError ? `2px solid ${levelColor}` : '2px solid transparent',
-                  background: isError ? 'rgba(255, 77, 79, 0.04)' : 'transparent',
-                }}
+                className={`${styles.row} ${isError ? styles.errorRow : ''} fade-in`}
+                data-log-level={log.level}
               >
-                {/* Timestamp */}
-                <span
-                  style={{
-                    color: colors.textSecondary,
-                    flexShrink: 0,
-                    width: 85,
-                    opacity: 0.7,
-                  }}
-                >
-                  {log.timestamp.split(' ')[1]?.substring(0, 12)}
+                <time className={styles.timestamp}>{log.timestamp.split(' ')[1]?.substring(0, 12)}</time>
+                <span className={`${styles.level} ${levelClassNames[log.level]}`}>
+                  <span className={styles.levelDot} aria-hidden="true" />
+                  {levelLabels[log.level]}
                 </span>
-                {/* Level dot + text */}
-                <span
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    flexShrink: 0,
-                    width: 55,
-                  }}
-                >
-                  <span style={levelDotStyle(levelColor)} />
-                  <span style={{ color: levelColor, fontSize: 10 }}>
-                    {log.level.toUpperCase()}
-                  </span>
-                </span>
-                {/* Source */}
-                <span
-                  style={{
-                    color: '#00d4ff',
-                    flexShrink: 0,
-                    width: 80,
-                    opacity: 0.8,
-                  }}
-                >
-                  [{log.source}]
-                </span>
-                {/* Message */}
-                <span style={{ color: colors.text, flex: 1, minWidth: 0 }}>
-                  {log.message}
-                </span>
+                <span className={styles.source}>[{log.source}]</span>
+                <span className={styles.message}>{log.message}</span>
               </div>
             );
           })
         )}
+      </div>
+      <div className={styles.footer}>
+        <span>{filtered.length} 条日志</span>
+        <span className={styles.footerDivider} aria-hidden="true" />
+        <span>过滤：{filter === 'all' ? '全部级别' : levelLabels[filter]}</span>
+        <label className={styles.autoScroll}>
+          <Switch
+            size="small"
+            checked={autoScroll}
+            onChange={onAutoScrollChange}
+            aria-label="自动滚动日志"
+          />
+          <span>自动滚动</span>
+        </label>
       </div>
     </Card>
   );
