@@ -40,6 +40,20 @@ export const TYPOGRAPHY = {
   },
 } as const;
 
+export const CSS_VAR = {
+  bg: '--color-bg',
+  surface: '--color-surface',
+  surfaceRaised: '--color-surface-raised',
+  border: '--color-border',
+  accent: '--color-accent',
+  success: '--color-success',
+  warning: '--color-warning',
+  danger: '--color-danger',
+  text: '--color-text',
+  textSecondary: '--color-text-secondary',
+  textMuted: '--color-text-muted',
+} as const;
+
 // ═══ 间距（8px 栅格系统） ═══
 export const SPACING = {
   xs: 4,

@@ -20,7 +20,7 @@ export const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <ConfigProvider theme={antdTheme} locale={zhCN}>
-        <div className={theme === 'light' ? 'light-theme' : ''}>
+        <div className="app-shell" data-theme={theme}>
           <RealtimeProvider>
             <RouterProvider router={router} />
           </RealtimeProvider>
