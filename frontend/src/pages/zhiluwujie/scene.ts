@@ -702,7 +702,7 @@ export class ZhiluWujieScene {
       tl.userData.timer += delta;
       if (tl.userData.timer >= durations[tl.userData.phase]) {
         tl.userData.timer = 0;
-        const idx = phases.indexOf(tl.userData.phase as any);
+        const idx = phases.indexOf(tl.userData.phase as 'green' | 'yellow' | 'red');
         tl.userData.phase = phases[(idx + 1) % 3];
       }
       tl.userData.lights.forEach((l: { mesh: THREE.Mesh; color: number }) => {
