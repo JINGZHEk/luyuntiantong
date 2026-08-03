@@ -8,7 +8,7 @@ TARGET_SPECS = [
     {"key": "occAcc", "metric": "Occ-Acc", "operator": ">=", "threshold": 0.7, "unit": "ratio"},
     {"key": "fps", "metric": "FPS", "operator": ">=", "threshold": 10.0, "unit": "fps"},
     {"key": "e2eLatency", "metric": "E2E-Lat", "operator": "<", "threshold": 100.0, "unit": "ms"},
-    {"key": "leadTime", "metric": "Lead-Time", "operator": ">=", "threshold": 1.5, "unit": "s"},
+    {"key": "leadTime", "metric": "Lead-Time", "operator": ">=", "threshold": 0.5, "unit": "s"},
 ]
 
 

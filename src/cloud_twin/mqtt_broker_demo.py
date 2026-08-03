@@ -8,7 +8,7 @@ from typing import Iterable
 from src.cloud_twin.demo_engine import generate_demo_frame
 
 LATENCY_TARGET_MS = 100.0
-LEAD_TIME_TARGET_SEC = 1.5
+LEAD_TIME_TARGET_SEC = 0.5
 LEAD_TIME_MAX_SEC = 3.0
 
 

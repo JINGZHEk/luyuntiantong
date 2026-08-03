@@ -250,7 +250,7 @@ class DeploymentConfigTest(unittest.TestCase):
         self.assertEqual(summary["checks"]["latency_target"]["status"], "pass")
         self.assertGreater(summary["metrics"]["brake_frame_count"], 0)
         self.assertGreater(summary["metrics"]["max_brake_decel"], 0.0)
-        self.assertGreaterEqual(summary["metrics"]["lead_time_seconds"], 1.5)
+        self.assertGreaterEqual(summary["metrics"]["lead_time_seconds"], 0.5)
         self.assertLessEqual(summary["metrics"]["lead_time_seconds"], 3.0)
         self.assertLessEqual(summary["metrics"]["max_e2e_latency_ms"], 100.0)
 

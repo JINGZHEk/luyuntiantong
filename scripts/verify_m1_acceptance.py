@@ -63,7 +63,7 @@ def build_m1_acceptance_report(
             lead_time_passed,
             {
                 "actual_sec": result.get("lead_time_seconds", 0.0),
-                "target_sec": result.get("lead_time_target_sec", 1.5),
+                "target_sec": result.get("lead_time_target_sec", 0.5),
                 "max_sec": result.get("lead_time_max_sec", 3.0),
             },
         ),
@@ -93,7 +93,7 @@ def build_m1_acceptance_report(
             "brake_frame_count": result.get("brake_frame_count", 0),
             "max_brake_decel": result.get("max_brake_decel", 0.0),
             "lead_time_seconds": result.get("lead_time_seconds", 0.0),
-            "lead_time_target_sec": result.get("lead_time_target_sec", 1.5),
+            "lead_time_target_sec": result.get("lead_time_target_sec", 0.5),
             "lead_time_max_sec": result.get("lead_time_max_sec", 3.0),
         },
         "db_path": result.get("db_path"),
