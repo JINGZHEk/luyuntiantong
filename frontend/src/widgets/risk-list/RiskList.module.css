@@ -1,5 +1,11 @@
 .card {
   height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.card::after {
+  display: none;
 }
 
 .card :global(.ant-card-head) {
@@ -30,6 +36,7 @@
   border-radius: 999px;
   background: var(--color-success);
   box-shadow: 0 0 8px color-mix(in srgb, var(--color-success) 65%, transparent);
+  animation: dataPulse 2s ease-in-out infinite;
 }
 
 .count {
@@ -72,15 +79,22 @@
   padding: 8px 10px 8px 14px;
   border-radius: 5px;
   background: transparent;
-  transition: background var(--duration-fast) var(--ease-out);
+  transition: background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
 }
 
 .row:hover {
   background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+  transform: translateX(2px);
 }
 
 .critical {
   background: color-mix(in srgb, var(--color-danger) 7%, transparent);
+  animation: criticalPulse 2s ease-in-out infinite;
+}
+
+@keyframes criticalPulse {
+  0%, 100% { background: color-mix(in srgb, var(--color-danger) 7%, transparent); }
+  50% { background: color-mix(in srgb, var(--color-danger) 12%, transparent); }
 }
 
 .critical:hover {
@@ -98,10 +112,10 @@
   box-shadow: 0 0 8px transparent;
 }
 
-.row[data-risk-level='low'] .riskLine { background: var(--color-success); box-shadow: 0 0 8px color-mix(in srgb, var(--color-success) 35%, transparent); }
-.row[data-risk-level='medium'] .riskLine { background: var(--color-warning); box-shadow: 0 0 8px color-mix(in srgb, var(--color-warning) 35%, transparent); }
-.row[data-risk-level='high'] .riskLine { background: var(--color-orange); box-shadow: 0 0 8px color-mix(in srgb, var(--color-orange) 35%, transparent); }
-.row[data-risk-level='critical'] .riskLine { background: var(--color-danger); box-shadow: 0 0 8px color-mix(in srgb, var(--color-danger) 45%, transparent); }
+.row[data-risk-level='low'] .riskLine { background: var(--color-success); box-shadow: 0 0 10px color-mix(in srgb, var(--color-success) 45%, transparent); }
+.row[data-risk-level='medium'] .riskLine { background: var(--color-warning); box-shadow: 0 0 10px color-mix(in srgb, var(--color-warning) 45%, transparent); }
+.row[data-risk-level='high'] .riskLine { background: var(--color-orange); box-shadow: 0 0 10px color-mix(in srgb, var(--color-orange) 45%, transparent); }
+.row[data-risk-level='critical'] .riskLine { background: var(--color-danger); box-shadow: 0 0 14px color-mix(in srgb, var(--color-danger) 60%, transparent); }
 
 .rank,
 .score strong {
@@ -154,6 +168,7 @@
   color: var(--color-text);
   font-size: 15px;
   font-weight: 700;
+  text-shadow: 0 0 10px currentColor;
 }
 
 .score span {
@@ -186,4 +201,16 @@
   .card :global(.ant-card-extra) {
     margin-inline-start: 0;
   }
+}
+
+/* ── Light mode ── */
+[data-theme='light'] .liveDot {
+  box-shadow: none !important;
+}
+
+[data-theme='light'] .row[data-risk-level='low'] .riskLine,
+[data-theme='light'] .row[data-risk-level='medium'] .riskLine,
+[data-theme='light'] .row[data-risk-level='high'] .riskLine,
+[data-theme='light'] .row[data-risk-level='critical'] .riskLine {
+  box-shadow: none !important;
 }

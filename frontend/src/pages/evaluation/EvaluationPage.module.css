@@ -1,20 +1,56 @@
 .page {
   min-width: 0;
+  animation: pageEnter 0.5s var(--ease-out) both;
 }
 
 .demoTag {
   margin: 0;
   font-family: var(--font-mono);
   font-size: 10px;
+  box-shadow: 0 0 8px -2px currentColor;
 }
 
 .summaryCard {
   margin-bottom: var(--spacing-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.summaryCard::before {
+  height: 2px;
+  opacity: 1;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--color-purple) 60%, var(--color-accent)),
+    var(--color-accent),
+    transparent
+  );
+}
+
+.summaryCard::after {
+  display: none;
+}
+
+.summaryCard :global(.ant-statistic-title) {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.summaryCard :global(.ant-statistic-content) {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  text-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
 .summaryLabel {
   color: var(--color-text-secondary);
   font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .reportSelect {
@@ -22,7 +58,7 @@
 }
 
 .section {
-  margin-top: var(--spacing-md);
+  margin-top: var(--spacing-xl);
 }
 
 .targetList {
@@ -38,6 +74,13 @@
   gap: var(--spacing-md);
   border-bottom: 1px solid var(--color-border);
   font-size: 12px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.targetRow:hover {
+  background: color-mix(in srgb, var(--color-accent) 5%, transparent);
 }
 
 .targetRow:last-child {
@@ -64,14 +107,16 @@
 .targetValue {
   color: var(--color-text);
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 700;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--color-accent) 20%, transparent);
 }
 
 @media (max-width: 640px) {
   .targetRow {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
-    padding: 10px 0;
+    padding: 10px 8px;
   }
 
   .targetGoal {
@@ -82,4 +127,18 @@
     grid-column: 2;
     grid-row: 1 / span 2;
   }
+}
+
+/* ── Light mode ── */
+[data-theme='light'] .summaryCard::before {
+  background: linear-gradient(90deg, transparent, #d0d5dd, transparent) !important;
+  opacity: 0.4 !important;
+}
+
+[data-theme='light'] .demoTag {
+  box-shadow: none !important;
+}
+
+[data-theme='light'] .targetValue {
+  text-shadow: none !important;
 }

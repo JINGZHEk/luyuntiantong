@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>路云天瞳 - V2X数字孪生交通全景平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+        { "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }}
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap');
+        :root {
+            --neon-cyan: #00f3ff; --neon-blue: #0088ff; --neon-red: #ff2a55;
+            --neon-green: #00ffaa; --neon-orange: #ffaa00; --neon-purple: #a855f7;
+            --bg-dark: #030712; --panel-bg: rgba(3,11,25,0.75);
+        }
+        body { margin:0; overflow:hidden; background:var(--bg-dark); color:var(--neon-cyan); font-family:'PingFang SC','Rajdhani',sans-serif; user-select:none; }
+        #canvas-container { position:absolute; inset:0; z-index:0; }
+        body::after { content:""; position:absolute; inset:0; background:linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,0.25) 50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06)); z-index:999; background-size:100% 2px,3px 100%; pointer-events:none; opacity:0.3; }
+
+        /* Boot Screen */
+        #boot-screen { position:absolute; inset:0; z-index:100; background:radial-gradient(circle at center,#0a1128 0%,#000 100%); display:flex; flex-direction:column; justify-content:center; align-items:center; transition:opacity 1s ease; }
+        .cyber-btn { background:transparent; border:1px solid var(--neon-cyan); color:var(--neon-cyan); padding:15px 40px; font-size:1.2rem; font-family:'Rajdhani',sans-serif; letter-spacing:4px; text-transform:uppercase; cursor:pointer; position:relative; overflow:hidden; transition:all .3s; box-shadow:0 0 15px rgba(0,243,255,0.2) inset; }
+        .cyber-btn:hover { background:var(--neon-cyan); color:#000; box-shadow:0 0 30px rgba(0,243,255,0.8); }
+
+        /* HUD */
+        #ui-layer { position:absolute; inset:0; z-index:10; pointer-events:none; opacity:0; transition:opacity 1.5s ease; }
+        .pe { pointer-events:auto; }
+        .gp { background:var(--panel-bg); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1px solid rgba(0,243,255,0.2); box-shadow:0 8px 32px rgba(0,0,0,0.6); position:relative; }
+        .gp::before { content:''; position:absolute; top:-1px; left:-1px; width:15px; height:15px; border-top:2px solid var(--neon-cyan); border-left:2px solid var(--neon-cyan); }
+        .gp::after { content:''; position:absolute; bottom:-1px; right:-1px; width:15px; height:15px; border-bottom:2px solid var(--neon-cyan); border-right:2px solid var(--neon-cyan); }
+        .gp-red { border-color:rgba(255,42,85,0.5)!important; box-shadow:0 0 30px rgba(255,42,85,0.2)!important; }
+        .gp-red::before,.gp-red::after { border-color:var(--neon-red)!important; }
+
+        /* Side Menu */
+        .menu-item { border-left:2px solid transparent; transition:all .2s; cursor:pointer; }
+        .menu-item.active { border-left-color:var(--neon-cyan); background:linear-gradient(90deg,rgba(0,243,255,0.12) 0%,transparent 100%); color:#fff; }
+        .menu-item:hover { background:rgba(0,243,255,0.05); }
+
+        /* Radar */
+        #radar { position:relative; width:150px; height:150px; border-radius:50%; border:1px solid rgba(0,243,255,0.4); background:radial-gradient(circle,rgba(0,243,255,0.1) 0%,transparent 70%); overflow:hidden; }
+        .radar-scan { position:absolute; top:50%; left:50%; width:100%; height:100%; background:conic-gradient(from 0deg,transparent 70%,rgba(0,243,255,0.5) 100%); transform-origin:0 0; animation:scan 3s linear infinite; }
+        @keyframes scan { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        .radar-dot { position:absolute; width:4px; height:4px; border-radius:50%; transform:translate(-50%,-50%); box-shadow:0 0 4px currentColor; transition:all .15s; }
+
+        /* Bar Chart */
+        .bars { display:flex; align-items:flex-end; height:36px; gap:2px; }
+        .bar { width:5px; background:var(--neon-blue); transition:height .2s; }
+
+        /* Entity Label */
+        .elabel { position:absolute; transform:translate(-50%,-100%); pointer-events:none; z-index:5; transition:all .1s; white-space:nowrap; font-family:monospace; font-size:10px; padding:2px 8px; border-radius:4px; backdrop-filter:blur(4px); }
+
+        /* Slider */
+        input[type=range] { -webkit-appearance:none; width:100%; height:4px; background:rgba(0,243,255,0.2); border-radius:2px; outline:none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--neon-cyan); cursor:pointer; box-shadow:0 0 8px rgba(0,243,255,0.6); }
+
+        /* Connection Badge */
+        .conn-badge { font-size:10px; padding:2px 8px; border-radius:10px; font-weight:bold; letter-spacing:1px; }
+        .conn-live { background:rgba(0,255,136,0.15); color:var(--neon-green); border:1px solid rgba(0,255,136,0.4); }
+        .conn-mock { background:rgba(255,170,0,0.15); color:var(--neon-orange); border:1px solid rgba(255,170,0,0.4); }
+        .conn-off { background:rgba(255,42,85,0.15); color:var(--neon-red); border:1px solid rgba(255,42,85,0.4); }
+
+        /* Mode transition */
+        .mode-panel { transition: opacity .4s ease, transform .4s ease; }
+        .mode-panel.hidden { opacity:0; transform:translateY(10px); pointer-events:none; position:absolute; }
+
+        /* Log animation */
+        @keyframes slideUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        .log-entry { animation:slideUp .3s ease; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width:4px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+        ::-webkit-scrollbar-thumb { background:rgba(0,243,255,0.3); border-radius:2px; }
+
+        /* Progress ring */
+        .progress-ring { transform:rotate(-90deg); }
+    </style>
+</head>
+<body>
+<div id="canvas-container"></div>
+
+<!-- ==================== BOOT SCREEN ==================== -->
+<div id="boot-screen">
+    <div class="mb-10 text-center">
+        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="var(--neon-cyan)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 animate-pulse"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        <h1 class="text-5xl font-bold text-white tracking-[0.2em] mb-2 drop-shadow-[0_0_15px_rgba(0,243,255,0.8)]" style="font-family:'Rajdhani'">路云天瞳</h1>
+        <p class="text-cyan-400 tracking-widest text-sm uppercase">V2X Digital Twin Traffic Network</p>
+    </div>
+    <div class="w-96 font-mono text-xs text-cyan-600/70 mb-8 space-y-1 h-32 overflow-hidden" id="boot-logs"></div>
+    <button id="start-btn" class="cyber-btn hidden">接入孪生系统</button>
+</div>
+
+<!-- ==================== LABELS ==================== -->
+<div id="labels-container"></div>
+
+<!-- ==================== HUD LAYER ==================== -->
+<div id="ui-layer" class="p-4 flex flex-col justify-between h-screen w-screen">
+
+    <!-- TOP BAR -->
+    <div class="flex justify-between items-start pe">
+        <!-- Left: System Monitor -->
+        <div class="gp p-3 rounded w-72">
+            <div class="flex items-center gap-2 border-b border-cyan-500/30 pb-2 mb-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                <h2 class="font-bold text-sm text-white tracking-widest">全局路网监控中心</h2>
+                <span id="conn-badge" class="conn-badge conn-mock ml-auto">MOCK</span>
+            </div>
+            <div class="grid grid-cols-2 gap-3 text-xs font-mono">
+                <div><p class="text-cyan-600">云端算力负载</p><p class="text-lg text-white mt-1" id="ui-cpu">--<span class="text-[10px] text-cyan-400"> %</span></p></div>
+                <div><p class="text-cyan-600">接入终端</p><p class="text-lg text-white mt-1" id="ui-nodes">--<span class="text-[10px] text-cyan-400"> nodes</span></p></div>
+                <div><p class="text-cyan-600">感知帧率</p><p class="text-lg text-white mt-1" id="ui-fps">--<span class="text-[10px] text-cyan-400"> fps</span></p></div>
+                <div><p class="text-cyan-600">通信延迟</p><p class="text-lg text-white mt-1" id="ui-latency">--<span class="text-[10px] text-cyan-400"> ms</span></p></div>
+            </div>
+            <div class="mt-3 pt-2 border-t border-cyan-500/20">
+                <p class="text-cyan-600 text-[10px] mb-1">全网数据吞吐量</p>
+                <div class="bars" id="throughput-chart"></div>
+            </div>
+        </div>
+        <!-- Right: Radar + Clock -->
+        <div class="gp p-3 rounded flex flex-col items-end">
+            <div class="flex items-center gap-2 mb-2 w-full justify-between">
+                <span class="text-[10px] font-bold text-cyan-400 tracking-widest uppercase">Global Radar</span>
+                <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+            </div>
+            <div id="radar">
+                <div style="position:absolute;inset:0;border-radius:50%;border:1px dashed rgba(0,243,255,0.2);transform:scale(0.5)"></div>
+                <div style="position:absolute;inset:0"><div style="position:absolute;top:50%;left:0;width:100%;height:1px;background:rgba(0,243,255,0.3)"></div><div style="position:absolute;left:50%;top:0;height:100%;width:1px;background:rgba(0,243,255,0.3)"></div></div>
+                <div class="radar-scan"></div>
+                <div id="radar-dots"></div>
+            </div>
+            <div class="mt-2 text-right">
+                <p class="text-[10px] text-cyan-600 font-mono" id="ui-clock">--:--:--</p>
+                <p class="text-[10px] text-cyan-700">帧 #<span id="ui-frame">0</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MIDDLE -->
+    <div class="flex-1 flex items-center justify-between pe my-2">
+        <!-- Left: Mode Menu -->
+        <div class="gp py-3 w-44 rounded flex flex-col gap-1 text-sm font-bold tracking-wider text-cyan-300/60">
+            <div class="menu-item active py-3 px-4 flex items-center gap-2" data-mode="ego">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88"/></svg>
+                单车聚焦
+            </div>
+            <div class="menu-item py-3 px-4 flex items-center gap-2" data-mode="traffic">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l2-9 5 18 3-9h6"/></svg>
+                全路网流量
+            </div>
+            <div class="menu-item py-3 px-4 flex items-center gap-2" data-mode="v2i">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                V2I 基础设施
+            </div>
+            <div class="menu-item py-3 px-4 flex items-center gap-2" data-mode="algo">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                算法参数
+            </div>
+            <div class="mt-auto pt-3 border-t border-cyan-500/20 px-4">
+                <p class="text-[10px] text-cyan-700 mb-1">数据源</p>
+                <button id="ws-toggle" class="w-full text-[10px] py-1.5 border border-cyan-500/30 rounded text-cyan-400 hover:bg-cyan-500/10 transition">连接后端</button>
+            </div>
+        </div>
+
+        <!-- Center: Mode-specific content (minimal, overlaid on 3D) -->
+        <div id="center-info" class="mode-panel hidden"></div>
+
+        <!-- Right: Mode-specific panels -->
+        <div class="flex flex-col gap-3 w-[380px]">
+            <!-- EGO MODE PANEL -->
+            <div id="panel-ego" class="mode-panel">
+                <div id="alert-panel" class="gp p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-2 border-b border-white/10 pb-2">
+                        <div class="flex items-center gap-2">
+                            <span id="alert-icon" class="w-3 h-3 rounded-full bg-cyan-400"></span>
+                            <h3 class="font-bold text-white tracking-widest text-sm" id="alert-title">协同驾驶意图 (EGO-01)</h3>
+                        </div>
+                        <span id="sys-phase" class="text-xs px-2 py-0.5 rounded bg-cyan-900/50 text-cyan-200 border border-cyan-500/50 font-bold">L4 自动巡航</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center mb-3">
+                        <div class="bg-black/40 p-2 rounded border border-white/5"><p class="text-[10px] text-cyan-600 mb-1">当前车速</p><p class="font-mono text-lg font-bold text-white"><span id="hud-speed">45</span> <span class="text-[10px] text-gray-400">km/h</span></p></div>
+                        <div class="bg-black/40 p-2 rounded border border-white/5"><p class="text-[10px] text-cyan-600 mb-1">碰撞时间</p><p class="font-mono text-lg font-bold text-cyan-400" id="hud-ttc">> 5.0s</p></div>
+                        <div class="bg-black/40 p-2 rounded border border-white/5"><p class="text-[10px] text-cyan-600 mb-1">干预风险</p><p class="font-mono text-lg font-bold text-cyan-400" id="risk-metric">0%</p></div>
+                    </div>
+                    <div class="h-1.5 w-full bg-gray-900 rounded-full overflow-hidden mb-3"><div id="risk-bar" class="h-full bg-cyan-400 transition-all duration-300" style="width:0%"></div></div>
+                    <!-- Decision Info -->
+                    <div class="grid grid-cols-2 gap-2 text-[11px] font-mono mb-3">
+                        <div class="bg-black/30 p-1.5 rounded"><span class="text-cyan-600">决策模式:</span> <span class="text-white" id="hud-decision-mode">cooperative</span></div>
+                        <div class="bg-black/30 p-1.5 rounded"><span class="text-cyan-600">融合权重:</span> <span class="text-white" id="hud-fusion-weight">1.0</span></div>
+                        <div class="bg-black/30 p-1.5 rounded"><span class="text-cyan-600">制动减速度:</span> <span class="text-white" id="hud-brake-decel">0.0 m/s²</span></div>
+                        <div class="bg-black/30 p-1.5 rounded"><span class="text-cyan-600">碰撞概率:</span> <span class="text-white" id="hud-collision-prob">0.02</span></div>
+                    </div>
+                    <!-- Log -->
+                    <div class="bg-black/60 p-2 rounded text-[11px] font-mono h-20 overflow-hidden relative">
+                        <div class="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent h-[200%] w-full animate-[scan_2s_linear_infinite] pointer-events-none"></div>
+                        <div id="log-container" class="flex flex-col justify-end h-full space-y-1 relative z-10 text-gray-300"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TRAFFIC MODE PANEL -->
+            <div id="panel-traffic" class="mode-panel hidden">
+                <div class="gp p-4 rounded-lg">
+                    <div class="flex items-center gap-2 border-b border-cyan-500/30 pb-2 mb-3">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l2-9 5 18 3-9h6"/></svg>
+                        <h3 class="font-bold text-white tracking-widest text-sm">全路网流量态势</h3>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 text-xs font-mono mb-3">
+                        <div class="bg-black/40 p-2 rounded border border-white/5"><p class="text-[10px] text-cyan-600">在途车辆</p><p class="text-xl text-white font-bold" id="tf-vehicles">0</p></div>
+                        <div class="bg-black/40 p-2 rounded border border-white/5"><p class="text-[10px] text-cyan-600">平均车速</p><p class="text-xl text-white font-bold"><span id="tf-avg-speed">0</span><span class="text-[10px] text-gray-400"> km/h</span></p></div>
+                        <div class="bg-black/40 p-2 rounded border border-white/5"><p class="text-[10px] text-cyan-600">路网密度</p><p class="text-xl font-bold" id="tf-density"><span class="text-[10px] text-gray-400">veh/km</span></p></div>
+                        <div class="bg-black/40 p-2 rounded border border-white/5"><p class="text-[10px] text-cyan-600">拥堵指数</p><p class="text-xl font-bold" id="tf-congestion">0.0</p></div>
+                    </div>
+                    <!-- Flow mini chart -->
+                    <div class="mb-3">
+                        <p class="text-[10px] text-cyan-600 mb-1">流量趋势 (60s)</p>
+                        <canvas id="flow-chart" width="340" height="80" class="w-full rounded" style="background:rgba(0,0,0,0.3)"></canvas>
+                    </div>
+                    <!-- Lane stats -->
+                    <div class="space-y-2 text-[11px] font-mono" id="lane-stats">
+                        <p class="text-cyan-600">车道实时状态</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- V2I MODE PANEL -->
+            <div id="panel-v2i" class="mode-panel hidden">
+                <div class="gp p-4 rounded-lg">
+                    <div class="flex items-center gap-2 border-b border-cyan-500/30 pb-2 mb-3">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                        <h3 class="font-bold text-white tracking-widest text-sm">V2I 基础设施状态</h3>
+                    </div>
+                    <!-- RSU Cards -->
+                    <div class="space-y-2 mb-3" id="rsu-cards"></div>
+                    <!-- Signal Status -->
+                    <div class="border-t border-cyan-500/20 pt-2 mb-3">
+                        <p class="text-[10px] text-cyan-600 mb-2">信号灯状态</p>
+                        <div class="grid grid-cols-2 gap-2" id="signal-status"></div>
+                    </div>
+                    <!-- Heartbeat -->
+                    <div class="border-t border-cyan-500/20 pt-2">
+                        <p class="text-[10px] text-cyan-600 mb-2">设备心跳</p>
+                        <div class="flex items-center gap-2 text-[11px] font-mono">
+                            <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                            <span class="text-green-400" id="hb-status">在线</span>
+                            <span class="text-gray-500 ml-auto">上次: <span id="hb-time">--</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ALGO MODE PANEL -->
+            <div id="panel-algo" class="mode-panel hidden">
+                <div class="gp p-4 rounded-lg">
+                    <div class="flex items-center gap-2 border-b border-cyan-500/30 pb-2 mb-3">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82"/></svg>
+                        <h3 class="font-bold text-white tracking-widest text-sm">算法参数配置</h3>
+                    </div>
+                    <div class="space-y-3 text-[11px] font-mono">
+                        <div>
+                            <div class="flex justify-between text-cyan-400 mb-1"><span>风险阈值 (Risk Threshold)</span><span id="val-risk">0.70</span></div>
+                            <input type="range" min="0" max="100" value="70" id="slider-risk">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-cyan-400 mb-1"><span>TTC 阈值 (秒)</span><span id="val-ttc">3.0</span></div>
+                            <input type="range" min="10" max="80" value="30" id="slider-ttc">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-cyan-400 mb-1"><span>融合权重 (Fusion Weight)</span><span id="val-fusion">1.0</span></div>
+                            <input type="range" min="0" max="100" value="100" id="slider-fusion">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-cyan-400 mb-1"><span>Bloom 强度</span><span id="val-bloom">1.5</span></div>
+                            <input type="range" min="0" max="30" value="15" id="slider-bloom">
+                        </div>
+                    </div>
+                    <!-- Performance -->
+                    <div class="border-t border-cyan-500/20 pt-3 mt-3">
+                        <p class="text-[10px] text-cyan-600 mb-2">实时性能指标</p>
+                        <div class="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                            <div class="bg-black/30 p-1.5 rounded"><span class="text-cyan-600">推理耗时:</span> <span class="text-white" id="perf-infer">28 ms</span></div>
+                            <div class="bg-black/30 p-1.5 rounded"><span class="text-cyan-600">GPU利用率:</span> <span class="text-white" id="perf-gpu">62%</span></div>
+                            <div class="bg-black/30 p-1.5 rounded"><span class="text-cyan-600">决策耗时:</span> <span class="text-white" id="perf-decision">5 ms</span></div>
+                            <div class="bg-black/30 p-1.5 rounded"><span class="text-cyan-600">消息丢失率:</span> <span class="text-white" id="perf-loss">0.2%</span></div>
+                        </div>
+                    </div>
+                    <button id="apply-config" class="w-full mt-3 py-2 border border-cyan-500/50 rounded text-cyan-300 text-xs hover:bg-cyan-500/10 transition">应用到仿真引擎</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM TIMELINE -->
+    <div class="flex justify-center items-center pe pb-1">
+        <div class="flex flex-col items-center gap-1 w-1/2">
+            <span class="text-[10px] text-cyan-600 tracking-[0.3em] font-bold">DIGITAL TWIN SIMULATION TIMELINE</span>
+            <div id="timeline" class="flex gap-1 w-full"></div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+// Error handling
+window.addEventListener('error', (e) => {
+    console.error('Global error:', e.error);
+    const bootLogs = document.getElementById('boot-logs');
+    if(bootLogs) {
+        const p = document.createElement('p');
+        p.style.color = '#ff4444';
+        p.textContent = `ERROR: ${e.message}`;
+        bootLogs.appendChild(p);
+    }
+});
+
+console.log('[V2X] Script starting...');
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+console.log('[V2X] Three.js modules loaded successfully');
+
+// ============================================================
+// CONSTANTS & THEME
+// ============================================================
+const T = { bg:0x030712, road:0x080c16, grid:0x0a1930, cyan:0x00f3ff, blue:0x0088ff, red:0xff2a55, green:0x00ffaa, orange:0xffaa00, purple:0xa855f7 };
+const RISK_COLORS = { low:'#00ff88', medium:'#ffaa00', high:'#ff7a45', critical:'#ff4444' };
+
+// ============================================================
+// STATE
+// ============================================================
+const S = {
+    booted: false, time: 0, frame: 0, mode: 'ego',
+    // Scenario
+    scenarioTime: 0, scenarioDuration: 12, egoPhase: 'CRUISE', egoSpeed: 45, egoZ: 80, pedX: 22, riskLevel: 0,
+    // Connection
+    wsConnected: false, ws: null, dataSource: 'mock',
+    // Config
+    config: { riskThreshold: 0.7, ttcThreshold: 3.0, fusionWeight: 1.0, bloomStrength: 1.5 },
+    // Traffic
+    trafficData: { vehicles: 0, avgSpeed: 0, density: 0, congestion: 0, flowHistory: [], laneStats: [] },
+    // RSU
+    rsuData: [
+        { id:'RSU-01', pos:[-15,0,15], cpu:45, gpu:62, fps:28, temp:58, status:'online', latency:12 },
+        { id:'RSU-02', pos:[15,0,-15], cpu:52, gpu:58, fps:26, temp:61, status:'online', latency:15 }
+    ],
+    signals: [ {id:'SL-N',phase:'green',countdown:12}, {id:'SL-S',phase:'red',countdown:28}, {id:'SL-E',phase:'green',countdown:8}, {id:'SL-W',phase:'red',countdown:22} ],
+    // Metrics
+    metrics: { cpu:70, nodes:142, fps:28, latency:12, inferMs:28, gpuUtil:62, decisionMs:5, lossRate:0.2 }
+};
+
+const EVENTS = { pedStart:3, rsuDetect:4.5, v2xWarn:5, brakeStart:5.5, stopTime:7.5, safeCross:9.5 };
+
+// ============================================================
+// DOM REFS
+// ============================================================
+const $ = id => document.getElementById(id);
+const els = {
+    bootScreen:$('boot-screen'), bootLogs:$('boot-logs'), startBtn:$('start-btn'),
+    uiLayer:$('ui-layer'), labels:$('labels-container'),
+    cpu:$('ui-cpu'), nodes:$('ui-nodes'), fps:$('ui-fps'), latency:$('ui-latency'),
+    throughput:$('throughput-chart'), radarDots:$('radar-dots'),
+    clock:$('ui-clock'), frame:$('ui-frame'), connBadge:$('conn-badge'),
+    alertPanel:$('alert-panel'), alertTitle:$('alert-title'), alertIcon:$('alert-icon'),
+    speed:$('hud-speed'), ttc:$('hud-ttc'), riskMetric:$('risk-metric'), riskBar:$('risk-bar'),
+    phase:$('sys-phase'), logContainer:$('log-container'),
+    timeline:$('timeline'),
+    // Decision
+    decisionMode:$('hud-decision-mode'), fusionWeight:$('hud-fusion-weight'),
+    brakeDecel:$('hud-brake-decel'), collisionProb:$('hud-collision-prob'),
+    // Traffic
+    tfVehicles:$('tf-vehicles'), tfAvgSpeed:$('tf-avg-speed'),
+    tfDensity:$('tf-density'), tfCongestion:$('tf-congestion'),
+    flowChart:$('flow-chart'), laneStats:$('lane-stats'),
+    // V2I
+    rsuCards:$('rsu-cards'), signalStatus:$('signal-status'),
+    hbStatus:$('hb-status'), hbTime:$('hb-time'),
+    // Algo sliders
+    sliderRisk:$('slider-risk'), sliderTtc:$('slider-ttc'),
+    sliderFusion:$('slider-fusion'), sliderBloom:$('slider-bloom'),
+    valRisk:$('val-risk'), valTtc:$('val-ttc'), valFusion:$('val-fusion'), valBloom:$('val-bloom'),
+    perfInfer:$('perf-infer'), perfGpu:$('perf-gpu'), perfDecision:$('perf-decision'), perfLoss:$('perf-loss'),
+    wsToggle:$('ws-toggle'), applyConfig:$('apply-config')
+};
+
+// ============================================================
+// BOOT SEQUENCE
+// ============================================================
+const bootMsgs = [
+    "Initializing V2X Edge Server...",
+    "Loading Base Map Geometry [OK]",
+    "Connecting to Cloud Neural Network...",
+    "Establishing 5G/C-V2X Links [OK]",
+    "Spawning AI Traffic Agents...",
+    "Loading Scenario: Intersectional Occlusion (Ghost Probe)",
+    "Calibrating RSU Sensor Array...",
+    "System Ready. Awaiting User Action."
+];
+let msgIdx = 0;
+const bootInterval = setInterval(() => {
+    if(msgIdx < bootMsgs.length) {
+        const p = document.createElement('p');
+        p.innerText = `> ${bootMsgs[msgIdx]}`;
+        els.bootLogs.appendChild(p);
+        els.bootLogs.scrollTop = els.bootLogs.scrollHeight;
+        msgIdx++;
+    } else { clearInterval(bootInterval); els.startBtn.classList.remove('hidden'); }
+}, 350);
+
+els.startBtn.addEventListener('click', () => {
+    console.log('[V2X] Start button clicked');
+    els.bootScreen.style.opacity = '0';
+    els.bootScreen.style.pointerEvents = 'none';
+    setTimeout(() => { 
+        els.uiLayer.style.opacity = '1'; 
+        S.booted = true; 
+        console.log('[V2X] System booted, starting camera animation');
+        animateCamera(); 
+    }, 1000);
+});
+
+// ============================================================
+// THREE.JS SETUP
+// ============================================================
+const container = $('canvas-container');
+console.log('[V2X] Container found:', !!container);
+const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+console.log('[V2X] Renderer created');
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+container.appendChild(renderer.domElement);
+console.log('[V2X] Renderer added to DOM');
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(T.bg, 0.008);
+scene.background = new THREE.Color(T.bg);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 1, 500);
+camera.position.set(100, 100, 100);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.1);
+composer.addPass(bloomPass);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0,0,0); controls.enableDamping = true; controls.maxPolarAngle = Math.PI/2 - 0.05; controls.maxDistance = 250;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+const dirLight = new THREE.DirectionalLight(0xaaccff, 1.5);
+dirLight.position.set(50,100,20); scene.add(dirLight);
+// Accent lights
+const pl1 = new THREE.PointLight(T.cyan, 0.8, 30); pl1.position.set(0,12,0); scene.add(pl1);
+const pl2 = new THREE.PointLight(T.green, 0.4, 25); pl2.position.set(-15,8,-15); scene.add(pl2);
+const pl3 = new THREE.PointLight(T.purple, 0.3, 25); pl3.position.set(15,8,15); scene.add(pl3);
+
+// ============================================================
+// BUILD SCENE
+// ============================================================
+const roadWidth = 24;
+const groundGroup = new THREE.Group();
+
+// Grid
+const grid = new THREE.GridHelper(400, 100, T.grid, T.grid);
+grid.position.y = -0.1; grid.material.opacity = 0.5; grid.material.transparent = true;
+groundGroup.add(grid);
+
+// Roads
+const roadMat = new THREE.MeshStandardMaterial({ color:T.road, roughness:0.9, depthWrite:false });
+const roadZ = new THREE.Mesh(new THREE.PlaneGeometry(roadWidth,400), roadMat);
+roadZ.rotation.x = -Math.PI/2; groundGroup.add(roadZ);
+const roadX = new THREE.Mesh(new THREE.PlaneGeometry(400,roadWidth), roadMat);
+roadX.rotation.x = -Math.PI/2; roadX.position.y = 0.01; groundGroup.add(roadX);
+
+// Road edge lines
+function mkLine(pts, color, op=0.5) {
+    return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({color, transparent:true, opacity:op}));
+}
+[[-roadWidth/2,-roadWidth/2],[roadWidth/2,roadWidth/2]].forEach(([x]) => {
+    groundGroup.add(mkLine([new THREE.Vector3(x,0.02,-200), new THREE.Vector3(x,0.02,200)], T.cyan, 0.5));
+    groundGroup.add(mkLine([new THREE.Vector3(-200,0.02,x), new THREE.Vector3(200,0.02,x)], T.cyan, 0.5));
+});
+
+// Crosswalk
+const cwMat = new THREE.MeshBasicMaterial({color:0x555555});
+for(let i=0;i<8;i++) {
+    const z = new THREE.Mesh(new THREE.PlaneGeometry(1.5,8), cwMat);
+    z.rotation.x = -Math.PI/2; z.position.set(-10+i*2.8, 0.03, roadWidth/2+2); groundGroup.add(z);
+}
+scene.add(groundGroup);
+
+// Buildings
+const buildings = new THREE.Group();
+const bMats = [new THREE.MeshStandardMaterial({color:0x050a15,roughness:0.2}), new THREE.MeshStandardMaterial({color:0x081020,roughness:0.3})];
+function addBlock(cx,cz) {
+    for(let i=0;i<6;i++) {
+        const w=10+Math.random()*15, d=10+Math.random()*15, h=20+Math.random()*60;
+        const x=cx+(Math.random()-0.5)*40, z=cz+(Math.random()-0.5)*40;
+        if(Math.abs(x)<roadWidth/2+10 && Math.abs(z)<roadWidth/2+10) continue;
+        const b = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), bMats[Math.floor(Math.random()*2)]);
+        b.position.set(x,h/2,z);
+        const edges = new THREE.EdgesGeometry(b.geometry);
+        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color:T.cyan,transparent:true,opacity:0.1}));
+        line.position.copy(b.position);
+        buildings.add(b,line);
+    }
+}
+addBlock(-60,-60); addBlock(60,-60); addBlock(-60,60); addBlock(60,60);
+scene.add(buildings);
+
+// Traffic lights
+function createTrafficLight(x,z,initialPhase) {
+    const g = new THREE.Group(); g.position.set(x,0,z);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,4,8).translate(0,2,0), new THREE.MeshStandardMaterial({color:0x333}));
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.5,1.2,0.3).translate(0,4.5,0), new THREE.MeshStandardMaterial({color:0x222}));
+    const lights = [];
+    const colors = [T.red, T.orange, T.green];
+    colors.forEach((c,i) => {
+        const s = new THREE.Mesh(new THREE.SphereGeometry(0.12,8,8).translate(0,4.8-i*0.35,0.16), new THREE.MeshStandardMaterial({color:c, emissive:c, emissiveIntensity:0.1}));
+        g.add(s); lights.push({mesh:s, color:c});
+    });
+    g.add(pole, box);
+    g.userData = { phase:initialPhase, lights, timer:0 };
+    scene.add(g);
+    return g;
+}
+const trafficLights = [
+    createTrafficLight(-10,10,'green'), createTrafficLight(10,-10,'green'),
+    createTrafficLight(10,10,'red'), createTrafficLight(-10,-10,'yellow')
+];
+
+// RSU
+function createRSU(x,z) {
+    const g = new THREE.Group(); g.position.set(x,0,z);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.4,12,8).translate(0,6,0), new THREE.MeshStandardMaterial({color:0x222}));
+    const head = new THREE.Mesh(new THREE.BoxGeometry(1.5,1,1).translate(0,12.5,0), new THREE.MeshStandardMaterial({color:T.cyan,emissive:T.cyan,emissiveIntensity:1}));
+    const ringMat = new THREE.MeshBasicMaterial({color:T.cyan,transparent:true,opacity:0.1,side:THREE.DoubleSide,depthWrite:false});
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(25,25,0.1,32).translate(0,0.5,0), ringMat);
+    // Sensor cone
+    const coneMat = new THREE.MeshBasicMaterial({color:T.cyan,transparent:true,opacity:0.04,side:THREE.DoubleSide,depthWrite:false});
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(18,12,16,1,true).translate(0,6,0), coneMat);
+    g.add(pole,head,ring,cone);
+    scene.add(g);
+    return { group:g, ringMat, coneMat };
+}
+const rsus = [ createRSU(-15,15), createRSU(15,-15) ];
+
+// Vehicle factory
+function buildVehicle(color, isEgo=false) {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.2,1.2,5).translate(0,0.8,0), new THREE.MeshStandardMaterial({color,roughness:0.2}));
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(2.3,0.6,2.8).translate(0,1.6,-0.2), new THREE.MeshStandardMaterial({color:0x000,roughness:0.1}));
+    g.add(body,glass);
+    if(isEgo) {
+        const lidar = new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,0.3).translate(0,2,-0.5), new THREE.MeshBasicMaterial({color:T.cyan}));
+        const aura = new THREE.Mesh(new THREE.BoxGeometry(2.6,2,5.4).translate(0,1.2,0), new THREE.MeshBasicMaterial({color:T.cyan,wireframe:true,transparent:true,opacity:0.2}));
+        g.add(lidar,aura);
+        g.userData.auraMat = aura.material;
+        // V2X line
+        const v2xLine = mkLine([new THREE.Vector3(0,2,0), new THREE.Vector3(-15,12,15)], T.blue, 0);
+        g.add(v2xLine); g.userData.v2xLine = v2xLine;
+        // Sensor cone
+        const sCone = new THREE.Mesh(new THREE.ConeGeometry(6,18,12,1,true).rotateX(Math.PI/2).translate(0,1,-12), new THREE.MeshBasicMaterial({color:T.cyan,transparent:true,opacity:0.04,side:THREE.DoubleSide,depthWrite:false}));
+        g.add(sCone);
+    }
+    return g;
+}
+
+// Truck
+const truck = new THREE.Group(); truck.position.set(6,0,15);
+truck.add(new THREE.Mesh(new THREE.BoxGeometry(3.5,3.5,8).translate(0,2.5,1), new THREE.MeshStandardMaterial({color:0x111})));
+truck.add(new THREE.Mesh(new THREE.BoxGeometry(3.2,2.5,2.5).translate(0,2,-4), new THREE.MeshStandardMaterial({color:0x334455})));
+const blindZone = new THREE.Mesh(new THREE.BoxGeometry(10,0.1,8).translate(5,0.1,0), new THREE.MeshBasicMaterial({color:T.red,transparent:true,opacity:0.1,depthWrite:false}));
+truck.add(blindZone); scene.add(truck);
+
+// Ego
+const egoCar = buildVehicle(0x111111, true); scene.add(egoCar);
+
+// Traffic cars
+const trafficCars = [];
+const laneX = [-6,6], laneZ = [-6,6];
+for(let i=0;i<12;i++) {
+    const tc = buildVehicle(0x333333);
+    const isV = i%2===0;
+    const lane = isV ? laneX[i%2] : laneZ[i%2];
+    const pos = Math.random()*200-100;
+    if(isV) { tc.position.set(lane,0,pos); if(lane>0) tc.rotation.y=Math.PI; }
+    else { tc.position.set(pos,0,lane); tc.rotation.y = lane<0 ? Math.PI/2 : -Math.PI/2; }
+    tc.userData = { isVertical:isV, speed:20+Math.random()*20, lane };
+    scene.add(tc); trafficCars.push(tc);
+}
+
+// Pedestrian
+const pedestrian = new THREE.Group();
+pedestrian.add(new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,1.8).translate(0,0.9,0), new THREE.MeshStandardMaterial({color:0xffccaa})));
+const pedWarn = new THREE.Mesh(new THREE.CylinderGeometry(2,2,0.1).translate(0,0.1,0), new THREE.MeshBasicMaterial({color:T.red,transparent:true,opacity:0,depthWrite:false}));
+pedestrian.add(pedWarn); scene.add(pedestrian);
+
+// Data flow particles
+const particleCount = 150;
+const pGeo = new THREE.BufferGeometry();
+const pPos = new Float32Array(particleCount*3);
+const pVel = new Float32Array(particleCount);
+for(let i=0;i<particleCount;i++) {
+    pPos[i*3] = (Math.random()-0.5)*50; pPos[i*3+1] = Math.random()*20; pPos[i*3+2] = (Math.random()-0.5)*50;
+    pVel[i] = 0.02 + Math.random()*0.03;
+}
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos,3));
+const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({color:T.cyan, size:0.12, transparent:true, opacity:0.6, blending:THREE.AdditiveBlending, depthWrite:false}));
+scene.add(particles);
+
+// Trajectory lines for traffic mode
+const trajLines = new THREE.Group(); trajLines.visible = false; scene.add(trajLines);
+trafficCars.forEach(car => {
+    const pts = [];
+    for(let i=0;i<20;i++) {
+        if(car.userData.isVertical) pts.push(new THREE.Vector3(car.position.x, 0.3, car.position.z + (car.userData.lane>0?-i:i)));
+        else pts.push(new THREE.Vector3(car.position.x + (car.userData.lane<0?-i:i), 0.3, car.position.z));
+    }
+    const line = mkLine(pts, T.green, 0.3);
+    line.material.dashSize = 1; line.material.gapSize = 0.5;
+    trajLines.add(line);
+});
+
+// RSU coverage visualization (for V2I mode)
+const coverageGroup = new THREE.Group(); coverageGroup.visible = false; scene.add(coverageGroup);
+rsus.forEach(r => {
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(25,25,0.2,32), new THREE.MeshBasicMaterial({color:T.cyan,transparent:true,opacity:0.06,depthWrite:false,side:THREE.DoubleSide}));
+    disc.position.copy(r.group.position); disc.position.y = 0.3;
+    coverageGroup.add(disc);
+    // Edge ring
+    const ringGeo = new THREE.RingGeometry(24.5,25,32);
+    const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({color:T.cyan,transparent:true,opacity:0.3,side:THREE.DoubleSide}));
+    ring.rotation.x = -Math.PI/2; ring.position.copy(r.group.position); ring.position.y = 0.4;
+    coverageGroup.add(ring);
+});
+
+// ============================================================
+// LABELS
+// ============================================================
+function createLabel(text, theme='cyan') {
+    const el = document.createElement('div');
+    el.className = 'elabel';
+    el.style.cssText = `background:${theme==='red'?'rgba(255,42,85,0.6)':theme==='gray'?'rgba(100,100,100,0.5)':'rgba(0,243,255,0.5)'}; border:1px solid ${theme==='red'?'rgba(255,42,85,0.8)':theme==='gray'?'rgba(150,150,150,0.5)':'rgba(0,243,255,0.8)'}; color:${theme==='red'?'#ffaabb':theme==='gray'?'#ccc':'#aaffff'}`;
+    el.innerText = text;
+    els.labels.appendChild(el);
+    return el;
+}
+const egoLabel = createLabel('EGO-01 [CRUISE]','cyan');
+const truckLabel = createLabel('OBJ-TRK [STATIC]','gray');
+const pedLabel = createLabel('VRU-01 [WARN]','red'); pedLabel.style.display = 'none';
+
+function updateLabelPos(wp, el) {
+    if(el.style.display==='none') return;
+    const p = wp.clone().project(camera);
+    const x = (p.x*.5+.5)*window.innerWidth, y = (p.y*-.5+.5)*window.innerHeight;
+    if(p.z>1) { el.style.opacity=0; return; }
+    el.style.opacity=1; el.style.left=`${x}px`; el.style.top=`${y}px`;
+}
+
+// ============================================================
+// UI GENERATION
+// ============================================================
+// Timeline
+for(let i=0;i<40;i++) { const b=document.createElement('div'); b.className='flex-1 h-1 bg-cyan-900/40 rounded-sm transition-all'; els.timeline.appendChild(b); }
+// Throughput bars
+for(let i=0;i<25;i++) { const b=document.createElement('div'); b.className='bar'; b.style.height=`${Math.random()*100}%`; els.throughput.appendChild(b); }
+
+// ============================================================
+// LOGGING
+// ============================================================
+function addLog(msg, type='info') {
+    const colors = { info:'text-cyan-400', warn:'text-orange-400', danger:'text-red-400 font-bold', success:'text-green-400' };
+    const p = document.createElement('p');
+    p.className = `log-entry ${colors[type]} whitespace-nowrap`;
+    p.innerHTML = `<span class="opacity-50">[${S.scenarioTime.toFixed(2)}s]</span> ${msg}`;
+    els.logContainer.appendChild(p);
+    if(els.logContainer.children.length>5) els.logContainer.removeChild(els.logContainer.firstChild);
+}
+
+// ============================================================
+// MODE SWITCHING
+// ============================================================
+const panels = { ego:$('panel-ego'), traffic:$('panel-traffic'), v2i:$('panel-v2i'), algo:$('panel-algo') };
+document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+        const mode = item.dataset.mode;
+        if(mode === S.mode) return;
+        document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+        item.classList.add('active');
+        // Hide all panels
+        Object.values(panels).forEach(p => { p.classList.add('hidden'); });
+        // Show target
+        panels[mode].classList.remove('hidden');
+        S.mode = mode;
+        // 3D adjustments
+        switchMode3D(mode);
+    });
+});
+
+function switchMode3D(mode) {
+    trajLines.visible = mode === 'traffic';
+    coverageGroup.visible = mode === 'v2i';
+    switch(mode) {
+        case 'ego':
+            animateCameraTo(new THREE.Vector3(25,20,35), new THREE.Vector3(egoCar.position.x,0,egoCar.position.z-20));
+            break;
+        case 'traffic':
+            animateCameraTo(new THREE.Vector3(0,120,0), new THREE.Vector3(0,0,0));
+            break;
+        case 'v2i':
+            animateCameraTo(new THREE.Vector3(40,35,40), new THREE.Vector3(0,5,0));
+            break;
+        case 'algo':
+            animateCameraTo(new THREE.Vector3(30,25,30), new THREE.Vector3(0,0,0));
+            break;
+    }
+}
+
+function animateCameraTo(targetPos, targetLookAt) {
+    const startPos = camera.position.clone();
+    const startTarget = controls.target.clone();
+    let t = 0;
+    const iv = setInterval(() => {
+        t += 0.025; if(t>=1) { clearInterval(iv); return; }
+        const ease = 1 - Math.pow(1-t, 3);
+        camera.position.lerpVectors(startPos, targetPos, ease);
+        controls.target.lerpVectors(startTarget, targetLookAt, ease);
+        controls.update();
+    }, 16);
+}
+
+function animateCamera() {
+    animateCameraTo(new THREE.Vector3(25,20,35), new THREE.Vector3(0,0,egoCar.position.z-20));
+}
+
+// ============================================================
+// SCENARIO ENGINE (Ego mode)
+// ============================================================
+function updateScenario(delta) {
+    S.scenarioTime += delta;
+    const st = S.scenarioTime;
+    if(st > S.scenarioDuration) {
+        S.scenarioTime=0; S.egoZ=80; S.egoSpeed=45; S.pedX=22;
+        S.egoPhase='CRUISE'; S.riskLevel=0;
+        pedLabel.style.display='none';
+        els.logContainer.innerHTML='';
+    }
+    let pedActive = false;
+    if(st < EVENTS.pedStart) { S.egoPhase='CRUISE'; S.riskLevel=Math.max(0,S.riskLevel-50*delta); }
+    else if(st < EVENTS.rsuDetect) { S.egoPhase='CRUISE'; S.pedX-=4.5*delta; pedActive=true; }
+    else if(st < EVENTS.v2xWarn) {
+        if(S.egoPhase!=='DETECT') { S.egoPhase='DETECT'; addLog('路侧边缘节点捕获盲区移动目标','warn'); pedLabel.style.display='block'; }
+        S.pedX-=4.5*delta; S.riskLevel=Math.min(60,S.riskLevel+100*delta); pedActive=true;
+    }
+    else if(st < EVENTS.brakeStart) {
+        if(S.egoPhase!=='WARN') { S.egoPhase='WARN'; addLog('云端下发超视距协同预警 (C-V2X)','danger'); }
+        S.pedX-=4.5*delta; S.riskLevel=Math.min(85,S.riskLevel+100*delta); pedActive=true;
+    }
+    else if(st < EVENTS.stopTime) {
+        if(S.egoPhase!=='BRAKE') { S.egoPhase='BRAKE'; addLog('AEB 紧急制动系统接管','danger'); }
+        S.pedX-=4.5*delta;
+        const decel = 45/(EVENTS.stopTime-EVENTS.brakeStart);
+        S.egoSpeed=Math.max(0,S.egoSpeed-decel*delta); S.riskLevel=99; pedActive=true;
+    }
+    else if(st < EVENTS.safeCross) {
+        if(S.egoPhase!=='PASS') { S.egoPhase='PASS'; addLog('碰撞风险解除，目标安全通过','success'); }
+        S.egoSpeed=0; S.pedX-=4.5*delta; S.riskLevel=Math.max(0,S.riskLevel-30*delta); pedActive=true;
+    } else {
+        S.egoPhase='CRUISE'; S.egoSpeed=Math.min(45,S.egoSpeed+15*delta);
+    }
+
+    S.egoZ -= (S.egoSpeed/3.6)*delta;
+    egoCar.position.set(-6, 0, S.egoZ);
+    pedestrian.position.set(S.pedX, 0, 11);
+
+    // Visual effects
+    if(S.egoPhase==='WARN'||S.egoPhase==='BRAKE') {
+        egoCar.userData.auraMat.color.setHex(T.red);
+        egoCar.userData.auraMat.opacity = 0.6+Math.sin(st*20)*0.2;
+        rsus[0].ringMat.color.setHex(T.red);
+        pedWarn.material.opacity = 0.5+Math.sin(st*15)*0.5;
+        const vLine = egoCar.userData.v2xLine;
+        vLine.material.opacity = 1;
+        vLine.geometry.setFromPoints([new THREE.Vector3(0,2,0), rsus[0].group.position.clone().sub(egoCar.position).add(new THREE.Vector3(0,12,0))]);
+    } else {
+        egoCar.userData.auraMat.color.setHex(T.cyan);
+        egoCar.userData.auraMat.opacity = 0.2;
+        rsus[0].ringMat.color.setHex(T.cyan);
+        pedWarn.material.opacity = 0;
+        egoCar.userData.v2xLine.material.opacity = 0;
+    }
+}
+
+// ============================================================
+// TRAFFIC SIMULATION
+// ============================================================
+function updateTraffic(delta) {
+    // Update background cars
+    trafficCars.forEach(car => {
+        const spd = (car.userData.speed/3.6)*delta;
+        if(car.userData.isVertical) {
+            car.position.z += car.userData.lane>0 ? spd : -spd;
+            if(car.position.z>100) car.position.z=-100;
+            if(car.position.z<-100) car.position.z=100;
+        } else {
+            car.position.x += car.userData.lane<0 ? spd : -spd;
+            if(car.position.x>100) car.position.x=-100;
+            if(car.position.x<-100) car.position.x=100;
+        }
+    });
+    // Compute stats
+    S.trafficData.vehicles = trafficCars.length + 1; // +1 ego
+    S.trafficData.avgSpeed = Math.round(trafficCars.reduce((s,c)=>s+c.userData.speed,0)/trafficCars.length);
+    S.trafficData.density = (S.trafficData.vehicles / 0.5).toFixed(1); // veh/km (simplified)
+    const congIdx = Math.min(10, (S.trafficData.vehicles * (100-S.trafficData.avgSpeed) / 100).toFixed(1));
+    S.trafficData.congestion = congIdx;
+    // Flow history
+    S.trafficData.flowHistory.push(S.trafficData.avgSpeed);
+    if(S.trafficData.flowHistory.length > 60) S.trafficData.flowHistory.shift();
+    // Lane stats
+    const lanes = [
+        { name:'北向车道 ↓', count:trafficCars.filter(c=>c.userData.isVertical&&c.userData.lane<0).length, avg:0 },
+        { name:'南向车道 ↑', count:trafficCars.filter(c=>c.userData.isVertical&&c.userData.lane>0).length, avg:0 },
+        { name:'东向车道 ←', count:trafficCars.filter(c=>!c.userData.isVertical&&c.userData.lane<0).length, avg:0 },
+        { name:'西向车道 →', count:trafficCars.filter(c=>!c.userData.isVertical&&c.userData.lane>0).length, avg:0 }
+    ];
+    lanes.forEach(l => {
+        const carsInLane = trafficCars.filter(c => {
+            if(l.name.includes('北')) return c.userData.isVertical && c.userData.lane<0;
+            if(l.name.includes('南')) return c.userData.isVertical && c.userData.lane>0;
+            if(l.name.includes('东')) return !c.userData.isVertical && c.userData.lane<0;
+            return !c.userData.isVertical && c.userData.lane>0;
+        });
+        l.avg = carsInLane.length ? Math.round(carsInLane.reduce((s,c)=>s+c.userData.speed,0)/carsInLane.length) : 0;
+    });
+    S.trafficData.laneStats = lanes;
+}
+
+// ============================================================
+// TRAFFIC LIGHT SIMULATION
+// ============================================================
+function updateTrafficLights(delta) {
+    const phases = ['green','yellow','red'];
+    const durations = { green:15, yellow:3, red:18 };
+    trafficLights.forEach(tl => {
+        tl.userData.timer += delta;
+        const dur = durations[tl.userData.phase];
+        if(tl.userData.timer >= dur) {
+            tl.userData.timer = 0;
+            const idx = phases.indexOf(tl.userData.phase);
+            tl.userData.phase = phases[(idx+1)%3];
+        }
+        // Update visuals
+        tl.userData.lights.forEach(l => {
+            const isActive = (tl.userData.phase === 'green' && l.color === T.green) ||
+                             (tl.userData.phase === 'yellow' && l.color === T.orange) ||
+                             (tl.userData.phase === 'red' && l.color === T.red);
+            l.mesh.material.emissiveIntensity = isActive ? 1.0 : 0.1;
+        });
+    });
+    // Update signal panel
+    if(S.mode === 'v2i') {
+        const names = ['北向','南向','东向','西向'];
+        els.signalStatus.innerHTML = trafficLights.map((tl,i) => {
+            const color = tl.userData.phase==='green'?'green':tl.userData.phase==='yellow'?'orange':'red';
+            const colorHex = tl.userData.phase==='green'?'#00ff88':tl.userData.phase==='yellow'?'#ffaa00':'#ff4444';
+            return `<div class="bg-black/30 p-1.5 rounded flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" style="background:${colorHex};box-shadow:0 0 6px ${colorHex}"></span>
+                <span class="text-[10px] text-gray-400">${names[i]}</span>
+                <span class="text-[11px] ml-auto font-bold" style="color:${colorHex}">${tl.userData.phase.toUpperCase()}</span>
+            </div>`;
+        }).join('');
+    }
+}
+
+// ============================================================
+// RSU / V2I UPDATE
+// ============================================================
+function updateRSU(delta) {
+    S.rsuData.forEach((rsu,i) => {
+        rsu.cpu = Math.max(20, Math.min(95, rsu.cpu + (Math.random()-0.5)*5));
+        rsu.gpu = Math.max(30, Math.min(90, rsu.gpu + (Math.random()-0.5)*4));
+        rsu.fps = Math.max(20, Math.min(30, rsu.fps + (Math.random()-0.5)*2));
+        rsu.temp = Math.max(45, Math.min(75, rsu.temp + (Math.random()-0.5)*2));
+        rsu.latency = Math.max(5, Math.min(30, rsu.latency + (Math.random()-0.5)*3));
+    });
+    if(S.mode === 'v2i') {
+        els.rsuCards.innerHTML = S.rsuData.map(r => `
+            <div class="bg-black/30 p-2 rounded border border-cyan-500/10">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-white text-xs font-bold">${r.id}</span>
+                    <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                </div>
+                <div class="grid grid-cols-3 gap-1 text-[10px] font-mono">
+                    <div><span class="text-cyan-600">CPU</span> <span class="text-white">${r.cpu.toFixed(0)}%</span></div>
+                    <div><span class="text-cyan-600">GPU</span> <span class="text-white">${r.gpu.toFixed(0)}%</span></div>
+                    <div><span class="text-cyan-600">FPS</span> <span class="text-white">${r.fps.toFixed(0)}</span></div>
+                    <div><span class="text-cyan-600">温度</span> <span class="text-white">${r.temp.toFixed(0)}°C</span></div>
+                    <div><span class="text-cyan-600">延迟</span> <span class="text-white">${r.latency.toFixed(0)}ms</span></div>
+                    <div><span class="text-cyan-600">状态</span> <span class="text-green-400">在线</span></div>
+                </div>
+                <div class="mt-1 h-1 bg-gray-800 rounded-full overflow-hidden"><div class="h-full rounded-full" style="width:${r.cpu}%;background:${r.cpu>80?'var(--neon-red)':r.cpu>60?'var(--neon-orange)':'var(--neon-cyan)'}"></div></div>
+            </div>
+        `).join('');
+        const now = new Date();
+        els.hbTime.innerText = now.toLocaleTimeString('zh-CN');
+    }
+}
+
+// ============================================================
+// FLOW CHART (Canvas)
+// ============================================================
+function drawFlowChart() {
+    const canvas = els.flowChart;
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    const data = S.trafficData.flowHistory;
+    if(data.length < 2) return;
+    const max = Math.max(...data, 60);
+    const min = Math.min(...data, 0);
+    const range = max - min || 1;
+    // Grid lines
+    ctx.strokeStyle = 'rgba(0,243,255,0.1)'; ctx.lineWidth = 0.5;
+    for(let i=0;i<4;i++) { const y=h*i/3; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+    // Line
+    ctx.beginPath(); ctx.strokeStyle = '#00f3ff'; ctx.lineWidth = 1.5;
+    data.forEach((v,i) => {
+        const x = (i/(data.length-1))*w;
+        const y = h - ((v-min)/range)*h*0.8 - h*0.1;
+        i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    // Fill
+    const lastX = w, lastY = h - ((data[data.length-1]-min)/range)*h*0.8 - h*0.1;
+    ctx.lineTo(lastX, h); ctx.lineTo(0, h); ctx.closePath();
+    const grad = ctx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0, 'rgba(0,243,255,0.2)'); grad.addColorStop(1, 'rgba(0,243,255,0)');
+    ctx.fillStyle = grad; ctx.fill();
+}
+
+// ============================================================
+// LANE STATS UI
+// ============================================================
+function updateLaneStatsUI() {
+    if(S.mode !== 'traffic') return;
+    const lanes = S.trafficData.laneStats;
+    els.laneStats.innerHTML = '<p class="text-cyan-600">车道实时状态</p>' + lanes.map(l => {
+        const barW = Math.min(100, l.count * 20);
+        const color = l.avg > 30 ? 'var(--neon-green)' : l.avg > 15 ? 'var(--neon-orange)' : 'var(--neon-red)';
+        return `<div class="bg-black/30 p-1.5 rounded flex items-center gap-2">
+            <span class="text-[10px] text-gray-400 w-16">${l.name}</span>
+            <div class="flex-1 h-1.5 bg-gray-800 rounded-full"><div class="h-full rounded-full" style="width:${barW}%;background:${color}"></div></div>
+            <span class="text-[10px] text-white w-8 text-right">${l.count}辆</span>
+            <span class="text-[10px] w-14 text-right" style="color:${color}">${l.avg}km/h</span>
+        </div>`;
+    }).join('');
+}
+
+// ============================================================
+// MOCK DATA ENGINE
+// ============================================================
+function updateMockData(delta) {
+    S.metrics.cpu = Math.max(40, Math.min(95, S.metrics.cpu + (Math.random()-0.5)*8));
+    S.metrics.nodes = 130 + Math.floor(Math.random()*20);
+    S.metrics.fps = Math.max(20, Math.min(30, S.metrics.fps + (Math.random()-0.5)*3));
+    S.metrics.latency = Math.max(5, Math.min(25, S.metrics.latency + (Math.random()-0.5)*4));
+    S.metrics.inferMs = Math.max(15, Math.min(45, S.metrics.inferMs + (Math.random()-0.5)*5));
+    S.metrics.gpuUtil = Math.max(40, Math.min(85, S.metrics.gpuUtil + (Math.random()-0.5)*5));
+    S.metrics.decisionMs = Math.max(2, Math.min(10, S.metrics.decisionMs + (Math.random()-0.5)*2));
+    S.metrics.lossRate = Math.max(0, Math.min(2, S.metrics.lossRate + (Math.random()-0.5)*0.3));
+}
+
+// ============================================================
+// WEBSOCKET CONNECTION
+// ============================================================
+function connectWS() {
+    const baseUrl = localStorage.getItem('v2x-settings');
+    let host = 'localhost:8000';
+    try {
+        if(baseUrl) {
+            const parsed = JSON.parse(baseUrl);
+            if(parsed.cloudApiBaseUrl) {
+                const u = new URL(parsed.cloudApiBaseUrl);
+                host = u.host;
+            }
+        }
+    } catch(e) {}
+    const wsUrl = `ws://${host}/api/v1/realtime/ws`;
+    try {
+        S.ws = new WebSocket(wsUrl);
+        S.ws.onopen = () => {
+            S.wsConnected = true; S.dataSource = 'live';
+            els.connBadge.className = 'conn-badge conn-live'; els.connBadge.textContent = 'LIVE';
+            els.wsToggle.textContent = '断开连接';
+            S.ws.send(JSON.stringify({action:'subscribe',topics:['perception','decision','event','vehicle_status','heartbeat']}));
+            addLog('WebSocket 已连接后端','success');
+        };
+        S.ws.onmessage = (e) => {
+            try {
+                const msg = JSON.parse(e.data);
+                handleWSMessage(msg);
+            } catch(err) {}
+        };
+        S.ws.onclose = () => {
+            S.wsConnected = false; S.dataSource = 'mock';
+            els.connBadge.className = 'conn-badge conn-mock'; els.connBadge.textContent = 'MOCK';
+            els.wsToggle.textContent = '连接后端';
+            addLog('WebSocket 断开，降级到 Mock 数据','warn');
+        };
+        S.ws.onerror = () => { S.ws.close(); };
+    } catch(e) {
+        addLog('WebSocket 连接失败','danger');
+    }
+}
+
+function disconnectWS() {
+    if(S.ws) { S.ws.close(); S.ws = null; }
+}
+
+function handleWSMessage(msg) {
+    const { type, data, timestamp } = msg;
+    S.frame++;
+    switch(type) {
+        case 'perception':
+            if(data.objects) {
+                data.objects.forEach(obj => {
+                    if(obj.class === 'person') {
+                        pedestrian.position.set(obj.world_pos[0], 0, obj.world_pos[1]);
+                        pedLabel.style.display = 'block';
+                    }
+                });
+            }
+            break;
+        case 'vehicle_status':
+            if(data.position) {
+                egoCar.position.set(data.position[0], 0, data.position[1]);
+                S.egoSpeed = data.speed * 3.6; // m/s to km/h
+            }
+            break;
+        case 'decision':
+            S.riskLevel = data.risk_level === 'SAFE' ? 10 : data.risk_level === 'CAUTION' ? 50 : data.risk_level === 'DANGER' ? 85 : 99;
+            break;
+        case 'event':
+            addLog(`事件: ${data.description || data.event_type}`, 'danger');
+            break;
+    }
+}
+
+els.wsToggle.addEventListener('click', () => {
+    if(S.wsConnected) disconnectWS(); else connectWS();
+});
+
+// ============================================================
+// ALGO SLIDERS
+// ============================================================
+els.sliderRisk.addEventListener('input', e => { S.config.riskThreshold = e.target.value/100; els.valRisk.textContent = S.config.riskThreshold.toFixed(2); });
+els.sliderTtc.addEventListener('input', e => { S.config.ttcThreshold = e.target.value/10; els.valTtc.textContent = S.config.ttcThreshold.toFixed(1); });
+els.sliderFusion.addEventListener('input', e => { S.config.fusionWeight = e.target.value/100; els.valFusion.textContent = S.config.fusionWeight.toFixed(2); });
+els.sliderBloom.addEventListener('input', e => { S.config.bloomStrength = e.target.value/10; els.valBloom.textContent = S.config.bloomStrength.toFixed(1); bloomPass.strength = S.config.bloomStrength; });
+
+els.applyConfig.addEventListener('click', () => {
+    if(S.wsConnected && S.ws.readyState === WebSocket.OPEN) {
+        S.ws.send(JSON.stringify({action:'config', config:S.config}));
+        addLog('配置已推送到后端引擎','success');
+    } else {
+        addLog('配置已应用到本地仿真','info');
+    }
+});
+
+// ============================================================
+// UI UPDATE (10Hz)
+// ============================================================
+let lastUITick = 0;
+function updateUI() {
+    if(!S.booted) return;
+    const now = Date.now();
+    if(now - lastUITick < 100) return;
+    lastUITick = now;
+
+    // Clock
+    els.clock.textContent = new Date().toLocaleTimeString('zh-CN');
+    els.frame.textContent = S.frame;
+
+    // Global metrics
+    els.cpu.innerHTML = `${S.metrics.cpu.toFixed(0)}<span class="text-[10px] text-cyan-400"> %</span>`;
+    els.nodes.innerHTML = `${S.metrics.nodes}<span class="text-[10px] text-cyan-400"> nodes</span>`;
+    els.fps.innerHTML = `${S.metrics.fps.toFixed(0)}<span class="text-[10px] text-cyan-400"> fps</span>`;
+    els.latency.innerHTML = `${S.metrics.latency.toFixed(0)}<span class="text-[10px] text-cyan-400"> ms</span>`;
+
+    // Throughput bars
+    Array.from(els.throughput.children).forEach(bar => {
+        bar.style.height = `${20+Math.random()*80}%`;
+        bar.style.background = Math.random()>0.8 ? 'var(--neon-cyan)' : 'var(--neon-blue)';
+    });
+
+    // Radar
+    const mapScale = 0.5;
+    let dotsHTML = `<div class="radar-dot text-cyan-400" style="left:${50+egoCar.position.x*mapScale}%;top:${50+egoCar.position.z*mapScale}%"></div>`;
+    dotsHTML += `<div class="radar-dot text-gray-500" style="left:${50+truck.position.x*mapScale}%;top:${50+truck.position.z*mapScale}%"></div>`;
+    if(S.mode==='ego' && S.egoPhase!=='CRUISE') {
+        const pc = (S.egoPhase==='WARN'||S.egoPhase==='BRAKE') ? 'text-red-500 animate-ping' : 'text-yellow-400';
+        dotsHTML += `<div class="radar-dot ${pc}" style="left:${50+pedestrian.position.x*mapScale}%;top:${50+pedestrian.position.z*mapScale}%"></div>`;
+    }
+    trafficCars.forEach(car => {
+        dotsHTML += `<div class="radar-dot text-cyan-800" style="left:${50+car.position.x*mapScale}%;top:${50+car.position.z*mapScale}%"></div>`;
+    });
+    els.radarDots.innerHTML = dotsHTML;
+
+    // Timeline
+    const progress = S.scenarioTime / S.scenarioDuration;
+    const activeIdx = Math.floor(progress * 40);
+    Array.from(els.timeline.children).forEach((el,i) => {
+        el.className = i<activeIdx ? 'flex-1 h-1 bg-cyan-400 rounded-sm shadow-[0_0_5px_#00f3ff]' : 'flex-1 h-1 bg-cyan-900/40 rounded-sm';
+    });
+
+    // Mode-specific UI
+    if(S.mode === 'ego') updateEgoUI();
+    else if(S.mode === 'traffic') updateTrafficUI();
+    else if(S.mode === 'v2i') updateV2IUI();
+    else if(S.mode === 'algo') updateAlgoUI();
+
+    // Labels
+    updateLabelPos(egoCar.position.clone().add(new THREE.Vector3(0,3,0)), egoLabel);
+    updateLabelPos(truck.position.clone().add(new THREE.Vector3(0,5,0)), truckLabel);
+    updateLabelPos(pedestrian.position.clone().add(new THREE.Vector3(0,2.5,0)), pedLabel);
+}
+
+function updateEgoUI() {
+    const risk = Math.floor(S.riskLevel);
+    els.riskMetric.innerText = risk+'%';
+    els.riskBar.style.width = risk+'%';
+    els.speed.innerText = S.egoSpeed.toFixed(0);
+
+    const isDanger = S.egoPhase==='WARN'||S.egoPhase==='BRAKE';
+    if(isDanger) {
+        els.alertPanel.className = 'gp gp-red p-4 rounded-lg';
+        els.alertIcon.className = 'w-3 h-3 rounded-full bg-red-500 animate-ping';
+        els.alertTitle.className = 'font-bold text-red-200 tracking-widest text-sm';
+        els.phase.className = 'text-xs px-2 py-0.5 rounded bg-red-900/80 text-red-100 border border-red-500 font-bold animate-pulse';
+        els.phase.innerText = S.egoPhase==='WARN' ? 'V2X 预警干预' : 'AEB 紧急制动';
+        const ttcVal = ((S.egoZ-pedestrian.position.z)/(S.egoSpeed/3.6+0.1)).toFixed(1);
+        els.ttc.innerText = `${ttcVal}s`; els.ttc.className = 'font-mono text-lg font-bold text-red-500 animate-pulse';
+        els.riskMetric.className = 'font-mono text-lg font-bold text-red-500';
+        els.riskBar.className = 'h-full bg-red-500 transition-all duration-300';
+        egoLabel.style.cssText += ';background:rgba(255,42,85,0.8);color:#fff;border-color:#ff2a55';
+        egoLabel.innerText = `EGO-01 [${S.egoPhase}]`;
+    } else {
+        els.alertPanel.className = 'gp p-4 rounded-lg';
+        els.alertIcon.className = 'w-3 h-3 rounded-full bg-cyan-400';
+        els.alertTitle.className = 'font-bold text-white tracking-widest text-sm';
+        els.phase.className = 'text-xs px-2 py-0.5 rounded bg-cyan-900/50 text-cyan-200 border border-cyan-500/50 font-bold';
+        els.phase.innerText = S.egoPhase==='PASS' ? '安全解除' : 'L4 自动巡航';
+        els.ttc.innerText = '> 5.0s'; els.ttc.className = 'font-mono text-lg font-bold text-cyan-400';
+        els.riskMetric.className = 'font-mono text-lg font-bold text-cyan-400';
+        els.riskBar.className = 'h-full bg-cyan-400 transition-all duration-300';
+        egoLabel.innerText = 'EGO-01 [CRUISE]';
+    }
+    // Decision info
+    els.decisionMode.textContent = isDanger ? 'emergency' : 'cooperative';
+    els.fusionWeight.textContent = S.config.fusionWeight.toFixed(2);
+    els.brakeDecel.textContent = isDanger ? `${(S.egoSpeed/0.5).toFixed(1)} m/s²` : '0.0 m/s²';
+    els.collisionProb.textContent = isDanger ? (S.riskLevel/100).toFixed(2) : '0.02';
+}
+
+function updateTrafficUI() {
+    els.tfVehicles.textContent = S.trafficData.vehicles;
+    els.tfAvgSpeed.textContent = S.trafficData.avgSpeed;
+    els.tfDensity.innerHTML = `${S.trafficData.density} <span class="text-[10px] text-gray-400">veh/km</span>`;
+    const cong = S.trafficData.congestion;
+    els.tfCongestion.textContent = cong;
+    els.tfCongestion.style.color = cong > 6 ? 'var(--neon-red)' : cong > 3 ? 'var(--neon-orange)' : 'var(--neon-green)';
+    drawFlowChart();
+    updateLaneStatsUI();
+}
+
+function updateV2IUI() {
+    // RSU cards and signals updated in their own functions
+}
+
+function updateAlgoUI() {
+    els.perfInfer.textContent = `${S.metrics.inferMs.toFixed(0)} ms`;
+    els.perfGpu.textContent = `${S.metrics.gpuUtil.toFixed(0)}%`;
+    els.perfDecision.textContent = `${S.metrics.decisionMs.toFixed(0)} ms`;
+    els.perfLoss.textContent = `${S.metrics.lossRate.toFixed(1)}%`;
+}
+
+// ============================================================
+// PARTICLES UPDATE
+// ============================================================
+function updateParticles() {
+    const pos = particles.geometry.attributes.position.array;
+    for(let i=0;i<particleCount;i++) {
+        pos[i*3+1] += pVel[i];
+        if(pos[i*3+1] > 20) { pos[i*3+1] = 0; pos[i*3] = (Math.random()-0.5)*50; pos[i*3+2] = (Math.random()-0.5)*50; }
+    }
+    particles.geometry.attributes.position.needsUpdate = true;
+}
+
+// ============================================================
+// CAMERA FOLLOW (Ego mode)
+// ============================================================
+function updateCameraFollow() {
+    if(S.mode === 'ego' && S.booted) {
+        const targetZ = S.egoZ - 20;
+        controls.target.z += (targetZ - controls.target.z) * 0.1;
+    }
+}
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+const clock = new THREE.Clock();
+let firstFrame = true;
+function animate() {
+    if(firstFrame) {
+        console.log('[V2X] Animation loop started');
+        firstFrame = false;
+    }
+    requestAnimationFrame(animate);
+    const delta = Math.min(clock.getDelta(), 0.1);
+    S.time += delta; S.frame++;
+
+    if(S.booted) {
+        // Always update traffic cars
+        updateTraffic(delta);
+        updateTrafficLights(delta);
+        updateParticles();
+
+        // Mode-specific updates
+        if(S.mode === 'ego') updateScenario(delta);
+
+        // Mock data
+        if(S.dataSource === 'mock') updateMockData(delta);
+
+        // RSU (all modes)
+        updateRSU(delta);
+
+        updateCameraFollow();
+        updateUI();
+    }
+
+    controls.update();
+    composer.render();
+}
+
+// ============================================================
+// RESIZE
+// ============================================================
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+</body>
+</html>

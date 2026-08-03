@@ -2,8 +2,27 @@
   color: var(--color-text);
   font-family: var(--font-mono);
   font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 12%, transparent);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--color-accent) 20%, transparent);
 }
 
 .actions {
   margin-top: var(--spacing-md);
+}
+
+.actions :global(.ant-btn-primary) {
+  box-shadow: 0 0 14px -2px var(--color-accent);
+}
+
+.actions :global(.ant-btn-primary:hover) {
+  box-shadow: 0 0 22px -2px var(--color-accent);
+}
+
+/* ── Light mode ── */
+[data-theme='light'] .actions :global(.ant-btn-primary),
+[data-theme='light'] .actions :global(.ant-btn-primary:hover) {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }

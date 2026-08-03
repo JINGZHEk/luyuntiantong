@@ -10,11 +10,21 @@
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--color-text) 3%, transparent);
   cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.item:hover {
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  transform: translateX(2px);
+  box-shadow: 0 0 12px -6px color-mix(in srgb, var(--color-accent) 20%, transparent);
 }
 
 .item[data-topic='v2x/vehicle/state'] { border-left-color: var(--color-success); }
+.item[data-topic='v2x/vehicle/state']:hover { box-shadow: 0 0 12px -4px color-mix(in srgb, var(--color-success) 30%, transparent); }
 .item[data-topic='v2x/cloud/event'] { border-left-color: var(--color-warning); }
+.item[data-topic='v2x/cloud/event']:hover { box-shadow: 0 0 12px -4px color-mix(in srgb, var(--color-warning) 30%, transparent); }
 .item[data-topic='v2x/cloud/fusion'] { border-left-color: var(--color-purple); }
+.item[data-topic='v2x/cloud/fusion']:hover { box-shadow: 0 0 12px -4px color-mix(in srgb, var(--color-purple) 30%, transparent); }
 
 .header {
   display: flex;
@@ -31,6 +41,7 @@
 .timestamp {
   color: var(--color-text-secondary);
   font-size: 10px;
+  font-family: var(--font-mono);
 }
 
 .payload {
@@ -49,6 +60,16 @@
 }
 
 .empty {
-  padding: 20px;
+  padding: 24px 20px;
   text-align: center;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+/* ── Light mode ── */
+[data-theme='light'] .item:hover,
+[data-theme='light'] .item[data-topic='v2x/vehicle/state']:hover,
+[data-theme='light'] .item[data-topic='v2x/cloud/event']:hover,
+[data-theme='light'] .item[data-topic='v2x/cloud/fusion']:hover {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
 }

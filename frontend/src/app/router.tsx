@@ -10,6 +10,7 @@ const EvaluationPage = lazy(() => import('@/pages/evaluation/EvaluationPage'));
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
 const NotFoundPage = lazy(() => import('@/pages/not-found/NotFoundPage'));
 const PresentationPage = lazy(() => import('@/pages/presentation/PresentationPage'));
+const ZhiluWujiePage = lazy(() => import('@/pages/zhiluwujie/ZhiluWujiePage'));
 
 function withSuspense(Component: React.LazyExoticComponent<React.FC>) {
   return (
@@ -23,6 +24,10 @@ export const router = createBrowserRouter([
   {
     path: '/presentation',
     element: withSuspense(PresentationPage),
+  },
+  {
+    path: '/zhiluwujie',
+    element: withSuspense(ZhiluWujiePage),
   },
   {
     path: '/',

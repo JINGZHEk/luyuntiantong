@@ -1,12 +1,22 @@
 .topic {
   font-family: var(--font-mono);
   font-size: 12px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--color-accent) 20%, transparent);
 }
 
 .badgeActive :global(.ant-badge-count) {
   background: var(--color-success);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-success) 50%, transparent);
 }
 
 .badgeInactive :global(.ant-badge-count) {
   background: var(--color-text-muted);
+}
+
+/* ── Light mode ── */
+[data-theme='light'] .badgeActive :global(.ant-badge-count) {
+  box-shadow: none !important;
 }

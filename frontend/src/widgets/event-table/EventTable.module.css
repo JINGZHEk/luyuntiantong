@@ -5,6 +5,12 @@
 
 .search {
   width: 200px;
+  transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.search:focus,
+.search:focus-within {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 20%, transparent), 0 0 12px -4px var(--color-accent);
 }
 
 .typeSelect {
@@ -14,10 +20,17 @@
 .eventId {
   font-family: var(--font-mono);
   font-size: 11px;
+  color: var(--color-accent);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--color-accent) 25%, transparent);
 }
 
 .clickableRow {
   cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+
+.clickableRow:hover {
+  transform: translateX(1px);
 }
 
 .selectedRow {
@@ -28,9 +41,19 @@
   background: color-mix(in srgb, var(--color-accent) 10%, transparent) !important;
 }
 
+.selectedRow {
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
 @media (max-width: 540px) {
   .search,
   .typeSelect {
     width: 100%;
   }
+}
+
+/* ── Light mode ── */
+[data-theme='light'] .search:focus,
+[data-theme='light'] .search:focus-within {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 15%, transparent) !important;
 }

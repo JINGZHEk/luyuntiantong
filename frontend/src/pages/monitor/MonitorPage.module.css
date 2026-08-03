@@ -1,9 +1,28 @@
 .page {
   min-width: 0;
+  animation: pageEnter 0.5s var(--ease-out) both;
 }
 
 .controlCard {
   margin-bottom: var(--spacing-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.controlCard::after {
+  display: none;
+}
+
+.controlCard::before {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-accent),
+    color-mix(in srgb, var(--color-success) 60%, var(--color-accent)),
+    transparent
+  );
+  opacity: 0.8;
 }
 
 .controlBar {
@@ -19,12 +38,24 @@
   flex-wrap: wrap;
 }
 
+.statusGroup :global(.ant-tag) {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 8px -2px currentColor;
+}
+
 .scenarioSelect {
   width: 150px;
 }
 
+.actionGroup :global(.ant-btn-primary) {
+  box-shadow: 0 0 16px -2px var(--color-accent);
+}
+
 .section {
-  margin-top: var(--spacing-md);
+  margin-top: var(--spacing-xl);
 }
 
 @media (max-width: 680px) {
@@ -40,4 +71,18 @@
   .scenarioSelect {
     width: 100%;
   }
+}
+
+/* ── Light mode ── */
+[data-theme='light'] .controlCard::before {
+  background: linear-gradient(90deg, transparent, #d0d5dd, transparent) !important;
+  opacity: 0.4 !important;
+}
+
+[data-theme='light'] .statusGroup :global(.ant-tag) {
+  box-shadow: none !important;
+}
+
+[data-theme='light'] .actionGroup :global(.ant-btn-primary) {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }

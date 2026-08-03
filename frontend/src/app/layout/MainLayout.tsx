@@ -7,6 +7,7 @@ import {
   MonitorOutlined,
   MoonOutlined,
   PlayCircleOutlined,
+  RocketOutlined,
   SettingOutlined,
   SunOutlined,
 } from '@ant-design/icons';
@@ -27,12 +28,14 @@ const iconMap: Record<string, React.ReactNode> = {
   PlayCircleOutlined: <PlayCircleOutlined />,
   ExperimentOutlined: <ExperimentOutlined />,
   SettingOutlined: <SettingOutlined />,
+  RocketOutlined: <RocketOutlined />,
 };
 
 const menuItems = NAV_ITEMS.map((item) => ({
   key: item.key,
   icon: iconMap[item.icon],
   label: item.label,
+  external: 'external' in item ? item.external : false,
 }));
 
 const fallbackRoute = {
@@ -118,7 +121,14 @@ export const MainLayout: React.FC = () => {
             mode="inline"
             selectedKeys={[location.pathname]}
             items={menuItems}
-            onClick={({ key }) => navigate(key)}
+            onClick={({ key }) => {
+              const item = menuItems.find((m) => m.key === key);
+              if (item?.external) {
+                window.open(`${key}.html`, '_blank');
+              } else {
+                navigate(key);
+              }
+            }}
             className={styles.menu}
           />
           <StatusArea connected={connection.connected} source={source} />

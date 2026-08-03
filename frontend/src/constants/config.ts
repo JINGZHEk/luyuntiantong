@@ -15,6 +15,7 @@ export const MQTT_TOPICS = {
 } as const;
 
 export const NAV_ITEMS = [
+  { key: '/zhiluwujie', label: '路云天瞳大屏', icon: 'RocketOutlined' },
   { key: '/', label: '总览大屏', icon: 'DashboardOutlined' },
   { key: '/monitor', label: '实时监控', icon: 'MonitorOutlined' },
   { key: '/replay', label: '事件回放', icon: 'PlayCircleOutlined' },
@@ -23,6 +24,10 @@ export const NAV_ITEMS = [
 ] as const;
 
 export const ROUTE_META = {
+  '/zhiluwujie': {
+    label: '路云天瞳大屏',
+    description: 'V2X 数字孪生交通全景',
+  },
   '/': {
     label: '总览大屏',
     description: '实时路口态势与风险信号',

@@ -4,6 +4,11 @@
 
 .slider :global(.ant-slider-track) {
   background: var(--color-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+.slider :global(.ant-slider-handle)::after {
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-accent) 50%, transparent), 0 0 0 2px var(--color-accent);
 }
 
 .footer {
@@ -16,8 +21,24 @@
 .frameText {
   color: var(--color-text-secondary);
   font-size: 12px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
 }
 
 .speedSelect {
   width: 80px;
+}
+
+.speedSelect :global(.ant-select-selector) {
+  font-family: var(--font-mono);
+  font-size: 11px !important;
+}
+
+/* ── Light mode ── */
+[data-theme='light'] .slider :global(.ant-slider-track) {
+  box-shadow: none !important;
+}
+
+[data-theme='light'] .slider :global(.ant-slider-handle)::after {
+  box-shadow: 0 0 0 2px var(--color-accent) !important;
 }

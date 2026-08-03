@@ -1,5 +1,6 @@
 .page {
   min-width: 0;
+  animation: pageEnter 0.5s var(--ease-out) both;
 }
 
 .themeOptions {
@@ -20,13 +21,21 @@
   color: var(--color-text);
   cursor: pointer;
   text-align: left;
-  transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 
-.themeOption:hover,
+.themeOption:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 50%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+}
+
 .themeOptionActive {
   border-color: var(--color-accent);
   background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+  box-shadow: 0 0 16px -4px var(--color-accent);
 }
 
 .themeOption > span:last-child {
@@ -83,6 +92,12 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.versionList :global(.ant-typography) {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
 }
 
 @media (max-width: 540px) {

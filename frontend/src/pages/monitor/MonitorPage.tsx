@@ -125,7 +125,7 @@ const MonitorPage: React.FC = () => {
         </div>
       </Card>
 
-      <Row gutter={[12, 12]}>
+      <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
           <ConnectionPanel />
         </Col>
@@ -134,13 +134,13 @@ const MonitorPage: React.FC = () => {
         </Col>
       </Row>
 
-      <Row gutter={[12, 12]} className={styles.section}>
+      <Row gutter={[16, 16]} className={styles.section}>
         <Col span={24}>
           <PerceptionCards />
         </Col>
       </Row>
 
-      <Row gutter={[12, 12]} className={styles.section}>
+      <Row gutter={[16, 16]} className={styles.section}>
         <Col span={24}>
           <MessagePanel messages={messages} />
         </Col>

@@ -97,7 +97,7 @@ const ReplayPage: React.FC = () => {
             />
           </section>
 
-          <Row gutter={[12, 12]} className={styles.section}>
+          <Row gutter={[16, 16]} className={styles.section}>
             <Col xs={24} lg={14}>
               <Card className={`glass-card ${styles.sceneCard}`} size="small" title="场景回放">
                 {currentFrame ? (

@@ -149,7 +149,7 @@ const EvaluationPage: React.FC = () => {
         </section>
       )}
 
-      <Row gutter={[12, 12]} className={styles.section}>
+      <Row gutter={[16, 16]} className={styles.section}>
         <Col xs={24} lg={12}>
           <Card className="glass-card" title="基线对比 — F1 / Precision / Recall" size="small">
             <BarChart
@@ -170,7 +170,7 @@ const EvaluationPage: React.FC = () => {
         </Col>
       </Row>
 
-      <Row gutter={[12, 12]} className={styles.section}>
+      <Row gutter={[16, 16]} className={styles.section}>
         <Col xs={24} lg={12}>
           <Card className="glass-card" title="消融实验 — F1 Score" size="small">
             <BarChart
