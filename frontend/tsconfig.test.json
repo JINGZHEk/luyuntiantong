@@ -16,8 +16,5 @@
     "src/services/settingsApi.ts",
     "src/services/evaluationApi.ts",
     "src/types/metrics.ts"
-  ],
-  "exclude": [
-    "tests/**/*.test.ts"
   ]
 }
