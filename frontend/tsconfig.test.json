@@ -10,7 +10,10 @@
     "rootDir": "."
   },
   "include": [
-    "tests/**/*.ts",
+    "tests/runtimeConfig.test.ts",
+    "tests/settingsApi.test.ts",
+    "tests/evaluationApi.test.ts",
+    "tests/dashboardDataSource.test.ts",
     "src/store/dashboardDataSource.ts",
     "src/services/runtimeConfig.ts",
     "src/services/settingsApi.ts",
