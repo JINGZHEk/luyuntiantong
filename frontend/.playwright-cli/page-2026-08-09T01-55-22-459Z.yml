@@ -1,0 +1,55 @@
+- generic [ref=e4]:
+  - complementary [ref=e5]:
+    - generic [ref=e7]:
+      - generic [ref=e8]: 路云天瞳
+      - menu [ref=e12]:
+        - menuitem "rocket 路云天瞳大屏" [ref=e13] [cursor=pointer]:
+          - img "rocket" [ref=e14]
+          - generic [ref=e17]: 路云天瞳大屏
+        - menuitem "dashboard 总览大屏" [ref=e18] [cursor=pointer]:
+          - img "dashboard" [ref=e19]
+          - generic [ref=e22]: 总览大屏
+        - menuitem "monitor 实时监控" [ref=e23] [cursor=pointer]:
+          - img "monitor" [ref=e24]
+          - generic [ref=e27]: 实时监控
+        - menuitem "play-circle 事件回放" [ref=e28] [cursor=pointer]:
+          - img "play-circle" [ref=e29]
+          - generic [ref=e33]: 事件回放
+        - menuitem "experiment 模型评估" [ref=e34] [cursor=pointer]:
+          - img "experiment" [ref=e35]
+          - generic [ref=e38]: 模型评估
+        - menuitem "setting 系统设置" [ref=e39] [cursor=pointer]:
+          - img "setting" [ref=e40]
+          - generic [ref=e43]: 系统设置
+      - generic [ref=e44]:
+        - generic [ref=e45]: SYSTEM OFFLINE
+        - generic [ref=e48]:
+          - generic [ref=e49]: API LATENCY
+          - strong [ref=e50]: 未采集
+        - generic [ref=e51]:
+          - generic [ref=e52]: DATA SOURCE
+          - strong [ref=e53]: MOCK
+    - img "left" [ref=e55] [cursor=pointer]
+  - generic [ref=e58]:
+    - banner [ref=e59]:
+      - generic [ref=e61]:
+        - navigation [ref=e62]:
+          - list [ref=e63]:
+            - listitem [ref=e64]:
+              - link [ref=e66] [cursor=pointer]:
+                - /url: /
+                - img "home" [ref=e67]
+            - listitem [ref=e70]: /
+            - listitem [ref=e71]:
+              - generic [ref=e72]: 实时监控
+        - generic [ref=e73]:
+          - generic [ref=e74]: 实时监控
+          - generic [ref=e75]: 路侧感知、车端决策与云端链路
+      - generic [ref=e76]:
+        - generic "数据源：演示" [ref=e77]: MOCK
+        - generic [ref=e80]: WebSocket 已断开
+        - time [ref=e83]: 09:55:22
+        - button "切换到浅色主题" [ref=e84] [cursor=pointer]:
+          - img "sun" [ref=e85]
+    - main [ref=e88]:
+      - generic [ref=e89]: 加载中...
