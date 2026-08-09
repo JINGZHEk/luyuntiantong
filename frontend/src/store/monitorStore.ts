@@ -241,6 +241,13 @@ export const useMonitorStore = create<MonitorState>((set, get) => ({
         brake_trigger: 'brake_trigger',
       };
       const riskLevel: 'high' | 'critical' = payload.severity === 'critical' ? 'critical' : 'high';
+      const involvedObjects = payload.involved_objects || [];
+      const vehicleObject = involvedObjects.find(
+        (item) => typeof item !== 'string' && item.type === 'vehicle',
+      );
+      const targetObject = involvedObjects.find(
+        (item) => typeof item !== 'string' && item.track_id !== undefined,
+      );
       return {
         cloudEvents: [
           {
@@ -248,8 +255,10 @@ export const useMonitorStore = create<MonitorState>((set, get) => ({
             timestamp: new Date(payload.timestamp || Date.now()).toISOString(),
             type: payload.event_type ? eventTypeMap[payload.event_type] || 'ghost_probe' : 'ghost_probe',
             riskLevel,
-            vehicleId: payload.involved_objects?.[0]?.id || 'vehicle_001',
-            pedestrianId: payload.involved_objects?.[1]?.track_id ? String(payload.involved_objects[1].track_id) : null,
+            vehicleId: vehicleObject && typeof vehicleObject !== 'string' ? vehicleObject.id || 'vehicle_001' : 'vehicle_001',
+            pedestrianId: targetObject && typeof targetObject !== 'string' && targetObject.track_id !== undefined
+              ? String(targetObject.track_id)
+              : null,
             location: 'intersection-demo',
             ttc: payload.min_ttc ?? 0,
             riskScore: riskLevel === 'critical' ? 0.95 : 0.78,

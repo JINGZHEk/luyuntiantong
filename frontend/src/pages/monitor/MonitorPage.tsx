@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Row, Col, Result, Button, Card, Space, Tag, message, Select } from 'antd';
+import { Row, Col, Result, Button, Card, Space, Tag, message, Select, Switch } from 'antd';
 import { MonitorOutlined, PlayCircleOutlined, PauseCircleOutlined, StepForwardOutlined, SyncOutlined } from '@ant-design/icons';
 import { ConnectionPanel } from '@/widgets/connection-panel/ConnectionPanel';
 import { TopicManager } from '@/widgets/topic-manager/TopicManager';
@@ -9,20 +9,42 @@ import { useMonitorStore } from '@/store/monitorStore';
 import { PageLoading } from '@/shared/components/PageLoading';
 import { PageHeader } from '@/shared/components/PageHeader';
 import { DemoStatus, demoApi } from '@/services/demoApi';
+import { ScenarioSummary } from '@/types/realtime';
 import styles from './MonitorPage.module.css';
+
+const LEGACY_SCENARIOS: ScenarioSummary[] = [
+  { scenario_id: 'light', name: '兼容模式 · Light', category: 'ghost_probe', duration_ms: 12000, default_fps: 10, environment: {} },
+  { scenario_id: 'moderate', name: '兼容模式 · Moderate', category: 'ghost_probe', duration_ms: 12000, default_fps: 10, environment: {} },
+  { scenario_id: 'heavy', name: '兼容模式 · Heavy', category: 'ghost_probe', duration_ms: 12000, default_fps: 10, environment: {} },
+];
 
 const MonitorPage: React.FC = () => {
   const { messages, pageState, setError } = useMonitorStore();
   const [demoStatus, setDemoStatus] = useState<DemoStatus | null>(null);
-  const [scenario, setScenario] = useState('moderate');
+  const [scenario, setScenario] = useState('GP-01');
+  const [scenarioCatalog, setScenarioCatalog] = useState<ScenarioSummary[]>(LEGACY_SCENARIOS);
+  const [loop, setLoop] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const loadScenarioCatalog = async () => {
+    try {
+      const result = await demoApi.list();
+      setScenarioCatalog([...LEGACY_SCENARIOS, ...result.items]);
+      if (!result.items.some((item) => item.scenario_id === scenario) && result.items[0]) {
+        setScenario(result.items[0].scenario_id);
+      }
+    } catch {
+      setScenarioCatalog(LEGACY_SCENARIOS);
+    }
+  };
 
   const refreshDemoStatus = async () => {
     try {
       const status = await demoApi.status();
       setDemoStatus(status);
       if (status.running) {
-        setScenario(status.scenario || 'moderate');
+        setScenario(status.scenario_id || status.scenario || 'GP-01');
+        setLoop(Boolean(status.loop));
       }
     } catch {
       setDemoStatus(null);
@@ -34,7 +56,7 @@ const MonitorPage: React.FC = () => {
     try {
       const next =
         action === 'start'
-          ? await demoApi.start(10, scenario)
+          ? await demoApi.start(scenario, 10, loop)
           : action === 'stop'
             ? await demoApi.stop()
             : await demoApi.step(scenario);
@@ -48,6 +70,7 @@ const MonitorPage: React.FC = () => {
   };
 
   useEffect(() => {
+    loadScenarioCatalog();
     refreshDemoStatus();
     const timer = window.setInterval(refreshDemoStatus, 3000);
     return () => window.clearInterval(timer);
@@ -56,7 +79,7 @@ const MonitorPage: React.FC = () => {
   if (pageState.loading) return <PageLoading />;
 
   if (pageState.error) {
-    return (
+  return (
       <Result
         status="error"
         title="监控服务异常"
@@ -81,7 +104,8 @@ const MonitorPage: React.FC = () => {
               {demoStatus?.running ? 'Demo running' : 'Demo idle'}
             </Tag>
             <Tag color="blue">frame {demoStatus?.frame_index ?? '-'}</Tag>
-            <Tag color="cyan">{demoStatus?.scene_id ?? 'scene_001'} / {demoStatus?.scenario ?? scenario}</Tag>
+            <Tag color="cyan">{demoStatus?.scene_id ?? 'scene_001'} / {demoStatus?.scenario_id ?? scenario}</Tag>
+            <Tag color="purple">run {demoStatus?.run_id ?? '-'}</Tag>
           </Space>
           <Space wrap className={styles.actionGroup}>
             <Select
@@ -89,10 +113,17 @@ const MonitorPage: React.FC = () => {
               className={styles.scenarioSelect}
               disabled={demoStatus?.running || busy}
               onChange={setScenario}
-              options={(demoStatus?.available_scenarios ?? ['light', 'moderate', 'heavy']).map((item) => ({
-                value: item,
-                label: item === 'light' ? 'Light' : item === 'heavy' ? 'Heavy' : 'Moderate',
+              options={scenarioCatalog.map((item) => ({
+                value: item.scenario_id,
+                label: `${item.scenario_id} · ${item.name}`,
               }))}
+            />
+            <Switch
+              checked={loop}
+              disabled={demoStatus?.running || busy}
+              checkedChildren="循环"
+              unCheckedChildren="单次"
+              onChange={setLoop}
             />
             <Button
               type="primary"

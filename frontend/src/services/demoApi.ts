@@ -1,31 +1,36 @@
 import { buildApiUrl } from './runtimeConfig';
+import { DemoRunStatus, ScenarioSummary } from '@/types/realtime';
 
-export interface DemoStatus {
-  running: boolean;
-  frame_index: number;
-  scene_id: string;
-  scenario: string;
-  available_scenarios: string[];
-  fps: number;
-}
+export type DemoStatus = DemoRunStatus;
 
-async function requestDemo(path: string, init?: RequestInit): Promise<DemoStatus> {
+async function requestDemo<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(buildApiUrl(path), init);
   if (!res.ok) {
     throw new Error(`Demo API ${res.status}: ${res.statusText}`);
   }
-  return res.json();
+  return res.json() as Promise<T>;
 }
 
 export const demoApi = {
-  status: () => requestDemo('/demo/status'),
-  start: (fps = 10, scenario = 'moderate') => {
-    const params = new URLSearchParams({ fps: String(fps), scenario });
-    return requestDemo(`/demo/start?${params.toString()}`, { method: 'POST' });
+  list: () => requestDemo<{ total: number; items: ScenarioSummary[] }>('/scenarios'),
+  status: () => requestDemo<DemoStatus>('/demo/status'),
+  start: (scenarioId = 'GP-01', fps = 10, loop = false) => {
+    const params = new URLSearchParams({
+      scenario_id: scenarioId,
+      fps: String(fps),
+      loop: String(loop),
+    });
+    if (scenarioId === 'light' || scenarioId === 'moderate' || scenarioId === 'heavy') {
+      params.set('scenario', scenarioId);
+    }
+    return requestDemo<DemoStatus>(`/demo/start?${params.toString()}`, { method: 'POST' });
   },
-  stop: () => requestDemo('/demo/stop', { method: 'POST' }),
-  step: (scenario = 'moderate') => {
-    const params = new URLSearchParams({ scenario });
-    return requestDemo(`/demo/step?${params.toString()}`, { method: 'POST' });
+  stop: () => requestDemo<DemoStatus>('/demo/stop', { method: 'POST' }),
+  step: (scenarioId = 'GP-01') => {
+    const params = new URLSearchParams({ scenario_id: scenarioId });
+    if (scenarioId === 'light' || scenarioId === 'moderate' || scenarioId === 'heavy') {
+      params.set('scenario', scenarioId);
+    }
+    return requestDemo<DemoStatus>(`/demo/step?${params.toString()}`, { method: 'POST' });
   },
 };

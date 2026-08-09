@@ -1,5 +1,31 @@
 export type NumericPair = number[];
 
+export type DataMode = 'live' | 'stale' | 'fallback';
+export type ScenarioCategory = 'ghost_probe' | 'non_motor' | 'intersection_conflict';
+
+export interface ScenarioSummary {
+  scenario_id: string;
+  name: string;
+  category: ScenarioCategory;
+  duration_ms: number;
+  default_fps: number;
+  environment: Record<string, unknown>;
+}
+
+export interface DemoRunStatus {
+  running: boolean;
+  status?: 'idle' | 'running' | 'completed' | 'stopped' | 'failed';
+  run_id?: string | null;
+  scene_id: string;
+  scenario_id?: string | null;
+  scenario?: string;
+  frame_index: number;
+  duration_ms?: number;
+  fps: number;
+  loop?: boolean;
+  available_scenarios: string[];
+}
+
 export type CoordinateStatus = 'valid' | 'invalid' | 'unknown';
 export type PredictionStatus = 'ready' | 'fallback' | 'deferred' | 'invalid_coordinate' | 'local' | 'unknown';
 
@@ -51,31 +77,51 @@ export interface PerceptionPayload {
   source?: PerceptionSource;
   coordinate_frame?: string;
   scenario?: string;
+  scenario_id?: string;
+  run_id?: string;
   processing_time_ms?: number;
   prediction?: PredictionMeta;
   objects?: CloudObjectPayload[];
 }
 
 export interface DecisionPayload {
+  schema_version?: number;
+  message_type?: string;
   timestamp?: number | string;
   frame_id?: number;
+  scene_id?: string;
+  scenario?: string;
+  scenario_id?: string;
+  run_id?: string;
   vehicle_id?: string;
   risk_level?: string;
   ttc?: number;
   collision_prob?: number;
   brake_decel?: number;
   target_object?: TargetObjectPayload;
+  mode?: string;
+  fusion_weight?: number;
+  scenario_event?: Record<string, unknown> | null;
+  source?: PerceptionSource;
 }
 
 export interface VehicleStatusPayload {
+  schema_version?: number;
+  message_type?: string;
   timestamp?: number | string;
   frame_id?: number;
+  scene_id?: string;
+  scenario?: string;
+  scenario_id?: string;
+  run_id?: string;
   vehicle_id?: string;
   position?: NumericPair;
   velocity?: NumericPair;
   heading?: number;
   speed?: number;
   risk_level?: string;
+  mode?: string;
+  source?: PerceptionSource;
 }
 
 export interface EventObjectPayload {
@@ -90,10 +136,12 @@ export interface CloudEventPayload {
   event_type?: string;
   severity?: string;
   scene_id?: string;
+  scenario_id?: string;
+  run_id?: string;
   min_ttc?: number;
   outcome?: string;
   description?: string;
-  involved_objects?: EventObjectPayload[];
+  involved_objects?: Array<EventObjectPayload | string>;
 }
 
 export type RealtimePayload =
