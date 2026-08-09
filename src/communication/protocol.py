@@ -34,13 +34,34 @@ class PerceptionMessage:
     node_id: str
     objects: list  # List of DetectedObject dicts
     processing_time_ms: float = 0.0
+    schema_version: int = 1
+    message_type: str = "perception"
+    scene_id: str = "scene_001"
+    source: dict = field(default_factory=dict)
+    coordinate_frame: str = "road_xy"
+    prediction: dict = field(
+        default_factory=lambda: {
+            "location": "cloud",
+            "backend": "stgnn",
+            "status": "deferred",
+            "model_path": None,
+            "latency_ms": None,
+            "reason": "not_processed",
+        }
+    )
 
     def to_dict(self) -> dict:
         return {
+            "schema_version": self.schema_version,
+            "message_type": self.message_type,
+            "scene_id": self.scene_id,
             "timestamp": self.timestamp,
             "frame_id": self.frame_id,
             "node_id": self.node_id,
+            "source": self.source,
+            "coordinate_frame": self.coordinate_frame,
             "objects": self.objects,
+            "prediction": self.prediction,
             "processing_time_ms": self.processing_time_ms,
         }
 

@@ -471,3 +471,57 @@ class BrakeController:
             BrakeCommand(deceleration, is_emergency)
         """
 ```
+
+---
+
+## 4. PC 感知到 Cloud STGNN 闭环协议
+
+PC 回放、Jetson Orin Nano 和 Atlas 200 DK 共用同一条路侧感知 Topic：
+
+```text
+v2x/{scene_id}/roadside/{node_id}/perception
+```
+
+板端或 PC 端只发布检测、跟踪和道路坐标；STGNN 由 Cloud Agent 在接收后执行。感知消息不得携带原始视频或图片。
+
+新增兼容字段如下：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `schema_version` | int | 当前为 `1` |
+| `message_type` | string | `perception` |
+| `scene_id` | string | 场景标识 |
+| `source` | object | `device_type`、`input_type`、`detector`、`tracker` 等来源元数据 |
+| `coordinate_frame` | string | 当前道路坐标系为 `road_xy` |
+| `prediction` | object | Cloud STGNN 的位置、后端、状态、耗时和原因 |
+| `objects[].coordinate_status` | string | `valid` / `invalid` / `unknown` |
+| `objects[].prediction_status` | string | `deferred` / `ready` / `fallback` / `invalid_coordinate` / `local` |
+
+`prediction` 的标准结构为：
+
+```json
+{
+  "location": "cloud",
+  "backend": "stgnn",
+  "status": "ready",
+  "model_path": "data/algorithm_validation_pipeline/models/occaware_stgnn.ts",
+  "latency_ms": 8.4,
+  "reason": null
+}
+```
+
+状态语义：
+
+- `deferred`：历史长度不足，或当前部署明确把预测交给 Cloud Agent。
+- `ready`：Cloud Agent 成功加载并调用 STGNN。
+- `fallback`：模型缺失或推理失败，结果只能作为降级链路数据。
+- `invalid_coordinate`：对象没有有效道路坐标，不调用 STGNN，也不伪造 `[0, 0]`。
+- `local`：仅保留给未来 edge prediction 模式，本阶段 PC 配置不使用。
+
+Cloud Agent 将 enriched perception 同时写入 SQLite `frames.perception_data` 并广播 WebSocket：
+
+```json
+{"type": "perception", "data": {"prediction": {"status": "ready"}, "objects": []}}
+```
+
+前端、历史回放和 API 都消费这份 enriched 数据，避免原始感知和预测结果产生两条时间线。

@@ -61,6 +61,10 @@ REQUIRED_SNIPPETS = [
     "python scripts\\train_stgnn.py --samples data\\stgnn_training\\samples.jsonl --output models\\occaware_stgnn.ts --epochs 5 --batch-size 16 --dry-run",
     "python scripts\\evaluate_stgnn_checkpoint.py --samples data\\stgnn_training\\samples.jsonl --checkpoint models\\occaware_stgnn.ts --output data\\mini_split\\stgnn_evaluation.json --dry-run",
     "logs\\demo_backend.err.log",
+    "V2X Cloud API health contract",
+    "V2X frontend marker",
+    "Port 8000 is already in use by another service",
+    "Port 5173 is already in use by another service",
     "docs/END_TO_END_DEMO.md",
 ]
 

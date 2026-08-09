@@ -266,3 +266,27 @@ TensorRT Engine (.engine)
 | 动态 batch | 1.2x | 是 |
 | 图稀疏化 | 1.3x | 否 |
 | INT8 量化 | 2-3x | 否 |
+
+---
+
+## 4. PC-first 感知数据边界与开发板迁移
+
+当前无硬件闭环的数据边界为：
+
+```text
+FrameSource → YOLO → DeepSORT → bbox 底边中心单应性映射
+           → road_xy 轨迹 MQTT → CloudSTGNNService → SQLite/WebSocket
+```
+
+`world_pos` 是 Cloud STGNN 的必要输入。标定文件缺失、单应性结果非有限或越出道路范围时，对象仍可上传，但必须标记 `coordinate_status=invalid` 和 `prediction_status=invalid_coordinate`；`[0, 0]` 不能作为缺省真实位置。
+
+PC 模式使用 `configs/roadside.pc.yaml` 和 `configs/cloud.pc.yaml`：
+
+- PC 端负责视频/图片序列、YOLO、DeepSORT、坐标转换和 MQTT 发布。
+- Cloud Agent 负责维护 `(node_id, track_id)` 历史并调用 TorchScript OccAware-STGNN。
+- 前端展示 `YOLO + DeepSORT`、`STGNN Cloud`、`Fallback`、`坐标无效` 等状态。
+- `configs/roadside.yaml` 的旧 annotations/constant-velocity 路径继续保留，用于回放、CI 和 baseline 对照。
+
+Jetson Orin Nano 与华为 Atlas 200 DK 后续都只替换板端输入和推理后端，不改变上述 MQTT 数据结构。Jetson 可沿 CUDA/TensorRT 路线导出 YOLO；Atlas 必须沿 CANN/ACL 和 OM 模型路线单独转换、验证，不能把 `.engine`、PyTorch checkpoint 或 Jetson 测试结果直接视为 Atlas 可部署结果。
+
+真实道路标定、真实视频、板端 FPS/温度/功耗和 ADE/FDE 指标需要分别记录；当前 `data/algorithm_validation_pipeline` 产物属于工程 smoke 验证，不代表最终研究指标。

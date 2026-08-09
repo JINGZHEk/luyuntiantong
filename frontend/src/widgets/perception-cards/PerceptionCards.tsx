@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Row, Col, Descriptions, Tag, Badge } from 'antd';
+import { Card, Row, Col, Descriptions, Tag, Badge, Space } from 'antd';
 import {
   RadarChartOutlined,
   CarOutlined,
@@ -14,6 +14,26 @@ export const PerceptionCards: React.FC = () => {
   const vehicleData = useMonitorStore((state) => state.vehicleData);
   const cloudEvents = useMonitorStore((state) => state.cloudEvents);
   const latestEvent = cloudEvents[0];
+  const prediction = roadsideData.prediction;
+  const source = roadsideData.source;
+  const predictionStatus = prediction?.status || 'unknown';
+  const isCloudStgnn = prediction?.location === 'cloud' && prediction?.backend === 'stgnn';
+  const hasInvalidCoordinate = roadsideData.objects.some((object) => object.coordinateStatus === 'invalid');
+  const hasYoloDeepSort = source?.detector?.toLowerCase() === 'yolo'
+    && source?.tracker?.toLowerCase() === 'deepsort';
+
+  const predictionStatusTag = predictionStatus === 'ready'
+    ? <Tag color="green">ready</Tag>
+    : predictionStatus === 'fallback'
+      ? <Tag color="gold">Fallback</Tag>
+      : predictionStatus === 'invalid_coordinate'
+        ? <Tag color="red">坐标无效</Tag>
+        : predictionStatus === 'deferred'
+          ? <Tag color="blue">等待历史</Tag>
+          : <Tag>未声明</Tag>;
+
+  const predictionReason = prediction?.reason
+    || roadsideData.objects.find((object) => object.predictionReason)?.predictionReason;
 
   return (
     <Row gutter={[12, 12]}>
@@ -35,6 +55,33 @@ export const PerceptionCards: React.FC = () => {
             <Descriptions.Item label="检测目标数">
               <Badge count={roadsideData.objects.length} className={styles.badgeAccent} />
             </Descriptions.Item>
+            <Descriptions.Item label="检测链路">
+              {hasYoloDeepSort ? <Tag color="cyan">YOLO + DeepSORT</Tag> : <Tag>来源未声明</Tag>}
+            </Descriptions.Item>
+            <Descriptions.Item label="坐标状态">
+              {hasInvalidCoordinate ? <Tag color="red">坐标无效</Tag> : <Tag color="green">按消息标记</Tag>}
+            </Descriptions.Item>
+            <Descriptions.Item label="STGNN预测">
+              <Space size={4} wrap>
+                {isCloudStgnn && <Tag color="purple">STGNN Cloud</Tag>}
+                {predictionStatusTag}
+              </Space>
+            </Descriptions.Item>
+            <Descriptions.Item label="预测耗时">
+              {typeof prediction?.latency_ms === 'number' ? `${prediction.latency_ms.toFixed(1)} ms` : '—'}
+            </Descriptions.Item>
+            <Descriptions.Item label="模型路径">
+              {prediction?.model_path ? (
+                <span className={styles.modelPath} title={prediction.model_path}>
+                  {prediction.model_path}
+                </span>
+              ) : '未配置'}
+            </Descriptions.Item>
+            {predictionReason && (
+              <Descriptions.Item label="状态原因">
+                <span className={styles.statusReason}>{predictionReason}</span>
+              </Descriptions.Item>
+            )}
             <Descriptions.Item label="遮挡区域">
               {roadsideData.occlusionZones.length} 个
             </Descriptions.Item>

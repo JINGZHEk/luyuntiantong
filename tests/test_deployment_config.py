@@ -88,6 +88,37 @@ class DeploymentConfigTest(unittest.TestCase):
         self.assertIn("$previousCloudApiBaseUrl", script)
         self.assertIn("$env:VITE_CLOUD_API_BASE_URL = $previousCloudApiBaseUrl", script)
 
+    def test_start_demo_validates_v2x_backend_before_reusing_port(self):
+        script = Path("scripts/start_demo.ps1").read_text(encoding="utf-8")
+
+        self.assertIn("function Test-V2XCloudApi", script)
+        self.assertIn("Invoke-RestMethod -Uri $Url", script)
+        self.assertIn('$health.status -eq "ok"', script)
+        self.assertIn("$null -ne $health.timestamp", script)
+        self.assertIn("$null -ne $health.clients", script)
+        self.assertIn("function Wait-V2XCloudApi", script)
+        self.assertIn("if (Wait-V2XCloudApi -Url $backendHealthUrl -Seconds 8)", script)
+        self.assertIn("Port $BackendPort is already in use by another service", script)
+        self.assertIn("$response.StatusCode -lt 300", script)
+
+    def test_start_demo_validates_v2x_frontend_before_reusing_port(self):
+        script = Path("scripts/start_demo.ps1").read_text(encoding="utf-8")
+
+        self.assertIn("function Test-V2XFrontend", script)
+        self.assertIn("brand-mark.svg", script)
+        self.assertIn("/src/main.tsx", script)
+        self.assertIn("function Wait-V2XFrontend", script)
+        self.assertIn("if (Wait-V2XFrontend -Url $frontendCheckUrl -Seconds 8)", script)
+        self.assertIn("Port $FrontendPort is already in use by another service", script)
+
+    def test_startup_doc_explains_backend_port_collision_detection(self):
+        startup_doc = Path("启动.md").read_text(encoding="utf-8")
+
+        self.assertIn("V2X Cloud API health contract", startup_doc)
+        self.assertIn("Port 8000 is already in use by another service", startup_doc)
+        self.assertIn("V2X frontend marker", startup_doc)
+        self.assertIn("Port 5173 is already in use by another service", startup_doc)
+
     def test_gitignore_excludes_runtime_build_and_model_artifacts(self):
         ignored_patterns = set(
             line.strip()

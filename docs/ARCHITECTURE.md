@@ -340,3 +340,24 @@ V2X-Project/
 ├── requirements.txt
 └── README.md
 ```
+
+---
+
+## 6. 当前 PC-first 闭环与两类开发板迁移
+
+本阶段推荐先在同一无线局域网内固定以下链路：
+
+```mermaid
+flowchart LR
+  A[PC 视频回放] --> B[YOLO 检测]
+  B --> C[DeepSORT 跟踪]
+  C --> D[道路坐标映射]
+  D --> E[MQTT Broker<br/>TCP 1883]
+  E --> F[Cloud Agent]
+  F --> G[Cloud STGNN]
+  G --> H[SQLite + WebSocket + 前端]
+```
+
+PC、Jetson Orin Nano 和 Atlas 200 DK 发布相同的 `v2x/{scene_id}/roadside/{node_id}/perception` 消息。板端不需要加载 STGNN；替换 PC 的 `FrameSource` 和 `DetectorBackend` 即可迁移到摄像头输入。Cloud Agent 的历史维护、模型调用、SQLite 落库和 WebSocket 广播保持不变。
+
+Jetson Orin Nano 的适配边界是摄像头采集、YOLO TensorRT/CUDA 推理、DeepSORT 关联和道路坐标发布；Atlas 200 DK 的适配边界是摄像头采集、YOLO 到 OM 的 CANN/ACL 推理、CPU/Ascend 后处理边界、DeepSORT 关联和道路坐标发布。两条边界分别验收，不能共用未经转换的模型文件。

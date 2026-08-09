@@ -53,6 +53,27 @@
   letter-spacing: 0.02em;
 }
 
+.modelPath,
+.statusReason {
+  display: inline-block;
+  max-width: 210px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.modelPath {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.statusReason {
+  color: var(--color-warning);
+  font-size: 12px;
+}
+
 /* ── Light mode ── */
 [data-theme='light'] .badgeAccent :global(.ant-badge-count) {
   box-shadow: none !important;

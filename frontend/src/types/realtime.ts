@@ -1,12 +1,39 @@
 export type NumericPair = number[];
 
+export type CoordinateStatus = 'valid' | 'invalid' | 'unknown';
+export type PredictionStatus = 'ready' | 'fallback' | 'deferred' | 'invalid_coordinate' | 'local' | 'unknown';
+
+export interface PerceptionSource {
+  device_type?: string;
+  camera_id?: string;
+  input_type?: string;
+  detector?: string;
+  tracker?: string;
+  [key: string]: unknown;
+}
+
+export interface PredictionMeta {
+  location?: string;
+  backend?: string;
+  status?: PredictionStatus | string;
+  model_path?: string | null;
+  latency_ms?: number | null;
+  reason?: string | null;
+}
+
 export interface CloudObjectPayload {
   track_id?: string | number;
   class?: string;
+  bbox?: NumericPair;
   occlusion_level?: number;
   world_pos?: NumericPair;
   velocity?: NumericPair;
   confidence?: number;
+  coordinate_status?: CoordinateStatus | string;
+  coordinate_reason?: string | null;
+  prediction_status?: PredictionStatus | string;
+  prediction_reason?: string | null;
+  predicted_traj?: NumericPair[];
 }
 
 export interface TargetObjectPayload {
@@ -15,11 +42,17 @@ export interface TargetObjectPayload {
 }
 
 export interface PerceptionPayload {
+  schema_version?: number;
+  message_type?: string;
   timestamp?: number | string;
   frame_id?: number;
   node_id?: string;
+  scene_id?: string;
+  source?: PerceptionSource;
+  coordinate_frame?: string;
   scenario?: string;
   processing_time_ms?: number;
+  prediction?: PredictionMeta;
   objects?: CloudObjectPayload[];
 }
 

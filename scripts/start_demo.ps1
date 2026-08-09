@@ -20,21 +20,25 @@ function Write-Step {
     Write-Host "==> $Message" -ForegroundColor Cyan
 }
 
-function Test-HttpOk {
+function Test-V2XCloudApi {
     param(
         [string]$Url,
         [int]$TimeoutSec = 2
     )
 
     try {
-        $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec $TimeoutSec
-        return ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500)
+        $health = Invoke-RestMethod -Uri $Url -Method GET -TimeoutSec $TimeoutSec
+        return (
+            $health.status -eq "ok" -and
+            $null -ne $health.timestamp -and
+            $null -ne $health.clients
+        )
     } catch {
         return $false
     }
 }
 
-function Wait-Http {
+function Wait-V2XCloudApi {
     param(
         [string]$Url,
         [int]$Seconds = 30
@@ -42,7 +46,42 @@ function Wait-Http {
 
     $deadline = (Get-Date).AddSeconds($Seconds)
     while ((Get-Date) -lt $deadline) {
-        if (Test-HttpOk -Url $Url -TimeoutSec 2) {
+        if (Test-V2XCloudApi -Url $Url -TimeoutSec 2) {
+            return $true
+        }
+        Start-Sleep -Milliseconds 700
+    }
+    return $false
+}
+
+function Test-V2XFrontend {
+    param(
+        [string]$Url,
+        [int]$TimeoutSec = 2
+    )
+
+    try {
+        $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec $TimeoutSec
+        return (
+            $response.StatusCode -ge 200 -and
+            $response.StatusCode -lt 300 -and
+            $response.Content.Contains("brand-mark.svg") -and
+            $response.Content.Contains("/src/main.tsx")
+        )
+    } catch {
+        return $false
+    }
+}
+
+function Wait-V2XFrontend {
+    param(
+        [string]$Url,
+        [int]$Seconds = 30
+    )
+
+    $deadline = (Get-Date).AddSeconds($Seconds)
+    while ((Get-Date) -lt $deadline) {
+        if (Test-V2XFrontend -Url $Url -TimeoutSec 2) {
             return $true
         }
         Start-Sleep -Milliseconds 700
@@ -119,10 +158,10 @@ $demoStartUrl = "$backendCheckUrl/api/v1/demo/start?fps=$Fps&scenario=$Scenario"
 $startedBackend = $false
 $startedFrontend = $false
 
-if (Wait-Http -Url $backendHealthUrl -Seconds 8) {
-    Write-Step "Backend already running on port $BackendPort"
+if (Wait-V2XCloudApi -Url $backendHealthUrl -Seconds 8) {
+    Write-Step "V2X Cloud API already running on port $BackendPort"
 } elseif (Test-PortListening -Port $BackendPort) {
-    throw "Port $BackendPort is already in use, but $backendHealthUrl is not responding. Stop that process or pass -BackendPort."
+    throw "Port $BackendPort is already in use by another service. $backendHealthUrl did not return the V2X Cloud API health contract. Stop that process or pass -BackendPort."
 } else {
     Write-Step "Starting Cloud API on port $BackendPort"
     $backendLog = Join-Path $LogRoot "demo_backend.log"
@@ -137,17 +176,17 @@ if (Wait-Http -Url $backendHealthUrl -Seconds 8) {
     $startedBackend = $true
 }
 
-if (-not (Wait-Http -Url $backendHealthUrl -Seconds 35)) {
+if (-not (Wait-V2XCloudApi -Url $backendHealthUrl -Seconds 35)) {
     throw "Cloud API did not become ready. Check logs\demo_backend.err.log"
 }
 
 Write-Step "Starting $Scenario demo loop at $Fps FPS"
 Invoke-WebRequest -Uri $demoStartUrl -Method POST -UseBasicParsing | Out-Null
 
-if (Wait-Http -Url $frontendCheckUrl -Seconds 8) {
-    Write-Step "Frontend already running on port $FrontendPort"
+if (Wait-V2XFrontend -Url $frontendCheckUrl -Seconds 8) {
+    Write-Step "V2X frontend already running on port $FrontendPort"
 } elseif (Test-PortListening -Port $FrontendPort) {
-    throw "Port $FrontendPort is already in use, but $frontendCheckUrl is not responding. Stop that process or pass -FrontendPort."
+    throw "Port $FrontendPort is already in use by another service. $frontendCheckUrl did not return the V2X frontend marker. Stop that process or pass -FrontendPort."
 } else {
     Write-Step "Starting frontend dev server on port $FrontendPort"
     $frontendLog = Join-Path $LogRoot "demo_frontend.log"
@@ -168,7 +207,7 @@ if (Wait-Http -Url $frontendCheckUrl -Seconds 8) {
     $startedFrontend = $true
 }
 
-if (-not (Wait-Http -Url $frontendCheckUrl -Seconds 45)) {
+if (-not (Wait-V2XFrontend -Url $frontendCheckUrl -Seconds 45)) {
     throw "Frontend dev server did not become ready. Check logs\demo_frontend.err.log"
 }
 

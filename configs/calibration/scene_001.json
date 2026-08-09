@@ -1,0 +1,16 @@
+{
+  "version": "demo-identity-v1",
+  "calibration_status": "synthetic_demo_only",
+  "image_size": [1280, 720],
+  "world_units": "m",
+  "homography": [
+    [1.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0],
+    [0.0, 0.0, 1.0]
+  ],
+  "world_bounds": {
+    "x": [-10000.0, 10000.0],
+    "y": [-10000.0, 10000.0]
+  },
+  "note": "Replace with scene-specific road calibration before reporting physical ADE/FDE metrics."
+}

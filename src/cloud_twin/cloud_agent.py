@@ -14,6 +14,7 @@ from src.communication import MQTTClient, make_timestamp
 from src.communication.mqtt_config import apply_mqtt_env_overrides
 from src.cloud_twin.data_store import DataStore
 from src.cloud_twin.api import app, broadcast_to_clients, store as _store_ref
+from src.cloud_twin.stgnn_service import CloudSTGNNService
 
 
 def apply_api_overrides(config: dict, host: str = None, port: int = None) -> dict:
@@ -26,8 +27,10 @@ def apply_api_overrides(config: dict, host: str = None, port: int = None) -> dic
 
 
 class CloudAgent:
-    def __init__(self, config_path: str = None):
+    def __init__(self, config_path: str = None, database_path: Optional[str] = None):
         self.config = load_config(config_path or get_config_path("cloud.yaml"))
+        if database_path:
+            self.config.setdefault("database", {})["path"] = database_path
         mqtt_config = apply_mqtt_env_overrides(load_config(get_config_path("mqtt.yaml")))
         self.logger = setup_logger("cloud_agent", log_dir="logs")
 
@@ -52,6 +55,17 @@ class CloudAgent:
         self._last_event_time = 0
         self._event_counter = 0
 
+        prediction_config = self.config.get("prediction", {})
+        self.stgnn_service = CloudSTGNNService(
+            enabled=prediction_config.get("enabled", True),
+            backend=prediction_config.get("backend", "stgnn"),
+            model_path=prediction_config.get("model_path"),
+            history_length=prediction_config.get("history_length", 8),
+            predict_steps=prediction_config.get("predict_steps", 30),
+            fps=prediction_config.get("fps", 10),
+            min_history=prediction_config.get("min_history", 2),
+        )
+
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     def start(self):
@@ -66,19 +80,21 @@ class CloudAgent:
         self.logger.info("Cloud agent started, subscribed to all topics")
 
     def _on_perception(self, topic: str, payload: dict):
-        frame_id = payload.get("frame_id", 0)
-        timestamp = payload.get("timestamp", make_timestamp())
-        node_id = payload.get("node_id", "unknown")
+        service = getattr(self, "stgnn_service", None)
+        enriched_payload = service.update_and_predict(payload) if service else payload
+        frame_id = enriched_payload.get("frame_id", 0)
+        timestamp = enriched_payload.get("timestamp", make_timestamp())
+        node_id = enriched_payload.get("node_id", "unknown")
 
         self.store.store_frame(
             frame_id=frame_id,
             timestamp=timestamp,
             scene_id=self.scene_id,
             node_id=node_id,
-            perception=payload,
+            perception=enriched_payload,
         )
 
-        self._broadcast("perception", payload)
+        self._broadcast("perception", enriched_payload)
 
     def _on_vehicle_status(self, topic: str, payload: dict):
         frame_id = payload.get("frame_id", int(time.time() * 10) % 100000)
@@ -196,11 +212,12 @@ def run_api_server(cloud_agent: CloudAgent):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Cloud Twin Agent")
     parser.add_argument("--config", default=None, help="Config file path")
+    parser.add_argument("--database-path", default=None, help="Override SQLite database path")
     parser.add_argument("--api-host", default=None, help="Override API host")
     parser.add_argument("--api-port", type=int, default=None, help="Override API port")
     args = parser.parse_args()
 
-    agent = CloudAgent(config_path=args.config)
+    agent = CloudAgent(config_path=args.config, database_path=args.database_path)
     apply_api_overrides(agent.config, host=args.api_host, port=args.api_port)
     agent.start()
     print(f"Cloud agent running with API server...")

@@ -9,6 +9,7 @@ from src.utils import load_config, get_config_path, setup_logger
 from src.communication import MQTTClient, PerceptionMessage, HeartbeatMessage, make_timestamp
 from src.communication.mqtt_config import apply_mqtt_env_overrides
 from src.roadside_perception import Detector
+from src.roadside_perception.coordinate_mapper import CoordinateMapper
 
 
 class RoadsideAgent:
@@ -29,16 +30,24 @@ class RoadsideAgent:
 
         # Perception modules
         det_config = self.config.get("detection", {})
+        tracking_config = self.config.get("tracking", {})
         self.detector = Detector(
             model_name=det_config.get("model", "yolov8n"),
             confidence=det_config.get("confidence_threshold", 0.4),
             iou_threshold=det_config.get("iou_threshold", 0.5),
             target_classes=det_config.get("target_classes", ["person", "car"]),
             mode=det_config.get("mode", "yolo"),
+            tracker_backend=tracking_config.get("backend", "ultralytics"),
+            tracker_factory=None,
         )
 
         pred_config = self.config.get("prediction", {})
+        self.prediction_location = pred_config.get("location", "local")
         self.predictor = self._create_predictor(pred_config)
+
+        self.coordinate_mapper = self._create_coordinate_mapper(
+            self.config.get("coordinates", {})
+        )
 
         from src.roadside_perception import OcclusionEstimator
 
@@ -90,13 +99,19 @@ class RoadsideAgent:
                 "class": det["class"],
             }
 
-            # Update trajectory history
-            world_pos = det.get("world_pos", [0.0, 0.0])
-            self._update_predictor(track_id, world_pos, metadata)
+            world_pos, coordinate_status, coordinate_reason = self._resolve_world_position(det)
 
-            # Predict trajectory
-            predicted = self.predictor.predict(track_id, occ_level)
-            velocity = self.predictor.get_velocity(track_id) or [0.0, 0.0]
+            predicted = []
+            velocity = det.get("velocity") or [0.0, 0.0]
+            prediction_status = "invalid_coordinate"
+            if coordinate_status == "valid":
+                if getattr(self, "prediction_location", "local") == "cloud":
+                    prediction_status = "deferred"
+                elif self.predictor is not None:
+                    self._update_predictor(track_id, world_pos, metadata)
+                    predicted = self.predictor.predict(track_id, occ_level)
+                    velocity = self.predictor.get_velocity(track_id) or velocity
+                    prediction_status = "local"
 
             objects.append({
                 "track_id": track_id,
@@ -107,10 +122,14 @@ class RoadsideAgent:
                 "confidence": det["confidence"],
                 "occlusion_level": occ_level,
                 "predicted_traj": predicted[:10],  # Send first 10 steps to reduce payload
+                "coordinate_status": coordinate_status,
+                "coordinate_reason": coordinate_reason,
+                "prediction_status": prediction_status,
             })
 
         # Cleanup stale tracks
-        self.predictor.cleanup_stale(active_ids)
+        if self.predictor is not None and getattr(self, "prediction_location", "local") != "cloud":
+            self.predictor.cleanup_stale(active_ids)
 
         # Publish perception
         processing_time = (time.time() - t_start) * 1000
@@ -120,6 +139,19 @@ class RoadsideAgent:
             node_id=self.node_id,
             objects=[obj for obj in objects],
             processing_time_ms=round(processing_time, 1),
+            scene_id=self.scene_id,
+            source=self._message_source(frame_data),
+            coordinate_frame="road_xy",
+            prediction={
+                "location": getattr(self, "prediction_location", "local"),
+                "backend": self.config.get("prediction", {}).get("backend", "unknown")
+                if hasattr(self, "config") else "unknown",
+                "status": self._prediction_status(objects),
+                "model_path": self.config.get("prediction", {}).get("model_path")
+                if hasattr(self, "config") else None,
+                "latency_ms": None,
+                "reason": self._prediction_reason(objects),
+            },
         )
 
         topic = f"v2x/{self.scene_id}/roadside/{self.node_id}/perception"
@@ -179,6 +211,8 @@ class RoadsideAgent:
 
     def _create_predictor(self, pred_config: dict):
         backend = pred_config.get("backend", "constant_velocity")
+        if backend in ("none", "cloud"):
+            return None
         fps = self.config.get("replay", {}).get("fps", 10)
         if backend == "stgnn":
             from src.roadside_perception.stgnn_predictor import OccAwareSTGNNPredictor
@@ -200,6 +234,8 @@ class RoadsideAgent:
         )
 
     def _update_predictor(self, track_id: int, world_pos: list, metadata: dict) -> None:
+        if self.predictor is None:
+            return
         try:
             self.predictor.update(track_id, world_pos, metadata=metadata)
         except TypeError:
@@ -207,6 +243,63 @@ class RoadsideAgent:
 
     def _on_playback_control(self, topic: str, payload: dict):
         self.logger.info(f"Playback control: {payload}")
+
+    def _create_coordinate_mapper(self, config: dict):
+        mode = config.get("mode", "none")
+        if mode in ("none", "image"):
+            return None
+        if mode != "homography":
+            raise ValueError(f"Unsupported coordinate mode: {mode}")
+        calibration_path = config.get("calibration_path")
+        if not calibration_path:
+            self.logger.warning("Coordinate mapping is enabled but calibration_path is missing")
+            return None
+        try:
+            return CoordinateMapper.from_file(calibration_path)
+        except (FileNotFoundError, ValueError) as exc:
+            self.logger.warning(f"Coordinate mapper disabled: {exc}")
+            return None
+
+    def _resolve_world_position(self, detection: dict):
+        if detection.get("world_pos") is not None:
+            return detection["world_pos"], "valid", None
+        mapper = getattr(self, "coordinate_mapper", None)
+        if mapper is None:
+            return None, "invalid", "world_pos missing and calibration unavailable"
+        result = mapper.image_bbox_to_world(detection.get("bbox", []))
+        return result.get("world_pos"), result.get("status", "invalid"), result.get("reason")
+
+    def _message_source(self, frame_data: dict) -> dict:
+        source = frame_data.get("source")
+        if isinstance(source, dict):
+            result = dict(source)
+        elif source:
+            result = {"device_type": "pc_replay", "input": str(source)}
+        else:
+            result = {"device_type": "roadside_agent", "input_type": "frame"}
+
+        config = getattr(self, "config", {}) or {}
+        detection_config = config.get("detection", {})
+        tracking_config = config.get("tracking", {})
+        result.setdefault("detector", detection_config.get("mode", "unknown"))
+        result.setdefault("tracker", tracking_config.get("backend", "unknown"))
+        return result
+
+    @staticmethod
+    def _prediction_status(objects: list[dict]) -> str:
+        statuses = {obj.get("prediction_status") for obj in objects}
+        if "invalid_coordinate" in statuses:
+            return "invalid_coordinate"
+        if "deferred" in statuses:
+            return "deferred"
+        if "local" in statuses:
+            return "local"
+        return "deferred"
+
+    @staticmethod
+    def _prediction_reason(objects: list[dict]) -> str | None:
+        reasons = [obj.get("coordinate_reason") for obj in objects if obj.get("coordinate_reason")]
+        return reasons[0] if reasons else None
 
     def stop(self):
         self.mqtt.disconnect()

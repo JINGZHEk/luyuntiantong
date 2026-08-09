@@ -3,6 +3,7 @@ import { MonitorMessage } from '@/mock/monitorMock';
 import { RoadsidePerception } from '@/types/roadside';
 import { VehicleState } from '@/types/vehicle';
 import { CloudEvent } from '@/types/cloud';
+import { Position } from '@/types/common';
 import {
   generateInitialRoadsideData,
   generateInitialVehicleData,
@@ -16,8 +17,35 @@ import {
   CloudEventPayload,
   DecisionPayload,
   PerceptionPayload,
+  CoordinateStatus,
+  PredictionStatus,
   VehicleStatusPayload,
 } from '@/types/realtime';
+
+function normalizeCoordinateStatus(value: unknown): CoordinateStatus {
+  if (value === 'valid' || value === 'invalid') return value;
+  return 'unknown';
+}
+
+function normalizePredictionStatus(value: unknown, fallback: PredictionStatus = 'unknown'): PredictionStatus {
+  if (
+    value === 'ready'
+    || value === 'fallback'
+    || value === 'deferred'
+    || value === 'invalid_coordinate'
+    || value === 'local'
+  ) {
+    return value;
+  }
+  return fallback;
+}
+
+function pairToPosition(pair: number[] | undefined): Position | null {
+  if (!pair || pair.length < 2 || !Number.isFinite(pair[0]) || !Number.isFinite(pair[1])) {
+    return null;
+  }
+  return { x: pair[0], y: 0, z: pair[1] };
+}
 
 interface ConnectionState {
   connected: boolean;
@@ -109,26 +137,53 @@ export const useMonitorStore = create<MonitorState>((set, get) => ({
       },
     })),
   updateFromPerception: (payload) =>
-    set((state) => ({
-      roadsideData: {
-        ...state.roadsideData,
-        sensorId: payload.node_id || state.roadsideData.sensorId,
-        timestamp: new Date(payload.timestamp || Date.now()).toISOString(),
-        objects: (payload.objects || []).map((obj: CloudObjectPayload) => ({
-          id: String(obj.track_id),
-          type: obj.class === 'person' ? 'pedestrian' : obj.class === 'truck' ? 'truck' : 'vehicle',
-          position: { x: obj.world_pos?.[0] ?? 0, y: 0, z: obj.world_pos?.[1] ?? 0 },
-          velocity: { vx: obj.velocity?.[0] ?? 0, vy: obj.velocity?.[1] ?? 0 },
-          heading: 0,
-          confidence: obj.confidence ?? 0,
-          isOccluded: (obj.occlusion_level ?? 0) > 0,
-          riskLevel: (obj.occlusion_level ?? 0) >= 2 ? 'high' : (obj.occlusion_level ?? 0) === 1 ? 'medium' : 'low',
-          ttc: null,
-        })),
-        occlusionZones: state.roadsideData.occlusionZones,
-        trafficState: state.roadsideData.trafficState,
-      },
-    })),
+    set((state) => {
+      const topLevelStatus = normalizePredictionStatus(payload.prediction?.status, 'deferred');
+      const prediction = {
+        location: payload.prediction?.location || 'unknown',
+        backend: payload.prediction?.backend || 'unknown',
+        status: topLevelStatus,
+        model_path: payload.prediction?.model_path ?? null,
+        latency_ms: payload.prediction?.latency_ms ?? null,
+        reason: payload.prediction?.reason ?? null,
+      };
+
+      return {
+        roadsideData: {
+          ...state.roadsideData,
+          sensorId: payload.node_id || state.roadsideData.sensorId,
+          timestamp: new Date(payload.timestamp || Date.now()).toISOString(),
+          source: payload.source,
+          coordinateFrame: payload.coordinate_frame,
+          prediction,
+          objects: (payload.objects || []).map((obj: CloudObjectPayload) => {
+            const position = pairToPosition(obj.world_pos);
+            const predictedTrajectory = (obj.predicted_traj || [])
+              .map((point) => pairToPosition(point))
+              .filter((point): point is Position => point !== null);
+            return {
+              id: String(obj.track_id),
+              type: obj.class === 'person' ? 'pedestrian' : obj.class === 'truck' ? 'truck' : 'vehicle',
+              position: position || { x: 0, y: 0, z: 0 },
+              velocity: { vx: obj.velocity?.[0] ?? 0, vy: obj.velocity?.[1] ?? 0 },
+              heading: 0,
+              confidence: obj.confidence ?? 0,
+              isOccluded: (obj.occlusion_level ?? 0) > 0,
+              riskLevel: (obj.occlusion_level ?? 0) >= 2 ? 'high' : (obj.occlusion_level ?? 0) === 1 ? 'medium' : 'low',
+              ttc: null,
+              bbox: obj.bbox,
+              coordinateStatus: normalizeCoordinateStatus(obj.coordinate_status),
+              coordinateReason: obj.coordinate_reason ?? null,
+              predictionStatus: normalizePredictionStatus(obj.prediction_status, topLevelStatus),
+              predictionReason: obj.prediction_reason ?? null,
+              predictedTrajectory,
+            };
+          }),
+          occlusionZones: state.roadsideData.occlusionZones,
+          trafficState: state.roadsideData.trafficState,
+        },
+      };
+    }),
   updateFromVehicleStatus: (payload) =>
     set((state) => ({
       vehicleData: {

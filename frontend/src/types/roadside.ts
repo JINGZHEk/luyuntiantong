@@ -1,4 +1,10 @@
 import { Position, Velocity, RiskLevel } from './common';
+import {
+  CoordinateStatus,
+  PerceptionSource,
+  PredictionMeta,
+  PredictionStatus,
+} from './realtime';
 
 export interface RoadsidePerception {
   sensorId: string;
@@ -6,6 +12,9 @@ export interface RoadsidePerception {
   objects: DetectedObject[];
   occlusionZones: OcclusionZone[];
   trafficState: TrafficState;
+  source?: PerceptionSource;
+  coordinateFrame?: string;
+  prediction?: PredictionMeta;
 }
 
 export interface DetectedObject {
@@ -18,6 +27,12 @@ export interface DetectedObject {
   isOccluded: boolean;
   riskLevel: RiskLevel;
   ttc: number | null;
+  bbox?: number[];
+  coordinateStatus?: CoordinateStatus;
+  coordinateReason?: string | null;
+  predictionStatus?: PredictionStatus;
+  predictionReason?: string | null;
+  predictedTrajectory?: Position[];
 }
 
 export interface OcclusionZone {

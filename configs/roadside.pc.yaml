@@ -1,0 +1,31 @@
+node_id: pc_roadside_001
+scene_id: scene_001
+
+input:
+  type: video
+  path: data/pc_demo/traffic.mp4
+  fps: 10
+
+detection:
+  mode: yolo
+  model: yolov8n
+  confidence_threshold: 0.4
+  iou_threshold: 0.5
+  target_classes: [person, car, truck, bus, bicycle]
+
+tracking:
+  backend: deepsort
+  max_age: 30
+  n_init: 2
+  max_iou_distance: 0.7
+
+coordinates:
+  mode: homography
+  calibration_path: configs/calibration/scene_001.json
+
+prediction:
+  location: cloud
+  backend: none
+
+replay:
+  fps: 10
