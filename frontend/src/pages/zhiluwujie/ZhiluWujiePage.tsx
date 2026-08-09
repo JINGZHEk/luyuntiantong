@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { ZhiluWujieScene, type Mode, type EgoPhase, type ScenarioMetrics, type TrafficMetrics, type RSUData } from './scene';
+import { createSceneRealtimeAdapter, type SceneRealtimeAdapter } from './sceneRealtimeAdapter';
+import { wsService } from '@/services/websocketService';
+import type {
+  CloudEventPayload,
+  DataMode,
+  DecisionPayload,
+  PerceptionPayload,
+  VehicleStatusPayload,
+} from '@/types/realtime';
 import styles from './ZhiluWujiePage.module.css';
 
 /* ------------------------------------------------------------------ */
@@ -45,6 +54,7 @@ export default function ZhiluWujiePage() {
   /* refs */
   const canvasRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<ZhiluWujieScene | null>(null);
+  const realtimeAdapterRef = useRef<SceneRealtimeAdapter | null>(null);
   const flowCanvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
 
@@ -66,6 +76,13 @@ export default function ZhiluWujiePage() {
   const [bloom, setBloom] = useState(1.5);
   const [fusionW, setFusionW] = useState(1.0);
   const [throughputBars, setThroughputBars] = useState<number[]>(() => Array.from({ length: 25 }, () => 20 + Math.random() * 80));
+  const [dataMode, setDataMode] = useState<DataMode>('fallback');
+  const [realtimeContext, setRealtimeContext] = useState({
+    scenarioId: null as string | null,
+    runId: null as string | null,
+    objectCount: 0,
+    predictionStatus: 'unknown',
+  });
 
   /* ---- Boot sequence ---- */
   useEffect(() => {
@@ -98,7 +115,28 @@ export default function ZhiluWujiePage() {
       });
     };
 
-    return () => { sc.dispose(); sceneRef.current = null; };
+    const adapter = createSceneRealtimeAdapter();
+    realtimeAdapterRef.current = adapter;
+    const unsubscribeConnection = wsService.onConnectionChange((connected) => {
+      adapter.onConnectionChange(connected);
+    });
+    const unsubscribeMessages = wsService.onMessage((type, data) => {
+      const receivedAt = Date.now();
+      adapter.onMessage(type, data);
+      if (type === 'perception') sc.applyPerception(data as PerceptionPayload, receivedAt);
+      if (type === 'vehicle_status') sc.applyVehicleStatus(data as VehicleStatusPayload, receivedAt);
+      if (type === 'decision') sc.applyDecision(data as DecisionPayload, receivedAt);
+      if (type === 'event') sc.applyEvent(data as CloudEventPayload, receivedAt);
+    });
+    wsService.connect();
+
+    return () => {
+      unsubscribeMessages();
+      unsubscribeConnection();
+      realtimeAdapterRef.current = null;
+      sc.dispose();
+      sceneRef.current = null;
+    };
   }, []);
 
   /* ---- UI update loop (10Hz) ---- */
@@ -106,19 +144,37 @@ export default function ZhiluWujiePage() {
     if (!booted) return;
     let lastTick = 0;
     const tick = () => {
-      const now = Date.now();
-      if (now - lastTick >= 100) {
-        lastTick = now;
-        const sc = sceneRef.current;
-        if (!sc) return;
-        setClock(new Date().toLocaleTimeString('zh-CN', { hour12: false }));
+        const now = Date.now();
+        if (now - lastTick >= 100) {
+          lastTick = now;
+          const sc = sceneRef.current;
+          if (!sc) return;
+          const adapter = realtimeAdapterRef.current;
+          if (adapter) {
+            adapter.tick();
+            const realtime = adapter.snapshot();
+            sc.setDataMode(realtime.dataMode);
+            setDataMode(realtime.dataMode);
+            setRealtimeContext({
+              scenarioId: realtime.scenarioId,
+              runId: realtime.runId,
+              objectCount: realtime.objects.length,
+              predictionStatus: realtime.prediction?.status || 'unknown',
+            });
+            setScenarioTime(
+              realtime.dataMode === 'fallback' || realtime.lastFrameId === null
+                ? sc.scenarioTime
+                : realtime.lastFrameId / 10,
+            );
+          }
+          setClock(new Date().toLocaleTimeString('zh-CN', { hour12: false }));
         setFrame(sc['frame']);
         setMetrics({ cpu: sc.metrics.cpu, nodes: sc.metrics.nodes, fps: sc.metrics.fps, latency: sc.metrics.latency });
         setScenario(sc.getScenarioMetrics());
         setTraffic({ ...sc.trafficMetrics, flowHistory: [...sc.trafficMetrics.flowHistory], laneStats: [...sc.trafficMetrics.laneStats] });
         setRsuData(sc.rsuData.map(r => ({ ...r })));
         setSignals(sc.getTrafficSignalData());
-        setScenarioTime(sc.scenarioTime);
+        if (!realtimeAdapterRef.current) setScenarioTime(sc.scenarioTime);
         setPerf({ inferMs: sc.metrics.inferMs, gpuUtil: sc.metrics.gpuUtil, decisionMs: sc.metrics.decisionMs, lossRate: sc.metrics.lossRate });
         setThroughputBars(Array.from({ length: 25 }, () => 20 + Math.random() * 80));
       }
@@ -234,7 +290,12 @@ export default function ZhiluWujiePage() {
               <div className={styles.panelHeader}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>
                 <h2>全局路网监控中心</h2>
-                <span className={styles.connBadge}>MOCK</span>
+                <span className={styles.connBadge}>{dataMode.toUpperCase()}</span>
+              </div>
+              <div className={styles.realtimeMeta}>
+                <span>{realtimeContext.scenarioId || 'FALLBACK LOOP'}</span>
+                <span>RUN {realtimeContext.runId || '--'}</span>
+                <span>TARGETS {realtimeContext.objectCount}</span>
               </div>
               <div className={styles.metricsGrid}>
                 <div><p className={styles.metricLabel}>云端算力负载</p><p className={styles.metricValue}>{metrics.cpu.toFixed(0)}<span className={styles.metricUnit}> %</span></p></div>
@@ -289,7 +350,7 @@ export default function ZhiluWujiePage() {
               ))}
               <div className={styles.menuFooter}>
                 <p className={styles.menuFooterLabel}>数据源</p>
-                <button className={styles.wsBtn}>连接后端</button>
+                <button className={styles.wsBtn}>{dataMode === 'fallback' ? '等待实时数据' : '实时链路已接入'}</button>
               </div>
             </div>
 
@@ -301,7 +362,7 @@ export default function ZhiluWujiePage() {
                   <div className={styles.egoHeader}>
                     <div className={styles.egoHeaderLeft}>
                       <span className={`${styles.alertDot} ${isDanger ? styles.alertDotDanger : ''}`} />
-                      <h3 className={isDanger ? styles.egoTitleDanger : styles.egoTitle}>协同驾驶意图 (EGO-01)</h3>
+                      <h3 className={isDanger ? styles.egoTitleDanger : styles.egoTitle}>协同驾驶意图 ({realtimeContext.scenarioId || 'EGO-01'})</h3>
                     </div>
                     <span className={`${styles.phaseTag} ${isDanger ? styles.phaseTagDanger : ''}`}>
                       {PHASE_LABELS[scenario.phase]}
@@ -479,7 +540,7 @@ export default function ZhiluWujiePage() {
           {/* ===== BOTTOM TIMELINE ===== */}
           <div className={styles.bottomBar}>
             <div className={styles.timelineWrap}>
-              <span className={styles.timelineLabel}>DIGITAL TWIN SIMULATION TIMELINE</span>
+              <span className={styles.timelineLabel}>{dataMode === 'fallback' ? 'DIGITAL TWIN FALLBACK TIMELINE' : `REALTIME ${dataMode.toUpperCase()} · ${realtimeContext.scenarioId || 'SCENE'}`}</span>
               <div className={styles.timeline}>
                 {Array.from({ length: 40 }, (_, i) => (
                   <div key={i} className={i < activeBlocks ? styles.timelineActive : styles.timelineInactive} />

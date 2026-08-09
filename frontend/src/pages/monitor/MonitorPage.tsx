@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Row, Col, Result, Button, Card, Space, Tag, message, Select, Switch } from 'antd';
 import { MonitorOutlined, PlayCircleOutlined, PauseCircleOutlined, StepForwardOutlined, SyncOutlined } from '@ant-design/icons';
 import { ConnectionPanel } from '@/widgets/connection-panel/ConnectionPanel';
@@ -26,19 +26,19 @@ const MonitorPage: React.FC = () => {
   const [loop, setLoop] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const loadScenarioCatalog = async () => {
+  const loadScenarioCatalog = useCallback(async () => {
     try {
       const result = await demoApi.list();
       setScenarioCatalog([...LEGACY_SCENARIOS, ...result.items]);
-      if (!result.items.some((item) => item.scenario_id === scenario) && result.items[0]) {
-        setScenario(result.items[0].scenario_id);
-      }
+      setScenario((current) => result.items.some((item) => item.scenario_id === current)
+        ? current
+        : result.items[0]?.scenario_id || current);
     } catch {
       setScenarioCatalog(LEGACY_SCENARIOS);
     }
-  };
+  }, []);
 
-  const refreshDemoStatus = async () => {
+  const refreshDemoStatus = useCallback(async () => {
     try {
       const status = await demoApi.status();
       setDemoStatus(status);
@@ -49,7 +49,7 @@ const MonitorPage: React.FC = () => {
     } catch {
       setDemoStatus(null);
     }
-  };
+  }, []);
 
   const runDemoAction = async (action: 'start' | 'stop' | 'step') => {
     setBusy(true);
@@ -74,7 +74,7 @@ const MonitorPage: React.FC = () => {
     refreshDemoStatus();
     const timer = window.setInterval(refreshDemoStatus, 3000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [loadScenarioCatalog, refreshDemoStatus]);
 
   if (pageState.loading) return <PageLoading />;
 

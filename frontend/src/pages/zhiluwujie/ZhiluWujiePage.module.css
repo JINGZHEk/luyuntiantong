@@ -237,6 +237,24 @@
   margin-left: auto;
 }
 
+.realtimeMeta {
+  display: flex;
+  gap: 10px;
+  margin: 8px 0 2px;
+  color: rgba(var(--hud-accent-rgb), 0.55);
+  font-size: 9px;
+  font-family: monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.realtimeMeta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .metricsGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;

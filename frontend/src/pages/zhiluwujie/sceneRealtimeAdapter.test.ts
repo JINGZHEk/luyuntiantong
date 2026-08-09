@@ -76,7 +76,7 @@ describe('scene realtime adapter', () => {
   });
 
   it('recovers live mode after a disconnected websocket reconnects', () => {
-    let current = 1000;
+    const current = 1000;
     const adapter = createSceneRealtimeAdapter({ now: () => current });
     adapter.onConnectionChange(false);
     expect(adapter.snapshot().dataMode).toBe('fallback');

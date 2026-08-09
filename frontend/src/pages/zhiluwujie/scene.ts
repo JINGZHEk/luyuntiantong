@@ -9,6 +9,20 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import {
+  CloudEventPayload,
+  DataMode,
+  DecisionPayload,
+  PerceptionPayload,
+  PooledObjectState,
+  VehicleStatusPayload,
+} from '@/types/realtime';
+import {
+  DEFAULT_SCENE_COORDINATES,
+  mapRoadHeading,
+  mapRoadPoint,
+} from './sceneCoordinates';
+import { SceneObjectPool } from './sceneObjectPool';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -57,6 +71,15 @@ export interface RSUData {
   temp: number;
   latency: number;
   status: string;
+}
+
+export interface RealtimeSceneMetrics {
+  dataMode: DataMode;
+  scenarioId: string | null;
+  runId: string | null;
+  objectCount: number;
+  predictionStatus: string;
+  lastMessageAt: number | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -111,9 +134,22 @@ export class ZhiluWujieScene {
   private trajLines!: THREE.Group;
   private coverageGroup!: THREE.Group;
   private rsuObjects: { group: THREE.Group; ringMat: THREE.MeshBasicMaterial; coneMat: THREE.MeshBasicMaterial; color: number }[] = [];
+  private realtimeObjectsGroup!: THREE.Group;
+  private realtimePool!: SceneObjectPool;
   private pedWarn!: THREE.Mesh;
   private egoAuraMat!: THREE.MeshBasicMaterial;
   private egoV2xLine!: THREE.Line;
+
+  /* realtime state */
+  private realtimeDataMode: DataMode = 'fallback';
+  private realtimeScenarioId: string | null = null;
+  private realtimeRunId: string | null = null;
+  private realtimeLastMessageAt: number | null = null;
+  private realtimePredictionStatus = 'unknown';
+  private realtimeDecision: DecisionPayload | null = null;
+  private realtimeTtc: number | null = null;
+  private realtimeCollisionProb: number | null = null;
+  private realtimeBrakeDecel = 0;
 
   /* data */
   rsuData: RSUData[] = [
@@ -144,6 +180,16 @@ export class ZhiluWujieScene {
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.FogExp2(T.bg, 0.008);
     this.scene.background = new THREE.Color(T.bg);
+
+    this.realtimeObjectsGroup = new THREE.Group();
+    this.realtimeObjectsGroup.name = 'realtime-object-pool';
+    this.realtimeObjectsGroup.visible = false;
+    this.realtimePool = new SceneObjectPool({
+      group: this.realtimeObjectsGroup,
+      coordinateConfig: DEFAULT_SCENE_COORDINATES,
+      ttlMs: 1000,
+    });
+    this.scene.add(this.realtimeObjectsGroup);
 
     /* camera */
     this.camera = new THREE.PerspectiveCamera(45, w / h, 1, 500);
@@ -568,7 +614,7 @@ export class ZhiluWujieScene {
   /* -------------------------------------------------------------- */
   /*  Scenario (Ego mode)                                              */
   /* -------------------------------------------------------------- */
-  private updateScenario(delta: number) {
+  private updateFallbackScenario(delta: number) {
     this.scenarioTime += delta;
     const st = this.scenarioTime;
     if (st > SCENARIO_DUR) {
@@ -761,6 +807,125 @@ export class ZhiluWujieScene {
   }
 
   /* -------------------------------------------------------------- */
+  /*  Realtime data API                                               */
+  /* -------------------------------------------------------------- */
+  getRealtimeObjectPool(): SceneObjectPool {
+    return this.realtimePool;
+  }
+
+  applyPerception(payload: PerceptionPayload, receivedAt = Date.now()): void {
+    if (!this.realtimePool) return;
+    const source = payload.source || {};
+    if (source.clear === true) this.realtimePool.clear();
+    for (const object of payload.objects || []) {
+      this.realtimePool.upsert(payload.node_id || 'unknown', object, receivedAt);
+    }
+    this.realtimeScenarioId = payload.scenario_id || payload.scenario || this.realtimeScenarioId;
+    this.realtimeRunId = payload.run_id || this.realtimeRunId;
+    this.realtimeLastMessageAt = receivedAt;
+    this.realtimePredictionStatus = payload.prediction?.status || 'unknown';
+    if (Number.isFinite(payload.processing_time_ms)) {
+      this.metrics.inferMs = Number(payload.processing_time_ms);
+    }
+  }
+
+  applyVehicleStatus(payload: VehicleStatusPayload, receivedAt = Date.now()): void {
+    const position = payload.position;
+    if (position && position.length >= 2 && Number.isFinite(Number(position[0])) && Number.isFinite(Number(position[1]))) {
+      const mapped = mapRoadPoint([Number(position[0]), Number(position[1])], DEFAULT_SCENE_COORDINATES);
+      this.egoCar.position.set(mapped.x, mapped.y, mapped.z);
+      this.egoZ = mapped.z;
+    }
+    const velocity = payload.velocity || [];
+    const speedMps = Number.isFinite(Number(payload.speed))
+      ? Number(payload.speed)
+      : Math.hypot(Number(velocity[0]) || 0, Number(velocity[1]) || 0);
+    if (Number.isFinite(speedMps)) this.egoSpeed = Math.max(0, speedMps * 3.6);
+    if (Number.isFinite(Number(payload.heading))) {
+      this.egoCar.rotation.y = mapRoadHeading(Number(payload.heading), DEFAULT_SCENE_COORDINATES.rotationDeg);
+    }
+    this.realtimeScenarioId = payload.scenario_id || payload.scenario || this.realtimeScenarioId;
+    this.realtimeRunId = payload.run_id || this.realtimeRunId;
+    this.realtimeLastMessageAt = receivedAt;
+  }
+
+  applyDecision(payload: DecisionPayload, receivedAt = Date.now()): void {
+    this.realtimeDecision = { ...payload };
+    this.realtimeTtc = Number.isFinite(Number(payload.ttc)) ? Number(payload.ttc) : null;
+    this.realtimeCollisionProb = Number.isFinite(Number(payload.collision_prob))
+      ? Math.max(0, Math.min(1, Number(payload.collision_prob)))
+      : null;
+    this.realtimeBrakeDecel = Number.isFinite(Number(payload.brake_decel)) ? Number(payload.brake_decel) : 0;
+    this.fusionWeight = Number.isFinite(Number(payload.fusion_weight)) ? Number(payload.fusion_weight) : this.fusionWeight;
+    const riskMap: Record<string, number> = { SAFE: 0, WARNING: 45, DANGER: 80, EMERGENCY: 100 };
+    this.riskLevel = this.realtimeCollisionProb !== null
+      ? this.realtimeCollisionProb * 100
+      : riskMap[payload.risk_level || 'SAFE'] || 0;
+    switch (payload.risk_level) {
+      case 'EMERGENCY': this.egoPhase = 'BRAKE'; break;
+      case 'DANGER': this.egoPhase = 'WARN'; break;
+      case 'WARNING': this.egoPhase = 'DETECT'; break;
+      default: this.egoPhase = 'CRUISE';
+    }
+    this.realtimeScenarioId = payload.scenario_id || payload.scenario || this.realtimeScenarioId;
+    this.realtimeRunId = payload.run_id || this.realtimeRunId;
+    this.realtimeLastMessageAt = receivedAt;
+  }
+
+  applyEvent(payload: CloudEventPayload, receivedAt = Date.now()): void {
+    this.realtimeScenarioId = payload.scenario_id || this.realtimeScenarioId;
+    this.realtimeRunId = payload.run_id || this.realtimeRunId;
+    this.realtimeLastMessageAt = receivedAt;
+    if (payload.description) {
+      const type = payload.severity === 'critical' ? 'danger' : payload.severity === 'high' ? 'warn' : 'info';
+      this.onLog?.(payload.description, type);
+    }
+  }
+
+  setDataMode(mode: DataMode): void {
+    if (mode === 'fallback' && this.realtimeDataMode !== 'fallback') {
+      this.realtimeDecision = null;
+      this.realtimeTtc = null;
+      this.realtimeCollisionProb = null;
+      this.realtimeBrakeDecel = 0;
+      this.realtimeScenarioId = null;
+      this.realtimeRunId = null;
+      this.realtimePredictionStatus = 'unknown';
+    }
+    this.realtimeDataMode = mode;
+    if (!this.realtimeObjectsGroup || !this.truck || !this.pedestrian) return;
+    if (mode === 'fallback') {
+      this.clearDynamicObjects();
+      this.realtimeObjectsGroup.visible = false;
+      this.truck.visible = true;
+      this.pedestrian.visible = true;
+    } else {
+      this.realtimeObjectsGroup.visible = true;
+      this.truck.visible = false;
+      this.pedestrian.visible = false;
+    }
+  }
+
+  clearDynamicObjects(): void {
+    this.realtimePool?.clear();
+  }
+
+  getRealtimeObjects(): PooledObjectState[] {
+    return this.realtimePool ? this.realtimePool.snapshot() : [];
+  }
+
+  getRealtimeMetrics(): RealtimeSceneMetrics {
+    return {
+      dataMode: this.realtimeDataMode,
+      scenarioId: this.realtimeScenarioId,
+      runId: this.realtimeRunId,
+      objectCount: this.realtimePool ? this.realtimePool.size : 0,
+      predictionStatus: this.realtimePredictionStatus,
+      lastMessageAt: this.realtimeLastMessageAt,
+    };
+  }
+
+  /* -------------------------------------------------------------- */
   /*  Getters for React UI                                             */
   /* -------------------------------------------------------------- */
   getSnapshot(): SceneSnapshot {
@@ -783,6 +948,22 @@ export class ZhiluWujieScene {
   }
 
   getScenarioMetrics(): ScenarioMetrics {
+    if (this.realtimeDataMode !== 'fallback' && this.realtimeDecision) {
+      const riskLevel = Math.floor(Math.max(0, Math.min(100, this.riskLevel)));
+      const riskName = this.realtimeDecision.risk_level || 'SAFE';
+      const isDanger = riskName === 'DANGER' || riskName === 'EMERGENCY';
+      return {
+        egoSpeed: this.egoSpeed,
+        ttc: this.realtimeTtc === null ? '--' : `${this.realtimeTtc.toFixed(1)}s`,
+        riskLevel,
+        phase: this.egoPhase,
+        isDanger,
+        decisionMode: this.realtimeDecision.mode || 'cooperative',
+        fusionWeight: this.fusionWeight.toFixed(2),
+        brakeDecel: `${this.realtimeBrakeDecel.toFixed(1)} m/s²`,
+        collisionProb: this.realtimeCollisionProb === null ? '--' : this.realtimeCollisionProb.toFixed(2),
+      };
+    }
     const isDanger = this.egoPhase === 'WARN' || this.egoPhase === 'BRAKE';
     const ttcVal = ((this.egoZ - this.pedestrian.position.z) / (this.egoSpeed / 3.6 + 0.1)).toFixed(1);
     return {
@@ -820,7 +1001,7 @@ export class ZhiluWujieScene {
         this.updateTraffic(delta);
         this.updateTrafficLights(delta);
         this.updateParticles();
-        if (this.mode === 'ego') this.updateScenario(delta);
+        if (this.mode === 'ego' && this.realtimeDataMode === 'fallback') this.updateFallbackScenario(delta);
         this.updateMockData();
         this.updateRSU();
 
@@ -851,6 +1032,7 @@ export class ZhiluWujieScene {
   dispose() {
     cancelAnimationFrame(this.animId);
     window.removeEventListener('resize', this._onResize);
+    this.realtimePool?.clear();
     this.controls.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
