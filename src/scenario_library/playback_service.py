@@ -155,14 +155,22 @@ class ScenarioPlaybackService:
             "running",
             current_frame=self._frame_index,
         )
-        if t_ms >= self._duration_ms and not self._loop_enabled:
-            self._status = "completed"
-            self.repository.update_run(
-                self._run_id,
-                "completed",
-                ended_at=timestamp,
-                current_frame=self._frame_index,
-            )
+        if t_ms >= self._duration_ms:
+            if self._loop_enabled:
+                self._frame_index = 0
+                self.repository.update_run(
+                    self._run_id,
+                    "running",
+                    current_frame=self._frame_index,
+                )
+            else:
+                self._status = "completed"
+                self.repository.update_run(
+                    self._run_id,
+                    "completed",
+                    ended_at=timestamp,
+                    current_frame=self._frame_index,
+                )
         return {
             "frame_id": compiled.frame_id,
             "timestamp": timestamp,

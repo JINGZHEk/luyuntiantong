@@ -70,6 +70,17 @@ class ScenarioPlaybackTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(run["status"], "stopped")
         self.assertGreaterEqual(run["current_frame"], 0)
 
+    async def test_loop_restarts_from_first_frame_after_duration(self):
+        await self.service.step_once("GP-01")
+        self.service._loop_enabled = True
+        self.service._duration_ms = 0
+        self.service._frame_index = 0
+
+        await self.service.step_once()
+
+        self.assertEqual(self.service.status()["status"], "running")
+        self.assertEqual(self.service.status()["frame_index"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
