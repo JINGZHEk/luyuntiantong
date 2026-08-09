@@ -70,6 +70,7 @@ class ScenarioPlaybackService:
             self._fps,
             self._loop_enabled,
             self._random_seed,
+            scene_id=self.scene_id,
         )
         self._duration_ms = detail.summary.duration_ms
         self._task = asyncio.create_task(self._run_loop())
@@ -116,6 +117,7 @@ class ScenarioPlaybackService:
                 self._fps,
                 False,
                 self._random_seed,
+                scene_id=self.scene_id,
             )
         if not self._scenario_id or not self._run_id:
             raise ValueError("scenario_id is required before the first playback step")

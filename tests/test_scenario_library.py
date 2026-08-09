@@ -1,3 +1,4 @@
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -97,6 +98,40 @@ class ScenarioLibraryTest(unittest.TestCase):
         self.assertEqual(updated["status"], "completed")
         self.assertEqual(updated["current_frame"], 120)
         self.assertEqual(repository.get_run("run-001")["scenario_id"], "GP-01")
+
+    def test_run_creation_handles_legacy_required_scene_id_column(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "legacy_scenario_runs.db"
+            with sqlite3.connect(db_path) as conn:
+                conn.execute(
+                    "CREATE TABLE scenario_runs ("
+                    "run_id TEXT PRIMARY KEY,"
+                    "scenario_id TEXT NOT NULL,"
+                    "scene_id TEXT NOT NULL,"
+                    "status TEXT NOT NULL DEFAULT 'running',"
+                    "started_at INTEGER NOT NULL,"
+                    "finished_at INTEGER,"
+                    "metadata TEXT,"
+                    "summary TEXT"
+                    ")"
+                )
+                conn.commit()
+            conn.close()
+
+            repository = ScenarioRepository(str(db_path))
+            seed_scenario_library(repository)
+            created = repository.create_run(
+                "legacy-run-001",
+                "GP-01",
+                1000,
+                10.0,
+                False,
+                42,
+                scene_id="scene_legacy",
+            )
+
+        self.assertEqual(created["scenario_id"], "GP-01")
+        self.assertEqual(created["status"], "running")
 
 
 if __name__ == "__main__":

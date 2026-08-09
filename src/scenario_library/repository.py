@@ -592,16 +592,34 @@ class ScenarioRepository:
         requested_fps: float,
         loop_enabled: bool,
         random_seed: int,
+        scene_id: str = "scene_001",
     ) -> dict[str, Any]:
         self.get_scenario(scenario_id)
         with self._connection() as conn:
-            conn.execute(
-                """INSERT INTO scenario_runs
-                (run_id, scenario_id, started_at, requested_fps, loop_enabled,
-                 random_seed, status, current_frame, error_message)
-                VALUES (?, ?, ?, ?, ?, ?, 'running', 0, NULL)""",
-                (run_id, scenario_id, started_at, requested_fps, int(loop_enabled), random_seed),
-            )
+            if "scene_id" in self._columns(conn, "scenario_runs"):
+                conn.execute(
+                    """INSERT INTO scenario_runs
+                    (run_id, scenario_id, scene_id, started_at, requested_fps,
+                     loop_enabled, random_seed, status, current_frame, error_message)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'running', 0, NULL)""",
+                    (
+                        run_id,
+                        scenario_id,
+                        scene_id,
+                        started_at,
+                        requested_fps,
+                        int(loop_enabled),
+                        random_seed,
+                    ),
+                )
+            else:
+                conn.execute(
+                    """INSERT INTO scenario_runs
+                    (run_id, scenario_id, started_at, requested_fps, loop_enabled,
+                     random_seed, status, current_frame, error_message)
+                    VALUES (?, ?, ?, ?, ?, ?, 'running', 0, NULL)""",
+                    (run_id, scenario_id, started_at, requested_fps, int(loop_enabled), random_seed),
+                )
         return self.get_run(run_id)
 
     def update_run(
