@@ -85,13 +85,16 @@ class CloudAgent:
         frame_id = enriched_payload.get("frame_id", 0)
         timestamp = enriched_payload.get("timestamp", make_timestamp())
         node_id = enriched_payload.get("node_id", "unknown")
+        run_id = enriched_payload.get("run_id", "legacy-run")
+        scene_id = enriched_payload.get("scene_id", self.scene_id)
 
         self.store.store_frame(
             frame_id=frame_id,
             timestamp=timestamp,
-            scene_id=self.scene_id,
+            scene_id=scene_id,
             node_id=node_id,
             perception=enriched_payload,
+            run_id=run_id,
         )
 
         self._broadcast("perception", enriched_payload)
@@ -99,12 +102,15 @@ class CloudAgent:
     def _on_vehicle_status(self, topic: str, payload: dict):
         frame_id = payload.get("frame_id", int(time.time() * 10) % 100000)
         timestamp = payload.get("timestamp", make_timestamp())
+        run_id = payload.get("run_id", "legacy-run")
+        scene_id = payload.get("scene_id", self.scene_id)
 
         self.store.store_frame(
             frame_id=frame_id,
             timestamp=timestamp,
-            scene_id=self.scene_id,
+            scene_id=scene_id,
             vehicle_status=payload,
+            run_id=run_id,
         )
 
         self._broadcast("vehicle_status", payload)
@@ -112,12 +118,15 @@ class CloudAgent:
     def _on_decision(self, topic: str, payload: dict):
         frame_id = payload.get("frame_id", int(time.time() * 10) % 100000)
         timestamp = payload.get("timestamp", make_timestamp())
+        run_id = payload.get("run_id", "legacy-run")
+        scene_id = payload.get("scene_id", self.scene_id)
 
         self.store.store_frame(
             frame_id=frame_id,
             timestamp=timestamp,
-            scene_id=self.scene_id,
+            scene_id=scene_id,
             decision=payload,
+            run_id=run_id,
         )
 
         # Check for event trigger
@@ -145,6 +154,8 @@ class CloudAgent:
         self._last_event_time = now
         self._event_counter += 1
 
+        scenario_event = decision.get("scenario_event") or {}
+        target = decision.get("target_object") or {}
         event = {
             "event_id": f"evt_{int(now)}_{self._event_counter:03d}",
             "timestamp": (
@@ -152,16 +163,26 @@ class CloudAgent:
                 if isinstance(decision_timestamp, (int, float))
                 else make_timestamp()
             ),
-            "event_type": "ghost_probe",
-            "severity": "critical" if risk_level == "EMERGENCY" else "high",
+            "event_type": scenario_event.get("event_type", "ghost_probe"),
+            "severity": scenario_event.get(
+                "severity", "critical" if risk_level == "EMERGENCY" else "high"
+            ),
             "scene_id": self.scene_id,
+            "scenario_id": decision.get("scenario_id"),
+            "run_id": decision.get("run_id", "legacy-run"),
             "min_ttc": ttc,
             "outcome": "avoided" if decision.get("brake_decel", 0) > 0 else "pending",
-            "description": f"Ghost-probe event detected: TTC={ttc:.1f}s, risk={risk_level}",
-            "involved_objects": [
-                {"type": "vehicle", "id": decision.get("vehicle_id")},
-                {"type": "pedestrian", "track_id": decision.get("target_object", {}).get("track_id")},
-            ],
+            "description": scenario_event.get(
+                "description",
+                f"Scenario event detected: TTC={ttc:.1f}s, risk={risk_level}",
+            ),
+            "involved_objects": scenario_event.get(
+                "involved_actor_ids",
+                [
+                    {"type": "vehicle", "id": decision.get("vehicle_id")},
+                    {"type": target.get("class", "unknown"), "track_id": target.get("track_id")},
+                ],
+            ),
         }
 
         self.store.store_event(event)

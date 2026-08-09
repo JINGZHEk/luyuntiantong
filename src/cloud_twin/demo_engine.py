@@ -3,9 +3,17 @@ import time
 from typing import Awaitable, Callable, Optional
 
 from src.cloud_twin.data_store import DataStore
+from src.scenario_library.playback_service import ScenarioPlaybackService
+from src.scenario_library.repository import ScenarioRepository
 from src.utils import setup_logger
 
 Broadcaster = Callable[[str, dict], Awaitable[None]]
+
+LEGACY_SCENARIO_ALIASES = {
+    "light": "GP-03",
+    "moderate": "GP-01",
+    "heavy": "GP-05",
+}
 
 DEMO_SCENARIOS = {
     "light": {
@@ -191,30 +199,66 @@ class DemoEngine:
         store: DataStore,
         broadcaster: Broadcaster,
         scene_id: str = "scene_001",
+        scenario_repository: ScenarioRepository | None = None,
     ):
         self.store = store
         self.broadcaster = broadcaster
         self.scene_id = scene_id
         self.scenario = "moderate"
+        self.scenario_id: str | None = None
         self.logger = setup_logger("cloud.demo")
         self.frame_index = 0
         self.running = False
         self.fps = 10.0
         self._task: Optional[asyncio.Task] = None
+        self.scenario_repository = scenario_repository
+        self._scenario_playback: ScenarioPlaybackService | None = None
+        self._library_mode = False
+        if scenario_repository is not None:
+            self._scenario_playback = ScenarioPlaybackService(
+                repository=scenario_repository,
+                publisher=_DemoPublisher(store, broadcaster, scene_id),
+                scene_id=scene_id,
+            )
 
     def status(self) -> dict:
+        playback_status = self._scenario_playback.status() if self._scenario_playback else {}
         return {
-            "running": self.running,
-            "frame_index": self.frame_index,
+            "running": playback_status.get("status") == "running" if self._library_mode else self.running,
+            "frame_index": playback_status.get("frame_index", self.frame_index),
             "scene_id": self.scene_id,
             "scenario": self.scenario,
-            "available_scenarios": list(DEMO_SCENARIOS.keys()),
+            "scenario_id": getattr(self, "scenario_id", None),
+            "run_id": playback_status.get("run_id"),
+            "available_scenarios": list(DEMO_SCENARIOS.keys()) + (
+                [item.scenario_id for item in self.scenario_repository.list_scenarios()]
+                if self.scenario_repository is not None else []
+            ),
             "fps": self.fps,
         }
 
-    async def step_once(self, scenario: str | None = None) -> dict:
+    async def step_once(self, scenario: str | None = None, scenario_id: str | None = None) -> dict:
+        selected = scenario_id or scenario
+        if scenario_id is not None:
+            use_library = self._is_library_scenario(scenario_id)
+        elif scenario is not None:
+            use_library = self._is_library_scenario(scenario)
+        else:
+            use_library = self._library_mode
+        if self._scenario_playback and use_library:
+            self._library_mode = True
+            if selected:
+                self.scenario_id = selected
+                self.scenario = selected
+            result = await self._scenario_playback.step_once(getattr(self, "scenario_id", None))
+            if result is not None:
+                self.frame_index = self._scenario_playback.status()["frame_index"]
+            await asyncio.sleep(0)
+            return self.status()
         if scenario is not None:
             self.scenario = normalize_scenario(scenario)
+        self._library_mode = False
+        self.scenario_id = LEGACY_SCENARIO_ALIASES.get(self.scenario)
         timestamp = int(time.time() * 1000)
         frame = generate_demo_frame(self.frame_index, timestamp, self.scene_id, self.scenario)
         self.store.store_frame(
@@ -238,9 +282,37 @@ class DemoEngine:
         self.frame_index = (self.frame_index + 1) % 120
         return self.status()
 
-    async def start(self, fps: float = 10.0, scenario: str | None = None) -> dict:
+    async def start(
+        self,
+        fps: float = 10.0,
+        scenario: str | None = None,
+        scenario_id: str | None = None,
+        loop: bool = False,
+        random_seed: int = 42,
+    ) -> dict:
         self.fps = max(1.0, min(float(fps), 30.0))
-        self.scenario = normalize_scenario(scenario or self.scenario)
+        selected = scenario_id or scenario or self.scenario
+        if self._scenario_playback and self._is_library_scenario(selected):
+            if self._task and not self._task.done():
+                await self.stop()
+            self._library_mode = True
+            self.scenario_id = selected
+            self.scenario = selected
+            self.running = True
+            await self._scenario_playback.start(
+                selected,
+                fps=self.fps,
+                loop=loop,
+                random_seed=random_seed,
+            )
+            return self.status()
+        self.scenario = normalize_scenario(selected)
+        if self._library_mode:
+            await self.stop()
+        elif self._task and not self._task.done():
+            await self.stop()
+        self._library_mode = False
+        self.scenario_id = LEGACY_SCENARIO_ALIASES.get(self.scenario)
         if self.running:
             return self.status()
         self.running = True
@@ -248,6 +320,11 @@ class DemoEngine:
         return self.status()
 
     async def stop(self) -> dict:
+        if self._library_mode and self._scenario_playback:
+            await self._scenario_playback.stop()
+            self._library_mode = False
+            self.running = False
+            return self.status()
         self.running = False
         if self._task:
             self._task.cancel()
@@ -269,3 +346,36 @@ class DemoEngine:
         except Exception as exc:
             self.running = False
             self.logger.error(f"Demo loop stopped: {exc}")
+
+    def _is_library_scenario(self, scenario_id: str | None) -> bool:
+        if not scenario_id or self.scenario_repository is None:
+            return False
+        return any(item.scenario_id == scenario_id for item in self.scenario_repository.list_scenarios())
+
+
+class _DemoPublisher:
+    """Bridge synchronous playback MQTT publishes to API broadcast and storage."""
+
+    connected = True
+
+    def __init__(self, store: DataStore, broadcaster: Broadcaster, scene_id: str):
+        self.store = store
+        self.broadcaster = broadcaster
+        self.scene_id = scene_id
+
+    def publish(self, topic: str, payload: dict):
+        frame_id = payload.get("frame_id", 0)
+        run_id = payload.get("run_id", "legacy-run")
+        message_type = "perception" if topic.endswith("/perception") else (
+            "vehicle_status" if topic.endswith("/status") else "decision"
+        )
+        kwargs = {message_type if message_type != "vehicle_status" else "vehicle_status": payload}
+        self.store.store_frame(
+            frame_id=frame_id,
+            timestamp=payload.get("timestamp", int(time.time() * 1000)),
+            scene_id=payload.get("scene_id", self.scene_id),
+            node_id=payload.get("node_id"),
+            run_id=run_id,
+            **kwargs,
+        )
+        asyncio.create_task(self.broadcaster(message_type, payload))

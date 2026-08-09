@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+from dataclasses import asdict
 from typing import Set
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,12 +11,15 @@ from src.utils import load_config, get_config_path, setup_logger
 from src.cloud_twin.data_store import DataStore
 from src.cloud_twin.demo_engine import DemoEngine
 from src.cloud_twin.runtime_config import RuntimeConfigStore, RuntimeConfigError
+from src.scenario_library.repository import ScenarioRepository
+from src.scenario_library.seed_data import seed_scenario_library
 
 
 logger = setup_logger("cloud.api")
 store: DataStore = None
 demo_engine: DemoEngine = None
 config_store: RuntimeConfigStore = None
+scenario_repository: ScenarioRepository = None
 ws_clients: Set[WebSocket] = set()
 _recent_messages: list = []
 _message_buffer_size = 200
@@ -23,7 +27,7 @@ _message_buffer_size = 200
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global store, demo_engine, config_store
+    global store, demo_engine, config_store, scenario_repository
     config = load_config(get_config_path("cloud.yaml"))
     if store is None:
         db_path = config.get("database", {}).get("path", "data/v2x_cloud.db")
@@ -31,10 +35,14 @@ async def lifespan(app: FastAPI):
     if config_store is None:
         runtime_config_path = config.get("runtime_config", {}).get("path", "data/runtime_config.json")
         config_store = RuntimeConfigStore(runtime_config_path)
+    scenario_repository = ScenarioRepository(store.db_path)
+    if not scenario_repository.list_scenarios():
+        seed_scenario_library(scenario_repository)
     demo_engine = DemoEngine(
         store=store,
         broadcaster=broadcast_to_clients,
         scene_id=config.get("scene_id", "scene_001"),
+        scenario_repository=scenario_repository,
     )
     logger.info("Cloud API started")
     yield
@@ -156,6 +164,20 @@ async def get_metrics():
     }
 
 
+@app.get("/api/v1/scenarios")
+async def list_scenarios():
+    items = scenario_repository.list_scenarios()
+    return {"total": len(items), "items": [asdict(item) for item in items]}
+
+
+@app.get("/api/v1/scenarios/{scenario_id}")
+async def get_scenario(scenario_id: str):
+    try:
+        return asdict(scenario_repository.get_scenario(scenario_id))
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @app.get("/api/v1/evaluation")
 async def get_evaluation(scene_id: str = "scene_001", report: str = None):
     return store.get_evaluation_report(scene_id=scene_id, report_key=report)
@@ -192,8 +214,15 @@ async def get_recent_messages(limit: int = Query(default=50, le=200)):
 async def start_demo(
     fps: float = Query(default=10.0, ge=1.0, le=30.0),
     scenario: str = Query(default="moderate"),
+    scenario_id: str = Query(default=None),
+    loop: bool = Query(default=False),
 ):
-    return await demo_engine.start(fps=fps, scenario=scenario)
+    return await demo_engine.start(
+        fps=fps,
+        scenario=scenario,
+        scenario_id=scenario_id,
+        loop=loop,
+    )
 
 
 @app.post("/api/v1/demo/stop")
@@ -202,8 +231,11 @@ async def stop_demo():
 
 
 @app.post("/api/v1/demo/step")
-async def step_demo(scenario: str = Query(default=None)):
-    return await demo_engine.step_once(scenario=scenario)
+async def step_demo(
+    scenario: str = Query(default=None),
+    scenario_id: str = Query(default=None),
+):
+    return await demo_engine.step_once(scenario=scenario, scenario_id=scenario_id)
 
 
 @app.get("/api/v1/demo/status")
