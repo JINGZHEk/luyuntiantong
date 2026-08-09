@@ -35,7 +35,6 @@ const menuItems = NAV_ITEMS.map((item) => ({
   key: item.key,
   icon: iconMap[item.icon],
   label: item.label,
-  external: 'external' in item ? item.external : false,
 }));
 
 const fallbackRoute = {
@@ -62,7 +61,7 @@ const StatusArea: React.FC<{ connected: boolean; source: 'live' | 'mock' }> = ({
     </div>
     <div className={styles.statusMeta}>
       <span>API LATENCY</span>
-      <strong>12ms</strong>
+      <strong className={styles.unavailableText}>未采集</strong>
     </div>
     <div className={styles.statusMeta}>
       <span>DATA SOURCE</span>
@@ -122,12 +121,7 @@ export const MainLayout: React.FC = () => {
             selectedKeys={[location.pathname]}
             items={menuItems}
             onClick={({ key }) => {
-              const item = menuItems.find((m) => m.key === key);
-              if (item?.external) {
-                window.open(`${key}.html`, '_blank');
-              } else {
-                navigate(key);
-              }
+              navigate(key);
             }}
             className={styles.menu}
           />
@@ -169,6 +163,7 @@ export const MainLayout: React.FC = () => {
                 type="button"
                 className={styles.themeButton}
                 aria-label={theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
+                aria-pressed={theme === 'light'}
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               >
                 {theme === 'dark' ? <SunOutlined /> : <MoonOutlined />}

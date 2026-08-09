@@ -6,7 +6,7 @@
 .sourceTag {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   box-shadow: 0 0 12px -2px currentColor;
 }
@@ -17,7 +17,7 @@
 
 .overviewGrid {
   display: grid;
-  grid-template-columns: minmax(220px, 20%) minmax(420px, 1fr) minmax(220px, 25%);
+  grid-template-columns: minmax(220px, 20%) minmax(0, 1fr) minmax(220px, 25%);
   align-items: stretch;
   gap: var(--spacing-md);
 }
@@ -34,7 +34,7 @@
 .sceneCard {
   min-height: 420px;
   overflow: hidden;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
   position: relative;
   box-shadow:
     var(--shadow-card),
@@ -83,7 +83,9 @@
 }
 
 .chartCard:hover {
-  transform: translateY(-1px) scale(1.01);
+  border-color: var(--color-border-strong) !important;
+  box-shadow: var(--shadow-card-hover) !important;
+  transform: none;
 }
 
 .logSection {
@@ -102,7 +104,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   .overviewGrid,
   .chartStack {
     display: flex;
@@ -125,8 +127,8 @@
 }
 
 [data-theme='light'] .sceneCard::before {
-  background: linear-gradient(90deg, transparent, #d0d5dd, transparent) !important;
-  opacity: 0.4 !important;
+  background: var(--color-border-strong) !important;
+  opacity: 0.7 !important;
 }
 
 [data-theme='light'] .sceneCard {

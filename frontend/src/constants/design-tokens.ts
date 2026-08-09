@@ -54,6 +54,16 @@ export const CSS_VAR = {
   textMuted: '--color-text-muted',
 } as const;
 
+export const UI_TOKENS = {
+  controlHeight: 40,
+  touchTarget: 44,
+  cardRadius: 10,
+  pageGap: 24,
+  sectionGap: 16,
+  bodyFontSize: 14,
+  labelFontSize: 12,
+} as const;
+
 // ═══ 间距（8px 栅格系统） ═══
 export const SPACING = {
   xs: 4,

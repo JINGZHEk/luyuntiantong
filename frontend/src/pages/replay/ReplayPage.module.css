@@ -60,10 +60,17 @@
 
 /* ── Light mode ── */
 [data-theme='light'] .sceneCard::before {
-  background: linear-gradient(90deg, transparent, #d0d5dd, transparent) !important;
-  opacity: 0.4 !important;
+  background: var(--color-border-strong) !important;
+  opacity: 0.7 !important;
 }
 
 [data-theme='light'] .sceneCard {
   box-shadow: var(--shadow-card) !important;
+}
+
+@media (max-width: 768px) {
+  .sideStack > :global(.ant-row) > :global(.ant-col) {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
 }

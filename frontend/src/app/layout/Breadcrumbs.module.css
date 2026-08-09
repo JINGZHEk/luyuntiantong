@@ -1,6 +1,6 @@
 .breadcrumbs {
   color: var(--color-text-secondary);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .breadcrumbs :global(.ant-breadcrumb-link),

@@ -6,7 +6,6 @@
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--color-accent) 6%, transparent);
   border: 1px solid color-mix(in srgb, var(--color-accent) 12%, transparent);
-  text-shadow: 0 0 8px color-mix(in srgb, var(--color-accent) 20%, transparent);
 }
 
 .actions {
@@ -24,5 +23,5 @@
 /* ── Light mode ── */
 [data-theme='light'] .actions :global(.ant-btn-primary),
 [data-theme='light'] .actions :global(.ant-btn-primary:hover) {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: none !important;
 }

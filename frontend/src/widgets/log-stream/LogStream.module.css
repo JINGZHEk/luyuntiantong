@@ -41,7 +41,7 @@
 
 .count {
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -66,14 +66,13 @@
   border-left: 2px solid transparent;
   border-radius: 2px;
   color: var(--color-text);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
   transition: background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
 }
 
 .row:hover {
   background: color-mix(in srgb, var(--color-accent) 6%, transparent);
-  transform: translateX(2px);
 }
 
 .errorRow {
@@ -90,7 +89,7 @@
 .timestamp {
   overflow: hidden;
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -99,7 +98,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.03em;
 }
@@ -146,7 +145,7 @@
   padding: 0 14px;
   border-top: 1px solid var(--color-border);
   color: var(--color-text-secondary);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .footerDivider {
@@ -198,4 +197,8 @@
 [data-theme='light'] .row[data-log-level='warn'] .levelDot,
 [data-theme='light'] .row[data-log-level='error'] .levelDot {
   box-shadow: none !important;
+}
+
+[data-theme='light'] .errorRow {
+  animation: none;
 }

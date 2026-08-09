@@ -48,7 +48,6 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   white-space: nowrap;
-  text-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 20%, transparent);
 }
 
 .brandLine {
@@ -143,7 +142,7 @@
   justify-content: flex-start;
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.08em;
 }
 
@@ -162,13 +161,17 @@
 .statusMeta {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.05em;
 }
 
 .statusMeta strong {
   color: var(--color-text-secondary);
   font-weight: 500;
+}
+
+.unavailableText {
+  color: var(--color-text-muted) !important;
 }
 
 .liveText { color: var(--color-success); }
@@ -238,7 +241,7 @@
 .headerPageDescription {
   overflow: hidden;
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -251,7 +254,7 @@
 .sourceBadge {
   gap: 7px;
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.1em;
 }
 
@@ -260,7 +263,7 @@
 
 .connectionText {
   color: var(--color-text-secondary);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .clock {
@@ -274,8 +277,10 @@
 .themeButton,
 .mobileMenuButton {
   display: inline-grid;
-  width: 30px;
-  height: 30px;
+  width: var(--touch-target);
+  min-width: var(--touch-target);
+  height: var(--touch-target);
+  min-height: var(--touch-target);
   place-items: center;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -299,6 +304,7 @@
 .content {
   min-width: 0;
   overflow: auto;
+  overflow-x: hidden;
   padding: var(--spacing-lg);
   background: transparent !important;
 }
@@ -347,7 +353,7 @@
 
 [data-theme='light'] .sider {
   box-shadow: 1px 0 0 var(--color-border) !important;
-  background: #ffffff !important;
+  background: var(--color-bg) !important;
 }
 
 [data-theme='light'] .brandMark {
@@ -355,8 +361,8 @@
 }
 
 [data-theme='light'] .brandLine {
-  background: linear-gradient(90deg, transparent, #d0d5dd, transparent) !important;
-  opacity: 0.5 !important;
+  background: var(--color-border) !important;
+  opacity: 1 !important;
 }
 
 [data-theme='light'] .menu :global(.ant-menu-item::before) {
@@ -365,6 +371,12 @@
 
 [data-theme='light'] .menu :global(.ant-menu-item-selected) {
   box-shadow: none !important;
+  color: var(--color-primary) !important;
+  background: color-mix(in srgb, var(--color-accent) 9%, var(--color-surface)) !important;
+}
+
+[data-theme='light'] .menu :global(.ant-menu-item-selected::before) {
+  background: var(--color-accent);
 }
 
 [data-theme='light'] .menu :global(.ant-menu-item-selected .ant-menu-item-icon) {
@@ -384,10 +396,10 @@
 [data-theme='light'] .header {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  background: #ffffff !important;
+  background: var(--color-surface) !important;
 }
 
 [data-theme='light'] .header::after {
-  background: linear-gradient(90deg, #d0d5dd, transparent 70%) !important;
-  opacity: 0.3 !important;
+  background: var(--color-border-strong) !important;
+  opacity: 0.7 !important;
 }

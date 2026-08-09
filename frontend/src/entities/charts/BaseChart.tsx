@@ -18,7 +18,7 @@ import { CanvasRenderer } from 'echarts/renderers';
 import type { EChartsOption } from 'echarts';
 import { useSettingsStore } from '@/store/settingsStore';
 import { THEME_COLORS } from '@/constants/colors';
-import { registerV2XTheme } from '@/constants/echarts-theme';
+import { getChartPalette, registerV2XTheme } from '@/constants/echarts-theme';
 
 registerV2XTheme();
 
@@ -50,6 +50,7 @@ export const BaseChart: React.FC<BaseChartProps> = ({
 }) => {
   const theme = useSettingsStore((s) => s.theme);
   const colors = THEME_COLORS[theme];
+  const chartPalette = getChartPalette(theme);
   const devicePixelRatio = typeof window === 'undefined'
     ? 1
     : Math.min(window.devicePixelRatio || 1, 2);
@@ -57,11 +58,12 @@ export const BaseChart: React.FC<BaseChartProps> = ({
   const mergedOption = useMemo(
     () => ({
       backgroundColor: 'transparent',
+      color: [...chartPalette.series],
       textStyle: { color: colors.textSecondary, fontSize: 12 },
       grid: { top: 40, right: 20, bottom: 30, left: 50, containLabel: true },
       ...option,
     }),
-    [option, colors],
+    [option, colors, chartPalette],
   );
 
   return (

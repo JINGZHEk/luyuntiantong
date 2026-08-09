@@ -43,7 +43,7 @@
   margin-left: 2px;
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -52,10 +52,10 @@
 }
 
 .sortButton {
-  height: 24px;
-  padding: 0 7px;
+  min-height: 40px;
+  padding: 0 10px;
   color: var(--color-text-secondary) !important;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .sortButton:hover,
@@ -79,12 +79,11 @@
   padding: 8px 10px 8px 14px;
   border-radius: 5px;
   background: transparent;
-  transition: background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  transition: background var(--duration-fast) var(--ease-out);
 }
 
 .row:hover {
   background: color-mix(in srgb, var(--color-accent) 7%, transparent);
-  transform: translateX(2px);
 }
 
 .critical {
@@ -151,7 +150,7 @@
 .target span {
   overflow: hidden;
   color: var(--color-text-secondary);
-  font-size: 10px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -173,7 +172,7 @@
 
 .score span {
   color: var(--color-text-secondary);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.04em;
 }
 
@@ -206,6 +205,7 @@
 /* ── Light mode ── */
 [data-theme='light'] .liveDot {
   box-shadow: none !important;
+  animation: none;
 }
 
 [data-theme='light'] .row[data-risk-level='low'] .riskLine,
@@ -213,4 +213,12 @@
 [data-theme='light'] .row[data-risk-level='high'] .riskLine,
 [data-theme='light'] .row[data-risk-level='critical'] .riskLine {
   box-shadow: none !important;
+}
+
+[data-theme='light'] .score strong {
+  text-shadow: none;
+}
+
+[data-theme='light'] .critical {
+  animation: none;
 }

@@ -40,7 +40,7 @@
 
 .statusGroup :global(.ant-tag) {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.02em;
   border-radius: var(--radius-sm);
   box-shadow: 0 0 8px -2px currentColor;
@@ -58,7 +58,7 @@
   margin-top: var(--spacing-xl);
 }
 
-@media (max-width: 680px) {
+@media (max-width: 768px) {
   .controlBar {
     align-items: stretch;
     flex-direction: column;
@@ -71,12 +71,23 @@
   .scenarioSelect {
     width: 100%;
   }
+
+  .actionGroup {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .actionGroup :global(.ant-space-item),
+  .actionGroup :global(.ant-btn),
+  .actionGroup :global(.ant-select) {
+    width: 100%;
+  }
 }
 
 /* ── Light mode ── */
 [data-theme='light'] .controlCard::before {
-  background: linear-gradient(90deg, transparent, #d0d5dd, transparent) !important;
-  opacity: 0.4 !important;
+  background: var(--color-border-strong) !important;
+  opacity: 0.7 !important;
 }
 
 [data-theme='light'] .statusGroup :global(.ant-tag) {
@@ -84,5 +95,5 @@
 }
 
 [data-theme='light'] .actionGroup :global(.ant-btn-primary) {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: none !important;
 }

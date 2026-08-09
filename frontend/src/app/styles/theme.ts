@@ -1,6 +1,7 @@
 import { ThemeConfig, theme as antTheme } from 'antd';
 import { ThemeMode } from '@/types/common';
 import { THEME_COLORS } from '@/constants/colors';
+import { UI_TOKENS } from '@/constants/design-tokens';
 
 export function getAntdTheme(mode: ThemeMode): ThemeConfig {
   const colors = THEME_COLORS[mode];
@@ -9,14 +10,18 @@ export function getAntdTheme(mode: ThemeMode): ThemeConfig {
     token: {
       colorPrimary: colors.accent,
       colorBgBase: colors.bg,
+      colorBgLayout: colors.bg,
       colorBgContainer: colors.cardBg,
+      colorFillAlter: colors.surfaceSubtle,
       colorText: colors.text,
       colorTextSecondary: colors.textSecondary,
+      colorTextTertiary: colors.textMuted,
       colorBorder: colors.cardBorder,
       colorSuccess: colors.success,
       colorWarning: colors.warning,
       colorError: colors.danger,
-      borderRadius: 8,
+      controlHeight: UI_TOKENS.controlHeight,
+      borderRadius: UI_TOKENS.cardRadius,
       fontFamily:
         "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     },
@@ -30,21 +35,32 @@ export function getAntdTheme(mode: ThemeMode): ThemeConfig {
         colorBgContainer: colors.cardBg,
         colorBorderSecondary: colors.cardBorder,
         headerBg: colors.cardBg,
-        headerFontSize: 13,
+        headerFontSize: UI_TOKENS.bodyFontSize,
       },
       Table: {
         colorBgContainer: colors.cardBg,
-        headerBg: mode === 'dark' ? 'rgba(0, 212, 255, 0.06)' : '#fafafa',
+        headerBg: colors.surfaceSubtle,
         headerColor: colors.textSecondary,
-        rowHoverBg: mode === 'dark' ? 'rgba(0, 212, 255, 0.06)' : '#f5f8ff',
+        rowHoverBg: colors.surfaceSubtle,
+        rowSelectedBg: colors.surfaceSubtle,
+        rowSelectedHoverBg: colors.surfaceRaised,
       },
       Input: {
+        colorBgContainer: colors.cardBg,
+        colorBorder: colors.cardBorder,
         activeBorderColor: colors.accent,
         hoverBorderColor: colors.accent,
       },
       Select: {
-        optionSelectedBg: mode === 'dark' ? 'rgba(0, 212, 255, 0.12)' : '#e6f4ff',
-        optionActiveBg: mode === 'dark' ? 'rgba(0, 212, 255, 0.08)' : '#f0f7ff',
+        optionSelectedBg: colors.surfaceSubtle,
+        optionActiveBg: colors.surfaceSubtle,
+      },
+      Button: {
+        defaultBg: colors.cardBg,
+        defaultBorderColor: colors.cardBorder,
+        defaultColor: colors.text,
+        primaryColor: colors.cardBg,
+        primaryShadow: 'none',
       },
     },
   };
