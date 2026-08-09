@@ -80,6 +80,10 @@ export function createSceneRealtimeAdapter(
   let prediction: PredictionMeta | null = null;
 
   const acceptFrame = (data: RealtimePayload): boolean => {
+    const incomingRunId = stringOrNull((data as { run_id?: unknown }).run_id);
+    if (incomingRunId && runId && incomingRunId !== runId) {
+      lastFrameId = null;
+    }
     const frameId = frameIdOf(data);
     if (frameId !== null && lastFrameId !== null && frameId < lastFrameId) return false;
     if (frameId !== null && (lastFrameId === null || frameId > lastFrameId)) {

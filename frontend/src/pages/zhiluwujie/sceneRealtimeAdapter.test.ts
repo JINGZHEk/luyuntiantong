@@ -62,6 +62,18 @@ describe('scene realtime adapter', () => {
     expect(adapter.snapshot().dataMode).toBe('fallback');
   });
 
+  it('accepts frame zero when a new playback run starts', () => {
+    const adapter = createSceneRealtimeAdapter({ now: () => 1000 });
+    adapter.onMessage('perception', perceptionPayload(8) as never);
+    adapter.onMessage(
+      'perception',
+      { ...perceptionPayload(0), run_id: 'run-002' } as never,
+    );
+
+    expect(adapter.snapshot().lastFrameId).toBe(0);
+    expect(adapter.snapshot().runId).toBe('run-002');
+  });
+
   it('retains an object for the TTL and then removes it', () => {
     let current = 1000;
     const adapter = createSceneRealtimeAdapter({ now: () => current, ttlMs: 1000 });
