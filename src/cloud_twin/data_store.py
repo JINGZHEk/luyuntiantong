@@ -3,11 +3,14 @@ import json
 import contextlib
 import threading
 import os
+import time
 from pathlib import Path
 from typing import Optional
 from src.evaluation_targets import build_target_status
 from src.evaluation_lead_time import runtime_lead_time_seconds
 from src.utils import setup_logger, ErrorCode
+
+LEGACY_RUN_ID = "legacy-run"
 
 
 class DataStore:
@@ -62,16 +65,20 @@ class DataStore:
         # executescript conflicts with the WAL open path.
         schema_ddl = [
             "CREATE TABLE IF NOT EXISTS frames ("
-            "    frame_id INTEGER PRIMARY KEY,"
+            "    run_id TEXT NOT NULL DEFAULT 'legacy-run',"
+            "    frame_id INTEGER NOT NULL,"
             "    timestamp INTEGER NOT NULL,"
             "    scene_id TEXT NOT NULL,"
             "    node_id TEXT,"
             "    perception_data TEXT,"
             "    decision_data TEXT,"
-            "    vehicle_status TEXT"
+            "    vehicle_status TEXT,"
+            "    PRIMARY KEY (run_id, frame_id)"
             ");",
             "CREATE TABLE IF NOT EXISTS events ("
             "    event_id TEXT PRIMARY KEY,"
+            "    run_id TEXT NOT NULL DEFAULT 'legacy-run',"
+            "    scenario_id TEXT,"
             "    timestamp INTEGER NOT NULL,"
             "    event_type TEXT NOT NULL,"
             "    severity TEXT NOT NULL,"
@@ -83,15 +90,57 @@ class DataStore:
             "    replay_start_frame INTEGER,"
             "    replay_end_frame INTEGER"
             ");",
+            "CREATE TABLE IF NOT EXISTS scenario_templates ("
+            "    scenario_id TEXT PRIMARY KEY,"
+            "    name TEXT NOT NULL,"
+            "    description TEXT,"
+            "    config TEXT,"
+            "    created_at INTEGER NOT NULL"
+            ");",
+            "CREATE TABLE IF NOT EXISTS scenario_actors ("
+            "    actor_id TEXT PRIMARY KEY,"
+            "    scenario_id TEXT NOT NULL,"
+            "    actor_type TEXT NOT NULL,"
+            "    label TEXT,"
+            "    initial_state TEXT"
+            ");",
+            "CREATE TABLE IF NOT EXISTS scenario_keyframes ("
+            "    scenario_id TEXT NOT NULL,"
+            "    frame_id INTEGER NOT NULL,"
+            "    timestamp INTEGER,"
+            "    data TEXT,"
+            "    PRIMARY KEY (scenario_id, frame_id)"
+            ");",
+            "CREATE TABLE IF NOT EXISTS scenario_events ("
+            "    scenario_id TEXT NOT NULL,"
+            "    event_id TEXT NOT NULL,"
+            "    frame_id INTEGER,"
+            "    event_type TEXT NOT NULL,"
+            "    data TEXT,"
+            "    PRIMARY KEY (scenario_id, event_id)"
+            ");",
+            "CREATE TABLE IF NOT EXISTS scenario_runs ("
+            "    run_id TEXT PRIMARY KEY,"
+            "    scenario_id TEXT NOT NULL,"
+            "    scene_id TEXT NOT NULL,"
+            "    status TEXT NOT NULL DEFAULT 'running',"
+            "    started_at INTEGER NOT NULL,"
+            "    finished_at INTEGER,"
+            "    metadata TEXT,"
+            "    summary TEXT"
+            ");",
             "CREATE TABLE IF NOT EXISTS metrics ("
             "    id INTEGER PRIMARY KEY AUTOINCREMENT,"
             "    timestamp INTEGER NOT NULL,"
             "    metric_type TEXT NOT NULL,"
             "    data TEXT NOT NULL"
             ");",
+        ]
+        index_ddl = [
             "CREATE INDEX IF NOT EXISTS idx_frames_ts ON frames(timestamp);",
             "CREATE INDEX IF NOT EXISTS idx_frames_scene ON frames(scene_id);",
             "CREATE INDEX IF NOT EXISTS idx_events_ts ON events(timestamp);",
+            "CREATE INDEX IF NOT EXISTS idx_events_run_ts ON events(run_id, timestamp);",
             "CREATE INDEX IF NOT EXISTS idx_events_severity ON events(severity);",
         ]
 
@@ -99,41 +148,113 @@ class DataStore:
             conn.execute("PRAGMA synchronous=NORMAL")
             for ddl in schema_ddl:
                 conn.execute(ddl)
+            self._migrate_frames_if_needed(conn)
+            self._migrate_events_if_needed(conn)
+            for ddl in index_ddl:
+                conn.execute(ddl)
             # Switch to WAL after schema is committed
             conn.execute("PRAGMA journal_mode=WAL")
 
         self.logger.info(f"Database initialized: {self.db_path}")
 
+    def _migrate_frames_if_needed(self, conn):
+        columns = [row[1] for row in conn.execute("PRAGMA table_info(frames)").fetchall()]
+        if "run_id" in columns:
+            return
+
+        conn.execute("SAVEPOINT migrate_frames_run_id")
+        try:
+            conn.execute("ALTER TABLE frames RENAME TO frames_legacy_migration")
+            conn.execute(
+                "CREATE TABLE frames ("
+                "    run_id TEXT NOT NULL DEFAULT 'legacy-run',"
+                "    frame_id INTEGER NOT NULL,"
+                "    timestamp INTEGER NOT NULL,"
+                "    scene_id TEXT NOT NULL,"
+                "    node_id TEXT,"
+                "    perception_data TEXT,"
+                "    decision_data TEXT,"
+                "    vehicle_status TEXT,"
+                "    PRIMARY KEY (run_id, frame_id)"
+                ")"
+            )
+            conn.execute(
+                "INSERT INTO frames (run_id, frame_id, timestamp, scene_id, node_id, "
+                "perception_data, decision_data, vehicle_status) "
+                "SELECT ?, frame_id, timestamp, scene_id, node_id, perception_data, "
+                "decision_data, vehicle_status FROM frames_legacy_migration",
+                (LEGACY_RUN_ID,),
+            )
+            conn.execute("DROP TABLE frames_legacy_migration")
+            conn.execute("RELEASE SAVEPOINT migrate_frames_run_id")
+        except Exception:
+            conn.execute("ROLLBACK TO SAVEPOINT migrate_frames_run_id")
+            conn.execute("RELEASE SAVEPOINT migrate_frames_run_id")
+            raise
+
+    def _migrate_events_if_needed(self, conn):
+        columns = [row[1] for row in conn.execute("PRAGMA table_info(events)").fetchall()]
+        conn.execute("SAVEPOINT migrate_events_run_id")
+        try:
+            if "run_id" not in columns:
+                conn.execute(
+                    "ALTER TABLE events ADD COLUMN run_id TEXT NOT NULL DEFAULT 'legacy-run'"
+                )
+            if "scenario_id" not in columns:
+                conn.execute("ALTER TABLE events ADD COLUMN scenario_id TEXT")
+            conn.execute(
+                "UPDATE events SET run_id = ? WHERE run_id IS NULL OR run_id = ''",
+                (LEGACY_RUN_ID,),
+            )
+            conn.execute(
+                "UPDATE events SET scenario_id = scene_id "
+                "WHERE scenario_id IS NULL OR scenario_id = ''"
+            )
+            conn.execute("RELEASE SAVEPOINT migrate_events_run_id")
+        except Exception:
+            conn.execute("ROLLBACK TO SAVEPOINT migrate_events_run_id")
+            conn.execute("RELEASE SAVEPOINT migrate_events_run_id")
+            raise
+
     def store_frame(self, frame_id: int, timestamp: int, scene_id: str,
                     node_id: str = None, perception: dict = None,
-                    decision: dict = None, vehicle_status: dict = None):
+                    decision: dict = None, vehicle_status: dict = None,
+                    run_id: str = LEGACY_RUN_ID):
         with self._get_conn() as conn:
             conn.execute(
-                "INSERT INTO frames (frame_id, timestamp, scene_id, node_id, "
+                "INSERT INTO frames (run_id, frame_id, timestamp, scene_id, node_id, "
                 "perception_data, decision_data, vehicle_status) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?) "
-                "ON CONFLICT(frame_id) DO UPDATE SET "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(run_id, frame_id) DO UPDATE SET "
                 "timestamp = MAX(frames.timestamp, excluded.timestamp), "
                 "scene_id = COALESCE(excluded.scene_id, frames.scene_id), "
                 "node_id = COALESCE(excluded.node_id, frames.node_id), "
                 "perception_data = COALESCE(excluded.perception_data, frames.perception_data), "
                 "decision_data = COALESCE(excluded.decision_data, frames.decision_data), "
                 "vehicle_status = COALESCE(excluded.vehicle_status, frames.vehicle_status)",
-                (frame_id, timestamp, scene_id, node_id,
+                (run_id, frame_id, timestamp, scene_id, node_id,
                  json.dumps(perception) if perception else None,
                  json.dumps(decision) if decision else None,
                  json.dumps(vehicle_status) if vehicle_status else None),
             )
 
     def store_event(self, event: dict):
+        run_id = event.get("run_id") or LEGACY_RUN_ID
+        scenario_id = (
+            event.get("scenario_id")
+            or event.get("scenario")
+            or event.get("scene_id")
+        )
         with self._get_conn() as conn:
             conn.execute(
-                "INSERT OR REPLACE INTO events (event_id, timestamp, event_type, severity, "
-                "scene_id, min_ttc, outcome, description, involved_objects, "
+                "INSERT OR REPLACE INTO events (event_id, run_id, scenario_id, timestamp, "
+                "event_type, severity, scene_id, min_ttc, outcome, description, involved_objects, "
                 "replay_start_frame, replay_end_frame) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     event["event_id"],
+                    run_id,
+                    scenario_id,
                     event["timestamp"],
                     event["event_type"],
                     event["severity"],
@@ -147,28 +268,43 @@ class DataStore:
                 ),
             )
 
-    def get_frame(self, frame_id: int) -> Optional[dict]:
+    def get_frame(self, frame_id: int, run_id: str = LEGACY_RUN_ID) -> Optional[dict]:
         with self._get_conn() as conn:
             row = conn.execute(
-                "SELECT * FROM frames WHERE frame_id = ?", (frame_id,)
+                self._frame_select_sql("WHERE run_id = ? AND frame_id = ?"),
+                (run_id, frame_id),
             ).fetchone()
             if row is None:
                 return None
             return self._row_to_frame_dict(row)
 
-    def get_frames_range(self, start_ts: int, end_ts: int, scene_id: str) -> list:
+    def list_frames(self, run_id: str = LEGACY_RUN_ID, limit: int = 1000) -> list:
         with self._get_conn() as conn:
             rows = conn.execute(
-                "SELECT * FROM frames WHERE scene_id = ? AND timestamp BETWEEN ? AND ? "
-                "ORDER BY timestamp ASC",
-                (scene_id, start_ts, end_ts),
+                self._frame_select_sql(
+                    "WHERE run_id = ? ORDER BY timestamp ASC, frame_id ASC LIMIT ?"
+                ),
+                (run_id, limit),
+            ).fetchall()
+            return [self._row_to_frame_dict(r) for r in rows]
+
+    def get_frames_range(self, start_ts: int, end_ts: int, scene_id: str,
+                         run_id: str = LEGACY_RUN_ID) -> list:
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                self._frame_select_sql(
+                    "WHERE run_id = ? AND scene_id = ? AND timestamp BETWEEN ? AND ? "
+                    "ORDER BY timestamp ASC"
+                ),
+                (run_id, scene_id, start_ts, end_ts),
             ).fetchall()
             return [self._row_to_frame_dict(r) for r in rows]
 
     def get_events(self, scene_id: str = None, severity: str = None,
-                   limit: int = 50, offset: int = 0) -> tuple:
+                   limit: int = 50, offset: int = 0,
+                   run_id: str | None = None) -> tuple:
         with self._get_conn() as conn:
-            sql = "SELECT * FROM events WHERE 1=1"
+            sql = f"SELECT {self._event_select_cols()} FROM events WHERE 1=1"
             params = []
             if scene_id:
                 sql += " AND scene_id = ?"
@@ -176,6 +312,9 @@ class DataStore:
             if severity:
                 sql += " AND severity = ?"
                 params.append(severity)
+            if run_id:
+                sql += " AND run_id = ?"
+                params.append(run_id)
             sql += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
             rows = conn.execute(sql, params).fetchall()
@@ -187,6 +326,9 @@ class DataStore:
             if severity:
                 count_sql += " AND severity = ?"
                 count_params.append(severity)
+            if run_id:
+                count_sql += " AND run_id = ?"
+                count_params.append(run_id)
             total_row = conn.execute(count_sql, count_params).fetchone()
             total = total_row[0] if total_row else 0
             return total, [self._row_to_event_dict(r) for r in rows]
@@ -194,22 +336,79 @@ class DataStore:
     def get_event_replay(self, event_id: str) -> Optional[dict]:
         with self._get_conn() as conn:
             row = conn.execute(
-                "SELECT * FROM events WHERE event_id = ?", (event_id,)
+                f"SELECT {self._event_select_cols()} FROM events WHERE event_id = ?",
+                (event_id,),
             ).fetchone()
             if row is None:
                 return None
             event = self._row_to_event_dict(row)
-            rs = row[9] if len(row) > 9 else None
-            re = row[10] if len(row) > 10 else None
+            rs = event.get("replay_start_frame")
+            re = event.get("replay_end_frame")
             if rs is not None and re is not None:
                 scene_id = event.get("scene_id", "scene_001")
+                run_id = event.get("run_id", LEGACY_RUN_ID)
                 frames = conn.execute(
-                    "SELECT * FROM frames WHERE scene_id = ? AND frame_id BETWEEN ? AND ? "
-                    "ORDER BY frame_id ASC",
-                    (scene_id, rs, re),
+                    self._frame_select_sql(
+                        "WHERE run_id = ? AND scene_id = ? AND frame_id BETWEEN ? AND ? "
+                        "ORDER BY frame_id ASC"
+                    ),
+                    (run_id, scene_id, rs, re),
                 ).fetchall()
                 event["replay_frames"] = [self._row_to_frame_dict(f) for f in frames]
             return event
+
+    def create_scenario_run(
+        self,
+        run_id: str,
+        scenario_id: str,
+        scene_id: str = "scene_001",
+        started_at: int | None = None,
+        metadata: dict | None = None,
+    ) -> dict:
+        started_at = started_at if started_at is not None else int(time.time() * 1000)
+        with self._get_conn() as conn:
+            conn.execute(
+                "INSERT INTO scenario_runs (run_id, scenario_id, scene_id, status, "
+                "started_at, metadata) VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    run_id,
+                    scenario_id,
+                    scene_id,
+                    "running",
+                    started_at,
+                    json.dumps(metadata, ensure_ascii=False) if metadata else None,
+                ),
+            )
+            row = conn.execute(
+                "SELECT * FROM scenario_runs WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            return self._row_to_scenario_run_dict(row)
+
+    def finish_scenario_run(
+        self,
+        run_id: str,
+        finished_at: int | None = None,
+        status: str = "completed",
+        summary: dict | None = None,
+    ) -> Optional[dict]:
+        finished_at = finished_at if finished_at is not None else int(time.time() * 1000)
+        with self._get_conn() as conn:
+            conn.execute(
+                "UPDATE scenario_runs SET status = ?, finished_at = ?, summary = ? "
+                "WHERE run_id = ?",
+                (
+                    status,
+                    finished_at,
+                    json.dumps(summary, ensure_ascii=False) if summary else None,
+                    run_id,
+                ),
+            )
+            row = conn.execute(
+                "SELECT * FROM scenario_runs WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            return self._row_to_scenario_run_dict(row) if row else None
 
     def get_evaluation_report(self, scene_id: str = "scene_001", report_key: str | None = None) -> dict:
         """Build a lightweight runtime evaluation report from persisted demo data."""
@@ -219,12 +418,15 @@ class DataStore:
 
         with self._get_conn() as conn:
             frame_rows = conn.execute(
-                "SELECT * FROM frames WHERE scene_id = ? ORDER BY timestamp ASC",
-                (scene_id,),
+                self._frame_select_sql(
+                    "WHERE run_id = ? AND scene_id = ? ORDER BY timestamp ASC"
+                ),
+                (LEGACY_RUN_ID, scene_id),
             ).fetchall()
             event_rows = conn.execute(
-                "SELECT * FROM events WHERE scene_id = ? ORDER BY timestamp DESC",
-                (scene_id,),
+                f"SELECT {self._event_select_cols()} FROM events "
+                "WHERE run_id = ? AND scene_id = ? ORDER BY timestamp DESC",
+                (LEGACY_RUN_ID, scene_id),
             ).fetchall()
 
         frames = [self._row_to_frame_dict(row) for row in frame_rows]
@@ -446,9 +648,25 @@ class DataStore:
         return report
 
     @staticmethod
+    def _frame_select_sql(where_clause: str = "") -> str:
+        return (
+            "SELECT frame_id, timestamp, scene_id, node_id, perception_data, "
+            f"decision_data, vehicle_status, run_id FROM frames {where_clause}"
+        )
+
+    @staticmethod
+    def _event_select_cols() -> str:
+        return (
+            "event_id, timestamp, event_type, severity, scene_id, min_ttc, "
+            "outcome, description, involved_objects, replay_start_frame, "
+            "replay_end_frame, run_id, scenario_id"
+        )
+
+    @staticmethod
     def _row_to_frame_dict(row) -> dict:
         cols = ["frame_id", "timestamp", "scene_id", "node_id",
-                "perception_data", "decision_data", "vehicle_status"]
+                "perception_data", "decision_data", "vehicle_status",
+                "run_id"]
         d = dict(zip(cols, row))
         for k in ("perception_data", "decision_data", "vehicle_status"):
             if d.get(k):
@@ -462,5 +680,26 @@ class DataStore:
     def _row_to_event_dict(row) -> dict:
         cols = ["event_id", "timestamp", "event_type", "severity", "scene_id",
                 "min_ttc", "outcome", "description", "involved_objects",
-                "replay_start_frame", "replay_end_frame"]
+                "replay_start_frame", "replay_end_frame", "run_id", "scenario_id"]
         return dict(zip(cols, row))
+
+    @staticmethod
+    def _row_to_scenario_run_dict(row) -> dict:
+        cols = [
+            "run_id",
+            "scenario_id",
+            "scene_id",
+            "status",
+            "started_at",
+            "finished_at",
+            "metadata",
+            "summary",
+        ]
+        data = dict(zip(cols, row))
+        for key in ("metadata", "summary"):
+            if data.get(key):
+                try:
+                    data[key] = json.loads(data[key])
+                except Exception:
+                    pass
+        return data
