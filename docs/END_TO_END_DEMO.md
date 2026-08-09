@@ -92,6 +92,22 @@ SQLite keyframes and sends roadside perception, vehicle status, and decision
 messages; the CloudAgent applies the cloud STGNN stage, persists the enriched
 perception, and broadcasts it through WebSocket.
 
+The runtime contract is:
+
+```text
+GET http://localhost:8000/api/v1/scenarios
+POST http://localhost:8000/api/v1/demo/start?scenario_id=GP-01&fps=10&loop=false
+GET http://localhost:8000/api/v1/demo/status
+POST http://localhost:8000/api/v1/demo/stop
+```
+
+Each realtime message carries `scene_id`, `scenario_id`, `run_id`, and
+`frame_id`; `run_id + frame_id` is the unique frame correlation key. The
+simulated source is explicitly marked as `scenario_replay` and has no raw image
+payload. Jetson Orin Nano and Huawei Atlas 200 DK are future source adapters,
+so switching to a real vehicle does not require changing the CloudAgent, STGNN,
+WebSocket, or Three.js consumer contract.
+
 Preview the exact scene and topics without starting any process:
 
 ```powershell
@@ -127,6 +143,17 @@ The four representative in-memory checks are also available directly:
 ```powershell
 python -m unittest tests.test_scenario_e2e -v
 ```
+
+Validate the complete SQLite catalog before starting the presentation:
+
+```powershell
+python scripts\seed_scenario_library.py --database data\scenario_demo.db
+python scripts\verify_scenario_library.py --database data\scenario_demo.db --frames-per-scenario 15
+```
+
+The validator compiles 15 frames per scenario (240 frames total), checks
+finite road coordinates, monotonic timestamps, unique track IDs, active event
+rules, and confirms that no raw image fields enter the realtime payload.
 
 The frontend derives its REST and WebSocket endpoints from the configurable
 Cloud API Base URL in `/settings`. The default is

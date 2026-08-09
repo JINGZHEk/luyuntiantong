@@ -60,6 +60,15 @@ REQUIRED_SNIPPETS = [
     "python scripts\\evaluate_yolo_detection.py --manifest data\\mini_split\\manifest.json --output data\\mini_split\\yolo_detection.json --dry-run --max-frames 20",
     "python scripts\\train_stgnn.py --samples data\\stgnn_training\\samples.jsonl --output models\\occaware_stgnn.ts --epochs 5 --batch-size 16 --dry-run",
     "python scripts\\evaluate_stgnn_checkpoint.py --samples data\\stgnn_training\\samples.jsonl --checkpoint models\\occaware_stgnn.ts --output data\\mini_split\\stgnn_evaluation.json --dry-run",
+    "python scripts\\seed_scenario_library.py --database data\\scenario_demo.db",
+    "python scripts\\verify_scenario_library.py --database data\\scenario_demo.db --frames-per-scenario 15",
+    "GET http://localhost:8000/api/v1/scenarios",
+    "POST http://localhost:8000/api/v1/demo/start?scenario_id=GP-01&fps=10&loop=false",
+    "GET http://localhost:8000/api/v1/demo/status",
+    "POST http://localhost:8000/api/v1/demo/stop",
+    "Jetson Orin Nano",
+    "Huawei Atlas 200 DK",
+    "run_id + frame_id",
     "logs\\demo_backend.err.log",
     "V2X Cloud API health contract",
     "V2X frontend marker",
@@ -85,6 +94,8 @@ COVERED_COMMANDS = [
     "scripts\\evaluate_yolo_detection.py",
     "scripts\\train_stgnn.py",
     "scripts\\evaluate_stgnn_checkpoint.py",
+    "scripts\\seed_scenario_library.py",
+    "scripts\\verify_scenario_library.py",
 ]
 
 RELATED_DOCS = [
@@ -92,6 +103,7 @@ RELATED_DOCS = [
     "项目介绍.md",
     "docs/END_TO_END_DEMO.md",
     "docs/API_SPEC.md",
+    "docs/DATA_MODEL.md",
     "docs/ARCHITECTURE.md",
 ]
 

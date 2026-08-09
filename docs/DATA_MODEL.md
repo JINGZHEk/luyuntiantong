@@ -83,6 +83,43 @@ DAIR-V2X/
 | 时序抖动 | ±1帧 | 增强时间同步误差鲁棒性 |
 | 节点随机丢失 | drop_prob=0.1 | 模拟检测漏检 |
 
+### 1.4 无硬件场景回放数据源
+
+当前演示不需要真实车辆、摄像头或边缘开发板。`src/scenario_library` 将道路参与者的时间戳、世界坐标、速度、航向、置信度和遮挡等级保存为 SQLite 关键帧，再编译成与真实感知结果相同的 MQTT payload。
+
+数据源标识为 `source.device_type=scenario_replay`、`source.input_type=sqlite`、`source.simulation=true`。payload 不携带原始图片字段，只携带算法和大屏所需的结构化目标数据。未来接入 Jetson Orin Nano 或 Huawei Atlas 200 DK 时，替换的是采集/推理数据源适配器；坐标系、`run_id + frame_id`、Cloud STGNN、WebSocket 和 Three.js 数据契约保持一致。
+
+## 2. SQLite 16 场景库
+
+场景库由四张核心表组成：
+
+| 表 | 内容 |
+|------|------|
+| `scenario_templates` | 场景名称、类别、时长、道路布局、环境和预期结果 |
+| `scenario_actors` | 自车、遮挡物、行人、非机动车和冲突车辆 |
+| `scenario_keyframes` | 每个参与者在 `t_ms` 的位置、速度、航向、可见性和遮挡等级 |
+| `scenario_events` | 场景事件时间点、严重度、参与者和期望决策 |
+
+当前种子数据覆盖：
+
+| 类别 | 场景 ID | 场景数量 |
+|------|---------|---------:|
+| 鬼探头 | `GP-01`～`GP-08` | 8 |
+| 非机动车横穿 | `NM-01`～`NM-04` | 4 |
+| 路口车辆冲突 | `IC-01`～`IC-04` | 4 |
+
+每个场景至少包含自车、目标/冲突对象、遮挡或背景对象、4 个以上事件规则和 3 个以上关键帧。编译器使用真实世界 `road_xy` 米制坐标，输出 `perception.objects[].world_pos`、`velocity`、`occlusion_level` 和 `track_id`，由前端坐标转换层映射到 Three.js 场景。
+
+初始化与验证：
+
+```powershell
+python scripts\seed_scenario_library.py --database data\scenario_demo.db
+python scripts\seed_scenario_library.py --database data\scenario_demo.db --check
+python scripts\verify_scenario_library.py --database data\scenario_demo.db --frames-per-scenario 15
+```
+
+验证脚本会对全部 16 个场景各抽取 15 个时间点，检查时间戳单调、坐标有限、帧内 `track_id` 唯一、事件可激活以及原始图片字段为 0；预期 `frames_checked=240`。
+
 ---
 
 ## 2. 模型设计

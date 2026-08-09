@@ -121,6 +121,21 @@
 }
 ```
 
+### 1.6 回放运行元数据
+
+SQLite 场景回放和未来真实设备接入共用同一套 MQTT 消息 envelope。感知、车端状态、决策和事件消息都应携带：
+
+| 字段 | 说明 |
+|------|------|
+| `scene_id` | 当前道路/路口场景标识 |
+| `scenario_id` | 场景模板标识，例如 `GP-01`、`NM-03`、`IC-02` |
+| `run_id` | 一次场景运行标识；同一运行内保持不变 |
+| `frame_id` | 运行内递增帧号；与 `run_id` 组成持久化唯一键 |
+| `source.device_type` | `scenario_replay`、`roadside_camera` 或 `vehicle` |
+| `source.simulation` | 是否为仿真数据；真车接入时为 `false` |
+
+`run_id + frame_id` 是回放、数据库存储、WebSocket 广播和前端场景更新的统一关联键。`scenario_replay` 仅代表当前无硬件演示的数据源，不改变后续 Jetson Orin Nano 或 Huawei Atlas 200 DK 的消息协议。
+
 ---
 
 ## 2. 云端 REST API
@@ -180,6 +195,19 @@
   "fps": 10.0
 }
 ```
+
+#### SQLite 场景库控制
+
+无硬件演示使用 SQLite 场景模板生成与真实感知协议一致的 MQTT 数据。可用接口为：
+
+```text
+GET http://localhost:8000/api/v1/scenarios
+POST http://localhost:8000/api/v1/demo/start?scenario_id=GP-01&fps=10&loop=false
+GET http://localhost:8000/api/v1/demo/status
+POST http://localhost:8000/api/v1/demo/stop
+```
+
+场景目录固定包含 16 个启用模板：8 个鬼探头（`GP-01`～`GP-08`）、4 个非机动车横穿（`NM-01`～`NM-04`）和 4 个路口车辆冲突（`IC-01`～`IC-04`）。`start` 返回的 `run_id` 用于追踪本次运行；`loop=false` 播放到场景末尾后自动停止。WebSocket 客户端继续订阅 `/api/v1/realtime/ws`，因此切换到真实车辆时只需替换数据源适配器，不需要改 CloudAgent、STGNN、WebSocket 或 Three.js 消费接口。
 
 ### 2.4 历史回放
 
