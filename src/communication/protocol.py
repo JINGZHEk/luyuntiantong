@@ -13,9 +13,12 @@ class DetectedObject:
     confidence: float
     occlusion_level: int  # 0=none, 1=light, 2=moderate, 3=heavy
     predicted_traj: list = field(default_factory=list)  # [[x,y], ...]
+    subtype: Optional[str] = None
+    heading: Optional[float] = None
+    actor_id: Optional[str] = None
 
     def to_dict(self) -> dict:
-        return {
+        payload = {
             "track_id": self.track_id,
             "class": self.obj_class,
             "bbox": self.bbox,
@@ -25,6 +28,13 @@ class DetectedObject:
             "occlusion_level": self.occlusion_level,
             "predicted_traj": self.predicted_traj,
         }
+        if self.subtype is not None:
+            payload["subtype"] = self.subtype
+        if self.heading is not None:
+            payload["heading"] = self.heading
+        if self.actor_id is not None:
+            payload["actor_id"] = self.actor_id
+        return payload
 
 
 @dataclass
@@ -49,6 +59,8 @@ class PerceptionMessage:
             "reason": "not_processed",
         }
     )
+    scenario_id: Optional[str] = None
+    run_id: Optional[str] = None
 
     def to_dict(self) -> dict:
         return {
@@ -63,6 +75,9 @@ class PerceptionMessage:
             "objects": self.objects,
             "prediction": self.prediction,
             "processing_time_ms": self.processing_time_ms,
+            "scenario_id": self.scenario_id,
+            "run_id": self.run_id,
+            "scenario": self.scenario_id,
         }
 
 
@@ -78,6 +93,12 @@ class VehicleStatus:
     acceleration: list = field(default_factory=lambda: [0.0, 0.0])
     mode: str = "cooperative"
     risk_level: str = "SAFE"
+    schema_version: int = 1
+    message_type: str = "vehicle_status"
+    scene_id: str = "scene_001"
+    scenario_id: Optional[str] = None
+    run_id: Optional[str] = None
+    source: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -95,6 +116,13 @@ class DecisionMessage:
     target_object: Optional[dict] = None
     mode: str = "cooperative"
     fusion_weight: float = 1.0
+    schema_version: int = 1
+    message_type: str = "decision"
+    scene_id: str = "scene_001"
+    scenario_id: Optional[str] = None
+    run_id: Optional[str] = None
+    source: dict = field(default_factory=dict)
+    scenario_event: Optional[dict] = None
 
     def to_dict(self) -> dict:
         return {
@@ -108,6 +136,13 @@ class DecisionMessage:
             "target_object": self.target_object,
             "mode": self.mode,
             "fusion_weight": self.fusion_weight,
+            "schema_version": self.schema_version,
+            "message_type": self.message_type,
+            "scene_id": self.scene_id,
+            "scenario_id": self.scenario_id,
+            "run_id": self.run_id,
+            "source": self.source,
+            "scenario_event": self.scenario_event,
         }
 
 
@@ -122,6 +157,11 @@ class CloudEvent:
     min_ttc: float
     outcome: str = "pending"
     description: str = ""
+    schema_version: int = 1
+    message_type: str = "event"
+    scenario_id: Optional[str] = None
+    run_id: Optional[str] = None
+    source: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return asdict(self)

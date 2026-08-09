@@ -37,6 +37,9 @@ class DemoFrameGenerationTest(unittest.TestCase):
         self.assertIn("ttc", decision)
         self.assertIn("brake_decel", decision)
 
+        for message_type in ("perception", "vehicle_status", "decision"):
+            self.assertEqual(frame[message_type]["scenario"], frame["scenario"])
+
     def test_generates_event_during_high_risk_window(self):
         frame = generate_demo_frame(frame_index=54, timestamp=123456, scene_id="scene_001")
 
