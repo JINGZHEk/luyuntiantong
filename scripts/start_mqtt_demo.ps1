@@ -2,6 +2,9 @@ param(
     [int]$ApiPort = 8000,
     [int]$MqttPort = 1883,
     [double]$Fps = 10.0,
+    [string]$ScenarioId = "GP-01",
+    [switch]$UseScenarioLibrary,
+    [switch]$Loop,
     [switch]$NoBrowser,
     [switch]$NoBrokerStart
 )
@@ -141,9 +144,25 @@ if (-not (Wait-Http -Url $healthUrl -Seconds 35)) {
     throw "CloudAgent API did not become ready on $ApiPort. Check logs\mqtt_cloud_agent.err.log"
 }
 
-Start-Agent -Name "mqtt_vehicle_agent" -Arguments @("-m", "src.vehicle_decision.vehicle_agent")
-Start-Sleep -Seconds 1
-Start-Agent -Name "mqtt_replay_engine" -Arguments @("-m", "src.roadside_perception.replay_engine", "--fps", "$Fps")
+if ($UseScenarioLibrary) {
+    $scenarioPublisherArguments = @(
+        "-m", "src.scenario_library.mqtt_publisher",
+        "--scenario-id", "$ScenarioId",
+        "--database-path", "data/v2x_cloud.db",
+        "--broker-host", "127.0.0.1",
+        "--broker-port", "$MqttPort",
+        "--scene-id", "scene_001",
+        "--fps", "$Fps"
+    )
+    if ($Loop) {
+        $scenarioPublisherArguments += "--loop"
+    }
+    Start-Agent -Name "mqtt_scenario_publisher" -Arguments $scenarioPublisherArguments
+} else {
+    Start-Agent -Name "mqtt_vehicle_agent" -Arguments @("-m", "src.vehicle_decision.vehicle_agent")
+    Start-Sleep -Seconds 1
+    Start-Agent -Name "mqtt_replay_engine" -Arguments @("-m", "src.roadside_perception.replay_engine", "--fps", "$Fps")
+}
 
 $monitorUrl = "http://localhost:3000/monitor"
 $apiDocsUrl = "http://localhost:$ApiPort/docs"
@@ -154,6 +173,11 @@ Write-Host "MQTT Broker: 127.0.0.1:$MqttPort"
 Write-Host "Cloud API:   $apiDocsUrl"
 Write-Host "Monitor UI:  $monitorUrl"
 Write-Host "Logs:        $LogRoot"
+if ($UseScenarioLibrary) {
+    Write-Host "Scenario:    $ScenarioId (SQLite scenario library)"
+} else {
+    Write-Host "Scenario:    legacy replay engine"
+}
 Write-Host ""
 Write-Host "Verify with:"
 Write-Host "Invoke-WebRequest http://127.0.0.1:$ApiPort/api/v1/messages/recent?limit=10"

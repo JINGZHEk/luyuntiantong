@@ -84,6 +84,50 @@ The top control bar shows:
 The connection panel shows whether the UI is using live Cloud API WebSocket
 data or local mock fallback data.
 
+## SQLite Scenario Demo Without a Vehicle
+
+The 16-scenario library can drive the same MQTT topics without a camera,
+Jetson Orin Nano, Atlas 200 DK, or physical vehicle. The publisher reads
+SQLite keyframes and sends roadside perception, vehicle status, and decision
+messages; the CloudAgent applies the cloud STGNN stage, persists the enriched
+perception, and broadcasts it through WebSocket.
+
+Preview the exact scene and topics without starting any process:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_scenario_demo.ps1 `
+  -ScenarioId GP-01 -DryRun
+```
+
+Start the full local path (Mosquitto, CloudAgent API, scenario publisher, and
+frontend). The script never deletes the database or repository directory and
+records only the PIDs it started in `logs\scenario_demo.pids.json`:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_scenario_demo.ps1 `
+  -ScenarioId GP-08 -Fps 10 -SkipInstall
+```
+
+Use `-Loop` for a continuously running scene, `-DatabasePath` for an isolated
+SQLite file, and `-ApiPort` / `-FrontendPort` / `-MqttPort` when defaults are
+occupied. `-InMemory` is reserved for automated validation and runs the
+representative MQTT fixture rather than starting local services.
+
+The equivalent extension of the existing MQTT launcher keeps its original
+Roadside → Vehicle fallback replay by default. Add `-UseScenarioLibrary` to
+replace only that source with the SQLite scenario publisher:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\start_mqtt_demo.ps1 `
+  -UseScenarioLibrary -ScenarioId NM-03 -Loop
+```
+
+The four representative in-memory checks are also available directly:
+
+```powershell
+python -m unittest tests.test_scenario_e2e -v
+```
+
 The frontend derives its REST and WebSocket endpoints from the configurable
 Cloud API Base URL in `/settings`. The default is
 `http://localhost:8000/api/v1`, which maps to
