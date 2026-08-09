@@ -120,7 +120,7 @@ class DataStoreEventTest(unittest.TestCase):
 
         self.assertEqual(total, 1)
         self.assertEqual(events[0]["event_id"], "evt_test_001")
-        self.assertEqual(json.loads(events[0]["involved_objects"])[0]["track_id"], 1)
+        self.assertEqual(events[0]["involved_objects"][0]["track_id"], 1)
 
     def test_get_event_replay_returns_matching_frames(self):
         with tempfile.TemporaryDirectory() as tmp:

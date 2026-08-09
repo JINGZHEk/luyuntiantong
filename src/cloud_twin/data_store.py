@@ -139,6 +139,7 @@ class DataStore:
         index_ddl = [
             "CREATE INDEX IF NOT EXISTS idx_frames_ts ON frames(timestamp);",
             "CREATE INDEX IF NOT EXISTS idx_frames_scene ON frames(scene_id);",
+            "CREATE INDEX IF NOT EXISTS idx_frames_run_ts ON frames(run_id, timestamp, frame_id);",
             "CREATE INDEX IF NOT EXISTS idx_events_ts ON events(timestamp);",
             "CREATE INDEX IF NOT EXISTS idx_events_run_ts ON events(run_id, timestamp);",
             "CREATE INDEX IF NOT EXISTS idx_events_severity ON events(severity);",
@@ -681,7 +682,13 @@ class DataStore:
         cols = ["event_id", "timestamp", "event_type", "severity", "scene_id",
                 "min_ttc", "outcome", "description", "involved_objects",
                 "replay_start_frame", "replay_end_frame", "run_id", "scenario_id"]
-        return dict(zip(cols, row))
+        data = dict(zip(cols, row))
+        if data.get("involved_objects"):
+            try:
+                data["involved_objects"] = json.loads(data["involved_objects"])
+            except Exception:
+                pass
+        return data
 
     @staticmethod
     def _row_to_scenario_run_dict(row) -> dict:

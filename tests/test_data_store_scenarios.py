@@ -18,6 +18,14 @@ class DataStoreScenarioTest(unittest.TestCase):
                         "SELECT name FROM sqlite_master WHERE type = 'table'"
                     )
                 }
+                frame_indexes = {
+                    row[1]
+                    for row in conn.execute("PRAGMA index_list(frames)").fetchall()
+                }
+                run_ts_index_columns = [
+                    row[2]
+                    for row in conn.execute("PRAGMA index_info(idx_frames_run_ts)").fetchall()
+                ]
 
         self.assertTrue(
             {
@@ -28,6 +36,8 @@ class DataStoreScenarioTest(unittest.TestCase):
                 "scenario_runs",
             }.issubset(tables)
         )
+        self.assertIn("idx_frames_run_ts", frame_indexes)
+        self.assertEqual(run_ts_index_columns, ["run_id", "timestamp", "frame_id"])
 
     def test_same_frame_id_is_isolated_by_run_id(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -186,10 +196,52 @@ class DataStoreScenarioTest(unittest.TestCase):
 
         self.assertEqual(replay["run_id"], "legacy-run")
         self.assertEqual(replay["scenario_id"], "scene_001")
+        self.assertEqual(replay["involved_objects"], [])
         self.assertEqual([frame["frame_id"] for frame in replay["replay_frames"]], [1, 2])
         self.assertIn("run_id", event_columns)
         self.assertIn("scenario_id", event_columns)
         self.assertIn("idx_events_run_ts", indexes)
+
+    def test_event_involved_objects_decodes_json_and_keeps_invalid_json_safe(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "events.db"
+            store = DataStore(str(db_path))
+            store.store_event(
+                {
+                    "event_id": "evt_valid",
+                    "timestamp": 1000,
+                    "event_type": "ghost_probe",
+                    "severity": "critical",
+                    "scene_id": "scene_001",
+                    "involved_objects": [{"type": "pedestrian", "track_id": 7}],
+                }
+            )
+            with contextlib.closing(sqlite3.connect(store.db_path)) as conn:
+                conn.execute(
+                    "INSERT INTO events (event_id, run_id, scenario_id, timestamp, "
+                    "event_type, severity, scene_id, involved_objects) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        "evt_invalid",
+                        "legacy-run",
+                        "scene_001",
+                        1001,
+                        "ghost_probe",
+                        "high",
+                        "scene_001",
+                        "{bad json",
+                    ),
+                )
+                conn.commit()
+
+            total, events = store.get_events(scene_id="scene_001", limit=10)
+            replay = store.get_event_replay("evt_valid")
+            by_id = {event["event_id"]: event for event in events}
+
+        self.assertEqual(total, 2)
+        self.assertEqual(by_id["evt_valid"]["involved_objects"][0]["track_id"], 7)
+        self.assertEqual(replay["involved_objects"][0]["track_id"], 7)
+        self.assertEqual(by_id["evt_invalid"]["involved_objects"], "{bad json")
 
 
 if __name__ == "__main__":
