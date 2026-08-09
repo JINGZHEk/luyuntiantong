@@ -155,6 +155,21 @@ The validator compiles 15 frames per scenario (240 frames total), checks
 finite road coordinates, monotonic timestamps, unique track IDs, active event
 rules, and confirms that no raw image fields enter the realtime payload.
 
+For a real TCP transport smoke check using the embedded broker, install
+`amqtt` in the algorithm environment and run:
+
+```powershell
+& 'D:\Anaconda\envs\v2x-ghost-algorithm\python.exe' -m pip install amqtt
+& 'D:\Anaconda\envs\v2x-ghost-algorithm\python.exe' scripts\verify_scenario_tcp_mqtt.py `
+  --scenario-id GP-01 --frames 8 --fps 10
+```
+
+This starts an ephemeral TCP broker, connects the real paho MQTT CloudAgent and
+scenario publisher, then verifies the MQTT → CloudAgent/STGNN → storage path.
+It is a network smoke test without a physical vehicle; the separate
+`verify_embedded_mqtt_broker_demo.py` remains available for the legacy three-agent
+fallback path.
+
 The frontend derives its REST and WebSocket endpoints from the configurable
 Cloud API Base URL in `/settings`. The default is
 `http://localhost:8000/api/v1`, which maps to

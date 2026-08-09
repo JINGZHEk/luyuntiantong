@@ -62,6 +62,7 @@ REQUIRED_SNIPPETS = [
     "python scripts\\evaluate_stgnn_checkpoint.py --samples data\\stgnn_training\\samples.jsonl --checkpoint models\\occaware_stgnn.ts --output data\\mini_split\\stgnn_evaluation.json --dry-run",
     "python scripts\\seed_scenario_library.py --database data\\scenario_demo.db",
     "python scripts\\verify_scenario_library.py --database data\\scenario_demo.db --frames-per-scenario 15",
+    "scripts\\verify_scenario_tcp_mqtt.py --scenario-id GP-01 --frames 8 --fps 10",
     "GET http://localhost:8000/api/v1/scenarios",
     "POST http://localhost:8000/api/v1/demo/start?scenario_id=GP-01&fps=10&loop=false",
     "GET http://localhost:8000/api/v1/demo/status",
@@ -96,6 +97,7 @@ COVERED_COMMANDS = [
     "scripts\\evaluate_stgnn_checkpoint.py",
     "scripts\\seed_scenario_library.py",
     "scripts\\verify_scenario_library.py",
+    "scripts\\verify_scenario_tcp_mqtt.py",
 ]
 
 RELATED_DOCS = [
