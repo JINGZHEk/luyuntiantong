@@ -132,6 +132,97 @@ class DataStoreScenarioTest(unittest.TestCase):
         self.assertEqual(finished["status"], "completed")
         self.assertEqual(finished["summary"]["events"], 2)
 
+    def test_create_and_finish_scenario_run_persists_playback_contract_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = DataStore(str(Path(tmp) / "scenario.db"))
+
+            store.create_scenario_run("run-new", "GP-01", 1000, 12.5, True, 42)
+            finished = store.finish_scenario_run(
+                "run-new",
+                "failed",
+                2500,
+                17,
+                "mqtt disconnected",
+            )
+
+            with contextlib.closing(sqlite3.connect(store.db_path)) as conn:
+                row = conn.execute(
+                    "SELECT run_id, scenario_id, started_at, ended_at, requested_fps, "
+                    "loop_enabled, random_seed, status, current_frame, error_message "
+                    "FROM scenario_runs WHERE run_id = ?",
+                    ("run-new",),
+                ).fetchone()
+
+        self.assertEqual(
+            row,
+            (
+                "run-new",
+                "GP-01",
+                1000,
+                2500,
+                12.5,
+                1,
+                42,
+                "failed",
+                17,
+                "mqtt disconnected",
+            ),
+        )
+        self.assertEqual(finished["ended_at"], 2500)
+        self.assertEqual(finished["current_frame"], 17)
+        self.assertEqual(finished["error_message"], "mqtt disconnected")
+
+    def test_existing_scenario_runs_table_migrates_playback_contract_columns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "legacy_scenario_runs.db"
+            with contextlib.closing(sqlite3.connect(db_path)) as conn:
+                conn.execute(
+                    "CREATE TABLE scenario_runs ("
+                    "run_id TEXT PRIMARY KEY,"
+                    "scenario_id TEXT NOT NULL,"
+                    "scene_id TEXT NOT NULL,"
+                    "status TEXT NOT NULL DEFAULT 'running',"
+                    "started_at INTEGER NOT NULL,"
+                    "finished_at INTEGER,"
+                    "metadata TEXT,"
+                    "summary TEXT"
+                    ")"
+                )
+                conn.execute(
+                    "INSERT INTO scenario_runs (run_id, scenario_id, scene_id, status, "
+                    "started_at, metadata) VALUES (?, ?, ?, ?, ?, ?)",
+                    ("legacy-run-001", "old-scenario", "scene_001", "running", 900, "{}"),
+                )
+                conn.commit()
+
+            store = DataStore(str(db_path))
+            finished = store.finish_scenario_run(
+                "legacy-run-001",
+                "completed",
+                1200,
+                9,
+            )
+            with contextlib.closing(sqlite3.connect(store.db_path)) as conn:
+                columns = [row[1] for row in conn.execute("PRAGMA table_info(scenario_runs)")]
+                row = conn.execute(
+                    "SELECT ended_at, requested_fps, loop_enabled, random_seed, "
+                    "current_frame, error_message FROM scenario_runs WHERE run_id = ?",
+                    ("legacy-run-001",),
+                ).fetchone()
+
+        self.assertTrue(
+            {
+                "ended_at",
+                "requested_fps",
+                "loop_enabled",
+                "random_seed",
+                "current_frame",
+                "error_message",
+            }.issubset(columns)
+        )
+        self.assertEqual(row, (1200, 0.0, 0, 0, 9, None))
+        self.assertEqual(finished["finished_at"], 1200)
+
     def test_legacy_event_replay_uses_legacy_run_after_migration(self):
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp) / "legacy_events.db"

@@ -122,9 +122,15 @@ class DataStore:
             "CREATE TABLE IF NOT EXISTS scenario_runs ("
             "    run_id TEXT PRIMARY KEY,"
             "    scenario_id TEXT NOT NULL,"
-            "    scene_id TEXT NOT NULL,"
-            "    status TEXT NOT NULL DEFAULT 'running',"
             "    started_at INTEGER NOT NULL,"
+            "    ended_at INTEGER,"
+            "    requested_fps REAL NOT NULL DEFAULT 0.0,"
+            "    loop_enabled INTEGER NOT NULL DEFAULT 0,"
+            "    random_seed INTEGER NOT NULL DEFAULT 0,"
+            "    status TEXT NOT NULL DEFAULT 'running',"
+            "    current_frame INTEGER NOT NULL DEFAULT 0,"
+            "    error_message TEXT,"
+            "    scene_id TEXT NOT NULL DEFAULT 'scene_001',"
             "    finished_at INTEGER,"
             "    metadata TEXT,"
             "    summary TEXT"
@@ -151,6 +157,7 @@ class DataStore:
                 conn.execute(ddl)
             self._migrate_frames_if_needed(conn)
             self._migrate_events_if_needed(conn)
+            self._migrate_scenario_runs_if_needed(conn)
             for ddl in index_ddl:
                 conn.execute(ddl)
             # Switch to WAL after schema is committed
@@ -215,6 +222,56 @@ class DataStore:
         except Exception:
             conn.execute("ROLLBACK TO SAVEPOINT migrate_events_run_id")
             conn.execute("RELEASE SAVEPOINT migrate_events_run_id")
+            raise
+
+    def _migrate_scenario_runs_if_needed(self, conn):
+        columns = [row[1] for row in conn.execute("PRAGMA table_info(scenario_runs)").fetchall()]
+        required_columns = {
+            "ended_at": "ALTER TABLE scenario_runs ADD COLUMN ended_at INTEGER",
+            "requested_fps": (
+                "ALTER TABLE scenario_runs ADD COLUMN "
+                "requested_fps REAL NOT NULL DEFAULT 0.0"
+            ),
+            "loop_enabled": (
+                "ALTER TABLE scenario_runs ADD COLUMN "
+                "loop_enabled INTEGER NOT NULL DEFAULT 0"
+            ),
+            "random_seed": (
+                "ALTER TABLE scenario_runs ADD COLUMN "
+                "random_seed INTEGER NOT NULL DEFAULT 0"
+            ),
+            "current_frame": (
+                "ALTER TABLE scenario_runs ADD COLUMN "
+                "current_frame INTEGER NOT NULL DEFAULT 0"
+            ),
+            "error_message": "ALTER TABLE scenario_runs ADD COLUMN error_message TEXT",
+            "scene_id": (
+                "ALTER TABLE scenario_runs ADD COLUMN "
+                "scene_id TEXT NOT NULL DEFAULT 'scene_001'"
+            ),
+            "finished_at": "ALTER TABLE scenario_runs ADD COLUMN finished_at INTEGER",
+            "metadata": "ALTER TABLE scenario_runs ADD COLUMN metadata TEXT",
+            "summary": "ALTER TABLE scenario_runs ADD COLUMN summary TEXT",
+        }
+        if all(column in columns for column in required_columns):
+            return
+
+        conn.execute("SAVEPOINT migrate_scenario_runs_contract")
+        try:
+            for column, ddl in required_columns.items():
+                if column not in columns:
+                    conn.execute(ddl)
+            conn.execute(
+                "UPDATE scenario_runs SET ended_at = finished_at "
+                "WHERE ended_at IS NULL AND finished_at IS NOT NULL"
+            )
+            conn.execute(
+                "UPDATE scenario_runs SET current_frame = 0 WHERE current_frame IS NULL"
+            )
+            conn.execute("RELEASE SAVEPOINT migrate_scenario_runs_contract")
+        except Exception:
+            conn.execute("ROLLBACK TO SAVEPOINT migrate_scenario_runs_contract")
+            conn.execute("RELEASE SAVEPOINT migrate_scenario_runs_contract")
             raise
 
     def store_frame(self, frame_id: int, timestamp: int, scene_id: str,
@@ -362,26 +419,37 @@ class DataStore:
         self,
         run_id: str,
         scenario_id: str,
-        scene_id: str = "scene_001",
         started_at: int | None = None,
+        requested_fps: float | None = None,
+        loop_enabled: bool | int = False,
+        random_seed: int | None = None,
+        *,
+        scene_id: str = "scene_001",
         metadata: dict | None = None,
     ) -> dict:
         started_at = started_at if started_at is not None else int(time.time() * 1000)
+        requested_fps = requested_fps if requested_fps is not None else 0.0
+        random_seed = random_seed if random_seed is not None else 0
         with self._get_conn() as conn:
             conn.execute(
-                "INSERT INTO scenario_runs (run_id, scenario_id, scene_id, status, "
-                "started_at, metadata) VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO scenario_runs (run_id, scenario_id, started_at, "
+                "requested_fps, loop_enabled, random_seed, status, current_frame, "
+                "scene_id, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     run_id,
                     scenario_id,
-                    scene_id,
-                    "running",
                     started_at,
+                    requested_fps,
+                    1 if loop_enabled else 0,
+                    random_seed,
+                    "running",
+                    0,
+                    scene_id,
                     json.dumps(metadata, ensure_ascii=False) if metadata else None,
                 ),
             )
             row = conn.execute(
-                "SELECT * FROM scenario_runs WHERE run_id = ?",
+                f"SELECT {self._scenario_run_select_cols()} FROM scenario_runs WHERE run_id = ?",
                 (run_id,),
             ).fetchone()
             return self._row_to_scenario_run_dict(row)
@@ -389,24 +457,32 @@ class DataStore:
     def finish_scenario_run(
         self,
         run_id: str,
-        finished_at: int | None = None,
         status: str = "completed",
+        ended_at: int | None = None,
+        current_frame: int = 0,
+        error_message: str | None = None,
+        *,
+        finished_at: int | None = None,
         summary: dict | None = None,
     ) -> Optional[dict]:
-        finished_at = finished_at if finished_at is not None else int(time.time() * 1000)
+        ended_at = ended_at if ended_at is not None else finished_at
+        ended_at = ended_at if ended_at is not None else int(time.time() * 1000)
         with self._get_conn() as conn:
             conn.execute(
-                "UPDATE scenario_runs SET status = ?, finished_at = ?, summary = ? "
-                "WHERE run_id = ?",
+                "UPDATE scenario_runs SET status = ?, ended_at = ?, finished_at = ?, "
+                "current_frame = ?, error_message = ?, summary = ? WHERE run_id = ?",
                 (
                     status,
-                    finished_at,
+                    ended_at,
+                    ended_at,
+                    current_frame,
+                    error_message,
                     json.dumps(summary, ensure_ascii=False) if summary else None,
                     run_id,
                 ),
             )
             row = conn.execute(
-                "SELECT * FROM scenario_runs WHERE run_id = ?",
+                f"SELECT {self._scenario_run_select_cols()} FROM scenario_runs WHERE run_id = ?",
                 (run_id,),
             ).fetchone()
             return self._row_to_scenario_run_dict(row) if row else None
@@ -664,6 +740,14 @@ class DataStore:
         )
 
     @staticmethod
+    def _scenario_run_select_cols() -> str:
+        return (
+            "run_id, scenario_id, started_at, ended_at, requested_fps, "
+            "loop_enabled, random_seed, status, current_frame, error_message, "
+            "scene_id, finished_at, metadata, summary"
+        )
+
+    @staticmethod
     def _row_to_frame_dict(row) -> dict:
         cols = ["frame_id", "timestamp", "scene_id", "node_id",
                 "perception_data", "decision_data", "vehicle_status",
@@ -695,14 +779,22 @@ class DataStore:
         cols = [
             "run_id",
             "scenario_id",
-            "scene_id",
-            "status",
             "started_at",
+            "ended_at",
+            "requested_fps",
+            "loop_enabled",
+            "random_seed",
+            "status",
+            "current_frame",
+            "error_message",
+            "scene_id",
             "finished_at",
             "metadata",
             "summary",
         ]
         data = dict(zip(cols, row))
+        if data.get("finished_at") is None and data.get("ended_at") is not None:
+            data["finished_at"] = data["ended_at"]
         for key in ("metadata", "summary"):
             if data.get(key):
                 try:
