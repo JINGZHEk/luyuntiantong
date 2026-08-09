@@ -78,3 +78,17 @@
 [data-theme='light'] .badgeAccent :global(.ant-badge-count) {
   box-shadow: none !important;
 }
+
+[data-theme='light'] .iconAccent,
+[data-theme='light'] .iconSuccess,
+[data-theme='light'] .iconWarning {
+  filter: none;
+}
+
+[data-theme='light'] .ttc {
+  text-shadow: none;
+}
+
+[data-theme='light'] .ttcCritical {
+  animation: none;
+}

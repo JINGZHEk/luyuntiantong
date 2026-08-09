@@ -20,7 +20,7 @@
 
 .label {
   color: var(--color-text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -51,4 +51,9 @@
 
 .number {
   font-family: inherit;
+}
+
+[data-theme='light'] .value,
+[data-theme='light'] .card:hover .value {
+  text-shadow: none;
 }

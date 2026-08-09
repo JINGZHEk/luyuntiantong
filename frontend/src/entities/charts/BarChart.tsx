@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { BaseChart } from './BaseChart';
-import { CHART_COLORS } from '@/constants/colors';
+import { useSettingsStore } from '@/store/settingsStore';
+import { getChartPalette, resolveChartColor } from '@/constants/echarts-theme';
 import * as echarts from 'echarts/core';
 
 interface BarChartProps {
@@ -18,38 +19,45 @@ export const BarChart: React.FC<BarChartProps> = ({
   height = 300,
   horizontal = false,
 }) => {
+  const theme = useSettingsStore((state) => state.theme);
+  const palette = getChartPalette(theme);
+
   const option = useMemo(
     () => {
-      const defaultColors = [
-        CHART_COLORS.primary,
-        CHART_COLORS.secondary,
-        CHART_COLORS.tertiary,
-        CHART_COLORS.quaternary,
-        CHART_COLORS.quinary,
-      ];
-
       return {
-        title: title ? { text: title, textStyle: { fontSize: 14 }, left: 'center' } : undefined,
+        title: title ? {
+          text: title,
+          textStyle: { color: palette.textPrimary, fontSize: 14 },
+          left: 'center',
+        } : undefined,
         tooltip: { trigger: 'axis' as const },
         legend: {
           bottom: 0,
-          textStyle: { fontSize: 11 },
+          textStyle: { color: palette.text, fontSize: 12 },
           data: series.map((s) => s.name),
         },
         xAxis: horizontal
           ? { type: 'value' as const }
-          : { type: 'category' as const, data: categories, axisLabel: { rotate: 30, fontSize: 10 } },
+          : {
+            type: 'category' as const,
+            data: categories,
+            axisLabel: { color: palette.axisLabel, rotate: 30, fontSize: 11 },
+          },
         yAxis: horizontal
-          ? { type: 'category' as const, data: categories }
-          : { type: 'value' as const, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } },
+          ? { type: 'category' as const, data: categories, axisLabel: { color: palette.axisLabel, fontSize: 11 } }
+          : {
+            type: 'value' as const,
+            axisLabel: { color: palette.axisLabel, fontSize: 11 },
+            splitLine: { lineStyle: { color: palette.grid } },
+          },
         series: series.map((s, i) => ({
           name: s.name,
           type: 'bar' as const,
           data: s.data,
           itemStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: s.color || defaultColors[i % defaultColors.length] },
-              { offset: 1, color: 'rgba(0, 0, 0, 0.08)' },
+              { offset: 0, color: resolveChartColor(theme, s.color, palette.series[i % palette.series.length]) },
+              { offset: 1, color: palette.gradientEnd },
             ]),
             borderRadius: horizontal ? [0, 5, 5, 0] : [5, 5, 0, 0],
           },
@@ -57,7 +65,7 @@ export const BarChart: React.FC<BarChartProps> = ({
         })),
       };
     },
-    [categories, series, title, horizontal],
+    [categories, series, title, horizontal, palette, theme],
   );
 
   return <BaseChart option={option} height={height} />;

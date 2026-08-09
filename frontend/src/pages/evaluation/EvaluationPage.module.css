@@ -6,7 +6,7 @@
 .demoTag {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   box-shadow: 0 0 8px -2px currentColor;
 }
 
@@ -33,7 +33,7 @@
 }
 
 .summaryCard :global(.ant-statistic-title) {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-text-secondary);
@@ -68,7 +68,7 @@
 
 .targetRow {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) 110px 120px 70px;
+  grid-template-columns: minmax(0, 1fr) minmax(84px, 110px) minmax(96px, 120px) auto;
   align-items: center;
   min-height: 48px;
   gap: var(--spacing-md);
@@ -101,7 +101,7 @@
 .targetMetric span,
 .targetGoal {
   color: var(--color-text-secondary);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .targetValue {
@@ -131,8 +131,8 @@
 
 /* ── Light mode ── */
 [data-theme='light'] .summaryCard::before {
-  background: linear-gradient(90deg, transparent, #d0d5dd, transparent) !important;
-  opacity: 0.4 !important;
+  background: var(--color-border-strong) !important;
+  opacity: 0.7 !important;
 }
 
 [data-theme='light'] .demoTag {
@@ -141,4 +141,23 @@
 
 [data-theme='light'] .targetValue {
   text-shadow: none !important;
+}
+
+[data-theme='light'] .summaryCard :global(.ant-statistic-content) {
+  text-shadow: none;
+}
+
+@media (max-width: 760px) {
+  .targetRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .targetGoal {
+    grid-column: 1;
+  }
+
+  .targetRow :global(.ant-tag) {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
 }

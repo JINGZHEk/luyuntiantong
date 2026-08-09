@@ -64,7 +64,7 @@
 .metricLabel {
   overflow: hidden;
   color: var(--color-text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   text-overflow: ellipsis;
@@ -105,13 +105,22 @@
 .trend {
   gap: 3px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .trendUp { color: var(--color-success); }
 .trendDown { color: var(--color-danger); }
 .trendStable { color: var(--color-text-muted); font-family: var(--font-mono); font-size: 12px; }
+
+[data-theme='light'] .number,
+[data-theme='light'] .card:hover .number {
+  text-shadow: none;
+}
+
+[data-theme='light'] .sparklineRow svg {
+  filter: none;
+}
 
 @media (max-width: 520px) {
   .card :global(.ant-card-body) {

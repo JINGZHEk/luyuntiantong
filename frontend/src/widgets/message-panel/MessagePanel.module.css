@@ -72,4 +72,5 @@
 [data-theme='light'] .item[data-topic='v2x/cloud/event']:hover,
 [data-theme='light'] .item[data-topic='v2x/cloud/fusion']:hover {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+  transform: none;
 }

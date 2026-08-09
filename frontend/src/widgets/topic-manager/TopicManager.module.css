@@ -4,7 +4,6 @@
   padding: 2px 8px;
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--color-accent) 6%, transparent);
-  text-shadow: 0 0 6px color-mix(in srgb, var(--color-accent) 20%, transparent);
 }
 
 .badgeActive :global(.ant-badge-count) {
@@ -19,4 +18,15 @@
 /* ── Light mode ── */
 [data-theme='light'] .badgeActive :global(.ant-badge-count) {
   box-shadow: none !important;
+}
+
+[data-theme='light'] .topic {
+  text-shadow: none;
+}
+
+[data-theme='light'] .item:hover,
+[data-theme='light'] .item[data-topic='v2x/vehicle/state']:hover,
+[data-theme='light'] .item[data-topic='v2x/cloud/event']:hover,
+[data-theme='light'] .item[data-topic='v2x/cloud/fusion']:hover {
+  transform: none;
 }

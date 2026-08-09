@@ -19,9 +19,12 @@
   --spacing-lg: 20px;
   --spacing-xl: 24px;
   --spacing-xxl: 32px;
+  --control-height: 40px;
+  --touch-target: 44px;
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --radius-card: 10px;
 }
 
 [data-theme='dark'] {
@@ -30,8 +33,10 @@
   --color-surface: rgba(16, 24, 48, 0.86);
   --color-surface-solid: #101830;
   --color-surface-raised: rgba(20, 31, 60, 0.94);
+  --color-surface-subtle: rgba(255, 255, 255, 0.04);
   --color-border: rgba(0, 212, 255, 0.15);
   --color-border-strong: rgba(0, 212, 255, 0.32);
+  --color-primary: #00d4ff;
   --color-accent: #00d4ff;
   --color-success: #00ff88;
   --color-warning: #faad14;
@@ -53,26 +58,28 @@
 
 [data-theme='light'] {
   color-scheme: light;
-  --color-bg: #f0f2f5;
-  --color-surface: rgba(255, 255, 255, 0.94);
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
   --color-surface-solid: #ffffff;
   --color-surface-raised: #ffffff;
-  --color-border: #e8e8e8;
-  --color-border-strong: #b7d7ff;
-  --color-accent: #1677ff;
-  --color-success: #389e0d;
-  --color-warning: #d89614;
-  --color-danger: #d9363e;
-  --color-purple: #722ed1;
-  --color-orange: #d4380d;
-  --color-pink: #c41d7f;
-  --color-text: #1f1f1f;
-  --color-text-secondary: #595959;
-  --color-text-muted: #8c8c8c;
-  --app-background: linear-gradient(135deg, #f7f9fc 0%, #f0f2f5 100%);
+  --color-surface-subtle: #f1f5f9;
+  --color-border: #cbd5e1;
+  --color-border-strong: #93c5fd;
+  --color-primary: #1e40af;
+  --color-accent: #2563eb;
+  --color-success: #15803d;
+  --color-warning: #b45309;
+  --color-danger: #b91c1c;
+  --color-purple: #6d28d9;
+  --color-orange: #c2410c;
+  --color-pink: #be185d;
+  --color-text: #0f172a;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748b;
+  --app-background: linear-gradient(180deg, #f8fafc 0%, #eef4fb 100%);
   --app-background-size: 100% 100%;
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-card-hover: 0 8px 20px rgba(22, 119, 255, 0.12);
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.06), 0 4px 12px rgb(15 23 42 / 0.04);
+  --shadow-card-hover: 0 4px 16px rgb(15 23 42 / 0.10);
 }
 
 * {
@@ -91,6 +98,8 @@ body,
 
 body {
   font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
   color: var(--color-text);
   background-color: var(--color-bg);
   background-image: var(--app-background);
@@ -120,11 +129,16 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
-.app-shell,
-.app-shell > .ant-layout,
-.app-shell .ant-layout {
+.app-shell {
   min-height: 100%;
   color: var(--color-text);
+  background-color: var(--color-bg);
+  background-image: var(--app-background);
+  background-size: var(--app-background-size);
+}
+
+.app-shell > .ant-layout,
+.app-shell .ant-layout {
   background: transparent;
 }
 
@@ -180,7 +194,7 @@ select:focus-visible {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--color-border) !important;
-  border-radius: var(--radius-md) !important;
+  border-radius: var(--radius-card) !important;
   background: var(--color-surface) !important;
   backdrop-filter: blur(16px) saturate(1.2);
   box-shadow:
@@ -529,72 +543,60 @@ select:focus-visible {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   Light Theme — 纯净浅色覆盖
-   移除所有霓虹辉光，呈现干净、护眼、专业的界面
-   注意：CSS Module 类名的覆盖已移至各组件的 .module.css 文件中
+   Light Theme — Analytical Console surface system
    ═══════════════════════════════════════════════════════════ */
 
-[data-theme='light'] {
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --app-background: linear-gradient(160deg, #f8f9fc 0%, #f0f2f5 40%, #eef1f5 100%);
-}
-
-/* ── 全局：移除所有文字霓虹辉光 ── */
-[data-theme='light'] * {
-  text-shadow: none !important;
-}
-
-/* ── 全局：SVG 滤镜辉光 ── */
-[data-theme='light'] svg {
-  filter: none !important;
-}
-
-/* ── 全局工具类：移除辉光阴影 ── */
-[data-theme='light'] .glass-card,
-[data-theme='light'] .glass-card::before,
-[data-theme='light'] .glass-card::after,
-[data-theme='light'] .glass-card:hover,
-[data-theme='light'] .glass-card:hover::before,
-[data-theme='light'] .glass-card:hover::after,
-[data-theme='light'] .neon-text,
-[data-theme='light'] .tech-border::before,
-[data-theme='light'] .tech-border::after,
-[data-theme='light'] .holo-border::before,
-[data-theme='light'] .gradient-border::before,
-[data-theme='light'] .data-shimmer::after,
-[data-theme='light'] .scan-line::after,
-[data-theme='light'] .data-pulse,
-[data-theme='light'] .risk-blink-critical {
+[data-theme='light'] .glass-card {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   box-shadow: var(--shadow-card) !important;
+  transform: none;
+}
+
+[data-theme='light'] .glass-card::before,
+[data-theme='light'] .glass-card::after {
+  display: none;
 }
 
 [data-theme='light'] .glass-card:hover {
+  border-color: var(--color-border-strong) !important;
   box-shadow: var(--shadow-card-hover) !important;
+  transform: none;
 }
 
-/* ── Glass Card 浅色适配 ── */
-[data-theme='light'] .glass-card {
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  background: rgba(255, 255, 255, 0.97) !important;
+[data-theme='light'] .neon-text {
+  text-shadow: none;
 }
 
-[data-theme='light'] .glass-card::before {
-  background: linear-gradient(90deg, transparent 10%, #d0d5dd 50%, transparent 90%) !important;
-  opacity: 0.5 !important;
+[data-theme='light'] .holo-border::before,
+[data-theme='light'] .gradient-border::before,
+[data-theme='light'] .data-shimmer::after,
+[data-theme='light'] .scan-line::after {
+  opacity: 0;
 }
 
-[data-theme='light'] .glass-card::after {
-  background: none !important;
-  opacity: 0 !important;
+[data-theme='light'] .gradient-border::before,
+[data-theme='light'] .data-shimmer::after,
+[data-theme='light'] .scan-line::after {
+  animation: none;
 }
 
-/* ── 滚动条 ── */
+[data-theme='light'] .data-pulse,
+[data-theme='light'] .risk-blink-critical {
+  animation: none;
+  box-shadow: none;
+}
+
+[data-theme='light'] svg {
+  filter: none;
+}
+
 [data-theme='light'] ::-webkit-scrollbar-thumb {
-  background: #c8cdd4 !important;
+  background: color-mix(in srgb, var(--color-text-muted) 45%, transparent);
 }
 
 [data-theme='light'] ::-webkit-scrollbar-thumb:hover {
-  background: #a8adb4 !important;
+  background: color-mix(in srgb, var(--color-text-secondary) 55%, transparent);
 }

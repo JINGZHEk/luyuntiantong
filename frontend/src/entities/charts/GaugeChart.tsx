@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { BaseChart } from './BaseChart';
-import { CHART_COLORS, RISK_COLORS } from '@/constants/colors';
+import { useSettingsStore } from '@/store/settingsStore';
+import { getChartPalette, resolveChartColor } from '@/constants/echarts-theme';
 import { normalizeGaugeRange } from './gauge-utils';
 
 interface GaugeChartProps {
@@ -20,17 +21,19 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
   height = 200,
   thresholds,
 }) => {
+  const theme = useSettingsStore((state) => state.theme);
+  const palette = getChartPalette(theme);
   const range = normalizeGaugeRange(min, max);
   const safeValue = Math.min(range.max, Math.max(range.min, value));
   const defaultThresholds = thresholds || [
-    { value: 0.4, color: RISK_COLORS.low },
-    { value: 0.65, color: RISK_COLORS.medium },
-    { value: 0.85, color: RISK_COLORS.high },
-    { value: 1.0, color: RISK_COLORS.critical },
+    { value: 0.4, color: palette.riskThresholds[0] },
+    { value: 0.65, color: palette.riskThresholds[1] },
+    { value: 0.85, color: palette.riskThresholds[2] },
+    { value: 1.0, color: palette.riskThresholds[3] },
   ];
   const axisLineColors: [number, string][] = defaultThresholds.map((threshold) => [
     Math.min(1, Math.max(0, (threshold.value - range.min) / (range.max - range.min))),
-    threshold.color,
+    resolveChartColor(theme, threshold.color, threshold.color),
   ]);
 
   const option = useMemo(
@@ -50,7 +53,7 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
           pointer: { show: false },
           anchor: { show: false },
           title: title
-            ? { show: true, offsetCenter: [0, '62%'], color: '#8892a4', fontSize: 12 }
+            ? { show: true, offsetCenter: [0, '62%'], color: palette.text, fontSize: 12 }
             : { show: false },
           detail: {
             valueAnimation: true,
@@ -59,13 +62,13 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
             fontWeight: 700,
             offsetCenter: [0, '10%'],
             formatter: (current: number) => current.toFixed(2),
-            color: CHART_COLORS.primary,
+            color: palette.primary,
           },
           data: [{ value: safeValue, name: title || '' }],
         },
       ],
     }),
-    [axisLineColors, range.max, range.min, safeValue, title],
+    [axisLineColors, range.max, range.min, safeValue, title, palette],
   );
 
   return <BaseChart option={option} height={height} />;
