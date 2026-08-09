@@ -138,6 +138,7 @@ def _track(
     scenario_id: str,
     actor_id: str,
     duration_ms: int,
+    middle_t_ms: int,
     positions: tuple[tuple[float, float], ...],
     velocities: tuple[tuple[float, float], ...],
     headings: tuple[float, ...],
@@ -145,7 +146,7 @@ def _track(
     confidences: tuple[float, ...] = (0.96, 0.85, 0.94),
     behaviors: tuple[str, ...] = ("approach", "occluded_crossing", "clear"),
 ) -> list[dict[str, Any]]:
-    times = (0, duration_ms // 2, duration_ms)
+    times = (0, middle_t_ms, duration_ms)
     return [
         {
             "scenario_id": scenario_id,
@@ -243,8 +244,8 @@ def _build_seed(scenario_id: str) -> dict[str, Any]:
 
     keyframes: list[dict[str, Any]] = []
     ego_headings = (0.0, 18.0, 35.0) if scenario_id == "IC-02" else (0.0, 0.0, 0.0)
-    keyframes.extend(_track(scenario_id, "ego", duration_ms, ((-24.0, 0.0), (-12.0, 0.0), (4.0, 0.0)), ((6.0, 0.0), (6.0, 0.0), (4.0, 0.0)), ego_headings, (0, 0, 0), (0.99, 0.99, 0.99), ("cruise", "approach", "mitigated")))
-    keyframes.extend(_track(scenario_id, "occluder", duration_ms, ((4.0, 2.5), (4.0, 2.5), (4.0, 2.5)), ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)), (0.0, 0.0, 0.0), (0, 3, 1), (0.98, 0.98, 0.98), ("parked", "blocking", "blocking")))
+    keyframes.extend(_track(scenario_id, "ego", duration_ms, trigger_ms, ((-24.0, 0.0), (-12.0, 0.0), (4.0, 0.0)), ((6.0, 0.0), (6.0, 0.0), (4.0, 0.0)), ego_headings, (0, 0, 0), (0.99, 0.99, 0.99), ("cruise", "approach", "mitigated")))
+    keyframes.extend(_track(scenario_id, "occluder", duration_ms, trigger_ms, ((4.0, 2.5), (4.0, 2.5), (4.0, 2.5)), ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)), (0.0, 0.0, 0.0), (0, 3, 1), (0.98, 0.98, 0.98), ("parked", "blocking", "blocking")))
 
     target_positions = ((15.0, 5.0), (9.0, 1.0), (3.0, -4.0))
     target_velocities = ((0.0, -1.0), (0.0, -1.2), (0.0, -1.0))
@@ -252,8 +253,8 @@ def _build_seed(scenario_id: str) -> dict[str, Any]:
     target_occlusions = (3, 3, 0)
     target_behaviors = ("hidden", "emerging", "crossing")
     if scenario_id == "GP-08":
-        target_positions = ((15.0, 5.0), (9.0, 1.0), (11.0, 3.0))
-        target_velocities = ((0.0, -1.0), (0.0, -1.2), (0.0, 1.1))
+        target_positions = ((15.0, 5.0), (9.0, -1.0), (11.0, 10.0))
+        target_velocities = ((0.0, -1.0), (0.0, -1.0), (0.0, 1.1))
         target_behaviors = ("approach", "hesitate", "return")
     if category == "non_motor":
         target_positions = ((14.0, 4.0), (8.0, 0.5), (2.0, -4.0))
@@ -267,7 +268,7 @@ def _build_seed(scenario_id: str) -> dict[str, Any]:
     if scenario_id == "NM-03":
         target_velocities = ((-1.2, 0.0), (-1.1, 0.8), (-1.0, 0.1))
         target_behaviors = ("queue", "lane_change", "merge")
-    keyframes.extend(_track(scenario_id, "target-1", duration_ms, target_positions, target_velocities, target_headings, target_occlusions, (0.7, 0.78, 0.92), target_behaviors))
+    keyframes.extend(_track(scenario_id, "target-1", duration_ms, trigger_ms, target_positions, target_velocities, target_headings, target_occlusions, (0.7, 0.78, 0.92), target_behaviors))
 
     for extra in detail.get("extra_actors", []):
         actor_id = extra["actor_id"]
@@ -287,7 +288,7 @@ def _build_seed(scenario_id: str) -> dict[str, Any]:
             positions = ((18.0, 4.0), (10.0, 1.0), (2.0, -3.0))
             velocities = ((-1.0, -0.2), (-1.0, -0.6), (-0.8, -0.8))
             occlusions = (0, 0, 0)
-        keyframes.extend(_track(scenario_id, actor_id, duration_ms, positions, velocities, (0.0, 0.0, 0.0), occlusions, (0.9, 0.85, 0.9), ("approach", "conflict", "clear")))
+        keyframes.extend(_track(scenario_id, actor_id, duration_ms, trigger_ms, positions, velocities, (0.0, 0.0, 0.0), occlusions, (0.9, 0.85, 0.9), ("approach", "conflict", "clear")))
 
     events = _events(scenario_id, detail["event_prefix"], duration_ms)
     return {"template": template, "actors": actors, "keyframes": keyframes, "events": events}
