@@ -61,5 +61,6 @@ describe('light theme processing status semantics', () => {
 
     expect(screen.getByRole('button', { name: '切换到深色主题' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: '收起导航菜单' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '收起侧边导航' })).toBeInTheDocument();
   });
 });

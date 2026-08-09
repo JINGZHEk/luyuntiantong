@@ -3,10 +3,12 @@ import { Badge, Button, Layout, Menu, Tooltip } from 'antd';
 import {
   DashboardOutlined,
   ExperimentOutlined,
+  LeftOutlined,
   MenuUnfoldOutlined,
   MonitorOutlined,
   MoonOutlined,
   PlayCircleOutlined,
+  RightOutlined,
   RocketOutlined,
   SettingOutlined,
   SunOutlined,
@@ -112,6 +114,15 @@ export const MainLayout: React.FC = () => {
         onCollapse={setCollapsed}
         width={220}
         collapsedWidth={72}
+        trigger={(
+          <button
+            type="button"
+            className={styles.siderTriggerButton}
+            aria-label={collapsed ? '展开侧边导航' : '收起侧边导航'}
+          >
+            {collapsed ? <RightOutlined aria-hidden="true" /> : <LeftOutlined aria-hidden="true" />}
+          </button>
+        )}
         className={`${styles.sider} ${collapsed ? styles.siderCollapsed : ''}`}
       >
         <div className={styles.siderInner}>
