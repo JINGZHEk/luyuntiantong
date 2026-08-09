@@ -1,5 +1,6 @@
 import asyncio
 import json
+import math
 import time
 from dataclasses import asdict
 from typing import Set
@@ -23,6 +24,16 @@ scenario_repository: ScenarioRepository = None
 ws_clients: Set[WebSocket] = set()
 _recent_messages: list = []
 _message_buffer_size = 200
+
+
+def _json_safe(value):
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return value
 
 
 @asynccontextmanager
@@ -84,7 +95,11 @@ async def websocket_endpoint(ws: WebSocket):
 
 async def broadcast_to_clients(msg_type: str, data: dict):
     """Broadcast a message to all connected WebSocket clients."""
-    message = json.dumps({"type": msg_type, "data": data, "timestamp": int(time.time() * 1000)})
+    message = json.dumps(
+        {"type": msg_type, "data": _json_safe(data), "timestamp": int(time.time() * 1000)},
+        ensure_ascii=False,
+        allow_nan=False,
+    )
     _recent_messages.append(message)
     if len(_recent_messages) > _message_buffer_size:
         _recent_messages.pop(0)

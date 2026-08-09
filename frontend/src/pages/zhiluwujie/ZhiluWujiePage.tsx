@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { ZhiluWujieScene, type Mode, type EgoPhase, type ScenarioMetrics, type TrafficMetrics, type RSUData } from './scene';
 import { createSceneRealtimeAdapter, type SceneRealtimeAdapter } from './sceneRealtimeAdapter';
 import { wsService } from '@/services/websocketService';
+import { buildWebSocketUrl } from '@/services/runtimeConfig';
 import type {
   CloudEventPayload,
   DataMode,
@@ -128,7 +129,7 @@ export default function ZhiluWujiePage() {
       if (type === 'decision') sc.applyDecision(data as DecisionPayload, receivedAt);
       if (type === 'event') sc.applyEvent(data as CloudEventPayload, receivedAt);
     });
-    wsService.connect();
+    wsService.connect(buildWebSocketUrl());
 
     return () => {
       unsubscribeMessages();

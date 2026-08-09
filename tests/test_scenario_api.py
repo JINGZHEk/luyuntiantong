@@ -1,4 +1,6 @@
 import asyncio
+import json
+import math
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,6 +17,33 @@ from src.scenario_library.seed_data import seed_scenario_library
 
 
 class ScenarioApiTest(unittest.TestCase):
+    def test_websocket_broadcast_converts_non_finite_numbers_to_null(self):
+        class FakeWebSocket:
+            def __init__(self):
+                self.messages = []
+
+            async def send_text(self, message):
+                self.messages.append(message)
+
+        async def run_test():
+            client = FakeWebSocket()
+            original_clients = api_module.ws_clients
+            api_module.ws_clients = {client}
+            try:
+                await api_module.broadcast_to_clients(
+                    "decision",
+                    {"ttc": float("inf"), "nested": [float("nan")]},
+                )
+            finally:
+                api_module.ws_clients = original_clients
+
+            payload = json.loads(client.messages[0])
+            self.assertIsNone(payload["data"]["ttc"])
+            self.assertIsNone(payload["data"]["nested"][0])
+            self.assertFalse(math.isinf(payload["data"]["ttc"] or 0))
+
+        asyncio.run(run_test())
+
     def test_list_and_detail_endpoints_expose_seeded_library(self):
         with tempfile.TemporaryDirectory() as tmp:
             original = (api_module.store, api_module.demo_engine, api_module.config_store, api_module.scenario_repository)
