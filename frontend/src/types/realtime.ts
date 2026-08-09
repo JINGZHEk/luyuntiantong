@@ -26,6 +26,21 @@ export interface DemoRunStatus {
   available_scenarios: string[];
 }
 
+export interface PooledObjectState {
+  key: string;
+  trackId: string | number;
+  nodeId: string;
+  class: string;
+  modelType: 'person' | 'bicycle' | 'vehicle' | 'generic';
+  position: { x: number; y: number; z: number };
+  heading: number;
+  velocity: NumericPair;
+  confidence?: number;
+  lastSeenAt: number;
+  occlusionLevel: number;
+  predictedTrajectory: Array<{ x: number; y: number; z: number }>;
+}
+
 export type CoordinateStatus = 'valid' | 'invalid' | 'unknown';
 export type PredictionStatus = 'ready' | 'fallback' | 'deferred' | 'invalid_coordinate' | 'local' | 'unknown';
 
@@ -54,6 +69,7 @@ export interface CloudObjectPayload {
   occlusion_level?: number;
   world_pos?: NumericPair;
   velocity?: NumericPair;
+  heading?: number;
   confidence?: number;
   coordinate_status?: CoordinateStatus | string;
   coordinate_reason?: string | null;
