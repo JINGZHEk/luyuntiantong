@@ -31,9 +31,35 @@ describe('semi-realistic scene visual factory', () => {
     expect(DEFAULT_SCENE_STYLE.background).toBe(0x030712);
     expect(DEFAULT_SCENE_STYLE.bloomStrength).toBeCloseTo(0.16);
     expect(DEFAULT_SCENE_STYLE.scanlineOpacity).toBeCloseTo(0.018);
-    expect(DEFAULT_SCENE_STYLE.palette.road).toBe(0x080c16);
-    expect(DEFAULT_SCENE_STYLE.palette.ground).toBe(0x0d1721);
-    expect(DEFAULT_SCENE_STYLE.palette.windowGlow).toBe(0xb09a72);
+    expect(DEFAULT_SCENE_STYLE.fogNear).toBe(120);
+    expect(DEFAULT_SCENE_STYLE.fogFar).toBe(320);
+    expect(DEFAULT_SCENE_STYLE.toneMappingExposure).toBeCloseTo(1.05);
+    expect(DEFAULT_SCENE_STYLE.maxPixelRatio).toBeCloseTo(1.5);
+    expect(DEFAULT_SCENE_STYLE.shadowMapSize).toBe(1024);
+    expect(DEFAULT_SCENE_STYLE.palette).toEqual({
+      ground: 0x0d1721,
+      road: 0x080c16,
+      curb: 0x24303a,
+      sidewalk: 0x111d28,
+      marking: 0xb9b4a3,
+      yellowMarking: 0x8b7545,
+      building: 0x0d151d,
+      window: 0x6e624d,
+      windowGlow: 0xb09a72,
+      treeTrunk: 0x211b18,
+      treeCanopy: 0x13251f,
+      metal: 0x334351,
+      glass: 0x273c4e,
+      person: 0x607789,
+      bicycle: 0x4e8f83,
+      vehicle: 0x3c5669,
+      generic: 0x657080,
+      cyan: 0x72cbd0,
+      blue: 0x6e86ad,
+      red: 0xd56f72,
+      green: 0x76a889,
+      orange: 0xb4975f,
+    });
   });
 
   it('uses the shared style for the scene bloom default', () => {
@@ -76,6 +102,7 @@ describe('semi-realistic scene visual factory', () => {
     expect(roadMeshes).toHaveLength(2);
     expect(roadMeshes.every((mesh) => mesh.geometry instanceof THREE.PlaneGeometry)).toBe(true);
     expect(roadMeshes.every((mesh) => mesh.material instanceof THREE.MeshStandardMaterial)).toBe(true);
+    expect((roadMeshes[0].material as THREE.MeshStandardMaterial).color.getHex()).toBe(DEFAULT_SCENE_STYLE.palette.road);
   });
 
   it('extends road and sidewalk bounds across the fallback travel envelope', () => {
@@ -129,9 +156,39 @@ describe('semi-realistic scene visual factory', () => {
     for (const mesh of meshes(signal)) {
       const material = mesh.material as THREE.Material & { emissiveIntensity?: number };
       if (material.emissiveIntensity !== undefined) {
-        expect(material.emissiveIntensity).toBeLessThanOrEqual(0.3);
+        expect(material.emissiveIntensity).toBeLessThanOrEqual(0.45);
       }
     }
+    expect(((signal.getObjectByName('signal-yellow') as THREE.Mesh).material as THREE.MeshStandardMaterial).emissiveIntensity)
+      .toBeCloseTo(0.45);
+    for (const color of ['red', 'green'] as const) {
+      expect(((signal.getObjectByName(`signal-${color}`) as THREE.Mesh).material as THREE.MeshStandardMaterial).emissiveIntensity)
+        .toBeCloseTo(0.03);
+    }
+  });
+
+  it('uses bounded night vehicle materials and adds restrained body detail', () => {
+    const vehicle = createRealtimeActorModel({ class: 'car', modelType: 'vehicle' });
+    const bodyMaterial = (vehicle.getObjectByName('vehicle-body') as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    const windowMaterial = (vehicle.getObjectByName('vehicle-window-front') as THREE.Mesh).material as THREE.MeshStandardMaterial;
+
+    expect(bodyMaterial.color.getHex()).toBe(DEFAULT_SCENE_STYLE.palette.vehicle);
+    expect(bodyMaterial.roughness).toBeCloseTo(0.68);
+    expect(bodyMaterial.metalness).toBeCloseTo(0.18);
+    expect(bodyMaterial.emissive.getHex()).toBe(0);
+    expect(bodyMaterial.emissiveIntensity).toBeLessThanOrEqual(0.05);
+    expect(windowMaterial.color.getHex()).toBe(DEFAULT_SCENE_STYLE.palette.glass);
+    expect(windowMaterial.emissive.getHex()).toBe(DEFAULT_SCENE_STYLE.palette.windowGlow);
+    expect(windowMaterial.emissiveIntensity).toBeGreaterThan(0);
+    expect(windowMaterial.emissiveIntensity).toBeLessThanOrEqual(0.2);
+    expect(namedDescendants(vehicle)).toEqual(expect.arrayContaining([
+      'vehicle-bumper-front',
+      'vehicle-bumper-rear',
+      'vehicle-window-side-front-left',
+      'vehicle-window-side-front-right',
+      'vehicle-window-side-rear-left',
+      'vehicle-window-side-rear-right',
+    ]));
   });
 
   it('builds readable person, bicycle, vehicle, and generic actor models', () => {

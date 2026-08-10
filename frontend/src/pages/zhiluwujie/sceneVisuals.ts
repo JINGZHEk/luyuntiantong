@@ -6,34 +6,47 @@ export interface ActorVisualState {
 }
 
 export const DEFAULT_SCENE_STYLE = {
-  background: 0xc8d0cc,
-  bloomStrength: 0.05,
-  scanlineOpacity: 0.03,
+  background: 0x030712,
+  bloomStrength: 0.16,
+  scanlineOpacity: 0.018,
+  fogNear: 120,
+  fogFar: 320,
+  toneMappingExposure: 1.05,
+  maxPixelRatio: 1.5,
+  shadowMapSize: 1024,
+  palette: {
+    ground: 0x0d1721,
+    road: 0x080c16,
+    curb: 0x24303a,
+    sidewalk: 0x111d28,
+    marking: 0xb9b4a3,
+    yellowMarking: 0x8b7545,
+    building: 0x0d151d,
+    window: 0x6e624d,
+    windowGlow: 0xb09a72,
+    treeTrunk: 0x211b18,
+    treeCanopy: 0x13251f,
+    metal: 0x334351,
+    glass: 0x273c4e,
+    person: 0x607789,
+    bicycle: 0x4e8f83,
+    vehicle: 0x3c5669,
+    generic: 0x657080,
+    cyan: 0x72cbd0,
+    blue: 0x6e86ad,
+    red: 0xd56f72,
+    green: 0x76a889,
+    orange: 0xb4975f,
+  },
 } as const;
 
-const COLORS = {
-  asphalt: 0x3f4548,
-  curb: 0x8b9290,
-  sidewalk: 0xaeb5b1,
-  marking: 0xe4e3d8,
-  yellowMarking: 0xc0b06c,
-  building: 0x7c8587,
-  window: 0x9faeb0,
-  trunk: 0x685e51,
-  canopy: 0x6f806c,
-  black: 0x202528,
-  white: 0xf2f0e6,
-  vehicle: 0x6d7d86,
-  person: 0x667477,
-  bicycle: 0x5f6e67,
-  generic: 0x858b89,
-} as const;
+const COLORS = DEFAULT_SCENE_STYLE.palette;
 
 function standardMaterial(color: number, options: Partial<THREE.MeshStandardMaterialParameters> = {}) {
   return new THREE.MeshStandardMaterial({
     color,
-    roughness: 0.82,
-    metalness: 0.04,
+    roughness: 0.78,
+    metalness: 0.1,
     emissiveIntensity: 0,
     ...options,
   });
@@ -128,7 +141,11 @@ export function createBuilding(width: number, height: number, depth: number): TH
   const rows = Math.max(1, Math.floor(height / 2.4));
   const windowWidth = Math.min(0.75, Math.max(0.35, width / (columns * 2.4)));
   const windowHeight = Math.min(0.7, Math.max(0.35, height / (rows * 2.8)));
-  const windowMaterial = standardMaterial(COLORS.window, { roughness: 0.65 });
+  const windowMaterial = standardMaterial(COLORS.window, {
+    emissive: COLORS.windowGlow,
+    emissiveIntensity: 0.1,
+    roughness: 0.65,
+  });
 
   for (let row = 0; row < rows; row += 1) {
     for (let column = 0; column < columns; column += 1) {
@@ -146,11 +163,11 @@ export function createTree(): THREE.Group {
   const tree = new THREE.Group();
   tree.name = 'tree';
 
-  const trunk = mesh('tree-trunk', new THREE.CylinderGeometry(0.28, 0.38, 2.4, 8), standardMaterial(COLORS.trunk));
+  const trunk = mesh('tree-trunk', new THREE.CylinderGeometry(0.28, 0.38, 2.4, 8), standardMaterial(COLORS.treeTrunk));
   trunk.position.y = 1.2;
   tree.add(trunk);
 
-  const canopy = mesh('tree-canopy', new THREE.IcosahedronGeometry(1.35, 1), standardMaterial(COLORS.canopy, { roughness: 1 }));
+  const canopy = mesh('tree-canopy', new THREE.IcosahedronGeometry(1.35, 1), standardMaterial(COLORS.treeCanopy, { roughness: 1 }));
   canopy.position.y = 3.05;
   tree.add(canopy);
   return tree;
@@ -159,7 +176,7 @@ export function createTree(): THREE.Group {
 export function createTrafficSignal(active: 'red' | 'yellow' | 'green'): THREE.Group {
   const signal = new THREE.Group();
   signal.name = 'traffic-signal';
-  const darkMaterial = standardMaterial(COLORS.black, { roughness: 0.72 });
+  const darkMaterial = standardMaterial(COLORS.metal, { roughness: 0.72 });
 
   const pole = mesh('signal-pole', new THREE.CylinderGeometry(0.08, 0.1, 3.4, 8), darkMaterial);
   pole.position.y = 1.7;
@@ -167,15 +184,15 @@ export function createTrafficSignal(active: 'red' | 'yellow' | 'green'): THREE.G
   addBox(signal, 'signal-housing', 0.72, 1.65, 0.46, darkMaterial, [0, 3.15, 0]);
 
   const lampColors: Record<'red' | 'yellow' | 'green', number> = {
-    red: 0xa76762,
-    yellow: 0xb4a269,
-    green: 0x718a75,
+    red: COLORS.red,
+    yellow: COLORS.orange,
+    green: COLORS.green,
   };
   (['red', 'yellow', 'green'] as const).forEach((color, index) => {
     const isActive = color === active;
     const material = standardMaterial(lampColors[color], {
       emissive: lampColors[color],
-      emissiveIntensity: isActive ? 0.2 : 0.03,
+      emissiveIntensity: isActive ? 0.45 : 0.03,
       roughness: 0.5,
     });
     const lamp = mesh(`signal-${color}`, new THREE.SphereGeometry(0.19, 12, 8), material);
@@ -209,7 +226,7 @@ export function createIntersectionLayout(): THREE.Group {
 
   const roadSurface = new THREE.Group();
   roadSurface.name = 'road-surface';
-  const roadMaterial = standardMaterial(COLORS.asphalt, { roughness: 0.95 });
+  const roadMaterial = standardMaterial(COLORS.road, { roughness: 0.95 });
   const northSouthRoad = mesh('road-surface-north-south', new THREE.PlaneGeometry(18, 220), roadMaterial);
   northSouthRoad.rotation.x = -Math.PI / 2;
   northSouthRoad.position.y = 0.01;
@@ -277,20 +294,43 @@ function createVehicleModel(actorClass: string): THREE.Group {
   vehicle.name = 'actor-vehicle';
   const normalizedClass = actorClass.toLowerCase();
   const bodyColor = normalizedClass === 'truck'
-    ? 0x756f68
+    ? COLORS.blue
     : normalizedClass === 'bus'
-      ? 0x687a78
+      ? COLORS.green
       : COLORS.vehicle;
-  const bodyMaterial = standardMaterial(bodyColor);
+  const bodyMaterial = standardMaterial(bodyColor, {
+    roughness: 0.68,
+    metalness: 0.18,
+    emissive: 0x000000,
+    emissiveIntensity: 0,
+  });
   addBox(vehicle, 'vehicle-body', 1.55, 0.5, 3.2, bodyMaterial, [0, 0.62, 0]);
+
+  const bumperMaterial = standardMaterial(COLORS.metal, { roughness: 0.72, metalness: 0.18 });
+  addBox(vehicle, 'vehicle-bumper-front', 1.42, 0.12, 0.1, bumperMaterial, [0, 0.4, -1.62]);
+  addBox(vehicle, 'vehicle-bumper-rear', 1.42, 0.12, 0.1, bumperMaterial, [0, 0.4, 1.62]);
 
   const windows = new THREE.Group();
   windows.name = 'vehicle-windows';
-  addBox(windows, 'vehicle-window-front', 1.18, 0.34, 0.65, standardMaterial(COLORS.window), [0, 0.96, -0.68]);
-  addBox(windows, 'vehicle-window-rear', 1.18, 0.34, 0.65, standardMaterial(COLORS.window), [0, 0.96, 0.68]);
+  const glassMaterial = standardMaterial(COLORS.glass, {
+    emissive: COLORS.windowGlow,
+    emissiveIntensity: 0.12,
+    roughness: 0.5,
+    metalness: 0.08,
+  });
+  addBox(windows, 'vehicle-window-front', 1.18, 0.34, 0.65, glassMaterial, [0, 0.96, -0.68]);
+  addBox(windows, 'vehicle-window-rear', 1.18, 0.34, 0.65, glassMaterial, [0, 0.96, 0.68]);
+  ([
+    ['vehicle-window-side-front-left', -0.79, -0.55],
+    ['vehicle-window-side-front-right', 0.79, -0.55],
+    ['vehicle-window-side-rear-left', -0.79, 0.55],
+    ['vehicle-window-side-rear-right', 0.79, 0.55],
+  ] as const).forEach(([name, x, z]) => {
+    addBox(windows, name, 0.06, 0.3, 0.72, glassMaterial, [x, 0.96, z]);
+  });
   vehicle.add(windows);
 
-  const wheelMaterial = standardMaterial(COLORS.black, { roughness: 0.95 });
+  const wheelMaterial = standardMaterial(COLORS.metal, { roughness: 0.95, metalness: 0.18 });
   ([
     ['vehicle-wheel-front-left', -0.82, -1.05],
     ['vehicle-wheel-front-right', 0.82, -1.05],
@@ -305,13 +345,23 @@ function createVehicleModel(actorClass: string): THREE.Group {
 
   const headlightFront = new THREE.Group();
   headlightFront.name = 'vehicle-headlight-front';
-  addBox(headlightFront, 'vehicle-headlight-front-left', 0.28, 0.16, 0.08, standardMaterial(0xd4d2bd), [-0.48, 0.68, -1.63]);
-  addBox(headlightFront, 'vehicle-headlight-front-right', 0.28, 0.16, 0.08, standardMaterial(0xd4d2bd), [0.48, 0.68, -1.63]);
+  const headlightMaterial = standardMaterial(COLORS.windowGlow, {
+    emissive: COLORS.windowGlow,
+    emissiveIntensity: 0.22,
+    roughness: 0.4,
+  });
+  addBox(headlightFront, 'vehicle-headlight-front-left', 0.28, 0.16, 0.08, headlightMaterial, [-0.48, 0.68, -1.63]);
+  addBox(headlightFront, 'vehicle-headlight-front-right', 0.28, 0.16, 0.08, headlightMaterial, [0.48, 0.68, -1.63]);
   vehicle.add(headlightFront);
   const taillightRear = new THREE.Group();
   taillightRear.name = 'vehicle-taillight-rear';
-  addBox(taillightRear, 'vehicle-taillight-rear-left', 0.28, 0.16, 0.08, standardMaterial(0x8b625f), [-0.48, 0.68, 1.63]);
-  addBox(taillightRear, 'vehicle-taillight-rear-right', 0.48, 0.16, 0.08, standardMaterial(0x8b625f), [0.48, 0.68, 1.63]);
+  const taillightMaterial = standardMaterial(COLORS.red, {
+    emissive: COLORS.red,
+    emissiveIntensity: 0.18,
+    roughness: 0.4,
+  });
+  addBox(taillightRear, 'vehicle-taillight-rear-left', 0.28, 0.16, 0.08, taillightMaterial, [-0.48, 0.68, 1.63]);
+  addBox(taillightRear, 'vehicle-taillight-rear-right', 0.48, 0.16, 0.08, taillightMaterial, [0.48, 0.68, 1.63]);
   vehicle.add(taillightRear);
   if (normalizedClass === 'truck') {
     vehicle.scale.set(1.18, 1.22, 1.35);
@@ -324,7 +374,7 @@ function createVehicleModel(actorClass: string): THREE.Group {
 function createPersonModel(): THREE.Group {
   const person = new THREE.Group();
   person.name = 'actor-person';
-  const skin = standardMaterial(0xb5a493);
+  const skin = standardMaterial(COLORS.windowGlow);
   const clothing = standardMaterial(COLORS.person);
   const head = mesh('person-head', new THREE.SphereGeometry(0.24, 12, 8), skin);
   head.position.y = 1.75;
@@ -340,7 +390,7 @@ function createPersonModel(): THREE.Group {
 function createBicycleModel(): THREE.Group {
   const bicycle = new THREE.Group();
   bicycle.name = 'actor-bicycle';
-  const wheelMaterial = standardMaterial(COLORS.black, { roughness: 0.95 });
+  const wheelMaterial = standardMaterial(COLORS.metal, { roughness: 0.95, metalness: 0.18 });
   const frontWheel = mesh('bicycle-wheel-front', new THREE.TorusGeometry(0.62, 0.055, 8, 16), wheelMaterial);
   frontWheel.position.set(0.68, 0.65, 0);
   bicycle.add(frontWheel);
