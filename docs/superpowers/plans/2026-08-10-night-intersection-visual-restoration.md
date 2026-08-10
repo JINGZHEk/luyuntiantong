@@ -176,7 +176,7 @@ Use this exact behavior:
 
 ```ts
 advance(deltaSeconds: number): void {
-  const dt = Math.max(0, Math.min(deltaSeconds, 0.1));
+  const dt = Math.max(0, Math.min(deltaSeconds, 1));
   const blend = 1 - Math.exp(-this.smoothingRate * dt);
   const predictionSeconds = Math.min(this.predictionWindowMs / 1000, dt);
 
