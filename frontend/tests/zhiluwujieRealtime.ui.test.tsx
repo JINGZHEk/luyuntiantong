@@ -31,7 +31,7 @@ vi.mock('../src/pages/zhiluwujie/scene', () => {
     frame = 0;
     scenarioTime = 0;
     metrics = { cpu: 70, nodes: 142, fps: 28, latency: 12, inferMs: 28, gpuUtil: 62, decisionMs: 5, lossRate: 0.2 };
-    trafficMetrics = { vehicles: 0, avgSpeed: 0, density: '0', congestion: 0, flowHistory: [], laneStats: [] };
+    trafficMetrics = { vehicles: 0, avgSpeed: 0, density: '0', congestion: 0, flowHistory: [40], laneStats: [] };
     rsuData = [];
     onLog?: (message: string, type: string) => void;
     init = vi.fn();
@@ -91,5 +91,21 @@ describe('ZhiluWujie realtime data source', () => {
 
     act(() => vi.advanceTimersByTime(4100));
     expect(screen.getByText('FALLBACK')).toBeInTheDocument();
+  });
+
+  it('rolls the throughput bars from the latest traffic flow sample', () => {
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
+    render(<ZhiluWujiePage />);
+    act(() => vi.advanceTimersByTime(3300));
+    fireEvent.click(screen.getByRole('button', { name: '接入孪生系统' }));
+    act(() => vi.advanceTimersByTime(250));
+
+    const throughputLabel = screen.getByText('全网数据吞吐量');
+    const bars = throughputLabel.parentElement?.querySelectorAll('[style*="height"]');
+    expect(bars).toHaveLength(25);
+    expect(bars?.[24]).toHaveStyle({ height: '100%' });
+
+    randomSpy.mockRestore();
   });
 });

@@ -43,10 +43,10 @@ const PHASE_LABELS: Record<EgoPhase, string> = {
 };
 
 const MODE_COLORS: Record<Mode, { accent: string; rgb: string }> = {
-  ego:     { accent: '#4f9791', rgb: '79, 151, 145' },
-  traffic: { accent: '#66856b', rgb: '102, 133, 107' },
-  v2i:     { accent: '#717b8d', rgb: '113, 123, 141' },
-  algo:    { accent: '#a18358', rgb: '161, 131, 88' },
+  ego:     { accent: '#72cbd0', rgb: '114, 203, 208' },
+  traffic: { accent: '#76a889', rgb: '118, 168, 137' },
+  v2i:     { accent: '#6e86ad', rgb: '110, 134, 173' },
+  algo:    { accent: '#b4975f', rgb: '180, 151, 95' },
 };
 
 /* ------------------------------------------------------------------ */
@@ -178,7 +178,12 @@ export default function ZhiluWujiePage() {
         setSignals(sc.getTrafficSignalData());
         if (!realtimeAdapterRef.current) setScenarioTime(sc.scenarioTime);
         setPerf({ inferMs: sc.metrics.inferMs, gpuUtil: sc.metrics.gpuUtil, decisionMs: sc.metrics.decisionMs, lossRate: sc.metrics.lossRate });
-        setThroughputBars(Array.from({ length: 25 }, () => 20 + Math.random() * 80));
+        const history = sc.trafficMetrics.flowHistory;
+        const flowSample = history.length > 0 ? history[history.length - 1] : sc.metrics.fps;
+        setThroughputBars(prev => [
+          ...prev.slice(1),
+          Math.max(20, Math.min(100, 20 + flowSample * 2)),
+        ]);
       }
       rafRef.current = requestAnimationFrame(tick);
     };

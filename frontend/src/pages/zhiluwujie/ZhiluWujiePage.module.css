@@ -5,7 +5,7 @@
 
 @property --hud-accent {
   syntax: '<color>';
-  initial-value: #4f9791;
+  initial-value: #72cbd0;
   inherits: true;
 }
 
@@ -14,17 +14,17 @@
   position: fixed;
   inset: 0;
   overflow: hidden;
-  --bg-dark: #c8d0cc;
-  --neon-cyan: #4f9791;
-  --neon-blue: #717b8d;
-  --neon-green: #66856b;
-  --neon-orange: #a18358;
-  --neon-red: #e2a098;
-  --neon-purple: #7c7084;
-  --hud-text: #dfe8e3;
-  --hud-muted: #c0cbc5;
-  --hud-subtle: #aebbb4;
-  background: var(--bg-dark, #c8d0cc);
+  --bg-dark: #030712;
+  --neon-cyan: #72cbd0;
+  --neon-blue: #6e86ad;
+  --neon-green: #76a889;
+  --neon-orange: #b4975f;
+  --neon-red: #d56f72;
+  --neon-purple: #7d6c91;
+  --hud-text: #e7edf2;
+  --hud-muted: #9daab5;
+  --hud-subtle: #687989;
+  background: var(--bg-dark);
   color: var(--hud-text);
   font-family: 'PingFang SC', 'Rajdhani', system-ui, sans-serif;
   user-select: none;
@@ -48,17 +48,17 @@
   z-index: 999;
   pointer-events: none;
   opacity: var(--scanline-opacity, 0.02);
-  background: linear-gradient(rgba(30, 35, 34, 0) 50%, rgba(30, 35, 34, 0.18) 50%);
+  background: linear-gradient(rgba(3, 11, 25, 0) 50%, rgba(3, 11, 25, 0.18) 50%);
   background-size: 100% 3px;
 }
 
 /* ---- Glass Panel ---- */
 .panel {
-  background: rgba(30, 35, 34, 0.58);
+  background: rgba(3, 11, 25, 0.76);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(223, 232, 227, 0.2);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32), 0 0 24px -12px rgba(var(--hud-accent-rgb), 0.06);
+  border: 1px solid rgba(var(--hud-accent-rgb), 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 40px -12px rgba(var(--hud-accent-rgb), 0.08);
   position: relative;
   border-radius: 6px;
   padding: 12px;
@@ -91,8 +91,8 @@
 }
 
 .panelRed {
-  border-color: rgba(226, 160, 152, 0.65) !important;
-  box-shadow: 0 0 22px rgba(226, 160, 152, 0.14) !important;
+  border-color: rgba(213, 111, 114, 0.5) !important;
+  box-shadow: 0 0 30px rgba(213, 111, 114, 0.2) !important;
 }
 
 .panelRed::before,
@@ -107,7 +107,7 @@
   position: absolute;
   inset: 0;
   z-index: 100;
-  background: radial-gradient(circle at center, rgba(65, 76, 73, 0.96) 0%, rgba(30, 35, 34, 0.98) 100%);
+  background: radial-gradient(circle at center, #0a1128 0%, #000 100%);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -132,7 +132,7 @@
   color: #fff;
   letter-spacing: 0.2em;
   margin: 0 0 8px;
-  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.32);
+  text-shadow: 0 0 15px rgba(var(--hud-accent-rgb), 0.8);
   font-family: 'Rajdhani', system-ui, sans-serif;
 }
 
@@ -174,13 +174,13 @@
   position: relative;
   overflow: hidden;
   transition: all 0.3s;
-  box-shadow: 0 0 10px rgba(var(--hud-accent-rgb), 0.12) inset;
+  box-shadow: 0 0 15px rgba(var(--hud-accent-rgb), 0.2) inset;
 }
 
 .cyberBtn:hover {
   background: var(--hud-accent);
   color: #000;
-  box-shadow: 0 0 18px rgba(var(--hud-accent-rgb), 0.25);
+  box-shadow: 0 0 30px rgba(var(--hud-accent-rgb), 0.8);
 }
 
 /* ================================================================ */
