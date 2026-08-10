@@ -49,6 +49,12 @@ const MODE_COLORS: Record<Mode, { accent: string; rgb: string }> = {
   algo:    { accent: '#b4975f', rgb: '180, 151, 95' },
 };
 
+const INITIAL_THROUGHPUT_BARS = [
+  42, 48, 55, 51, 63, 58, 67, 61, 72, 68,
+  76, 70, 81, 74, 79, 86, 77, 84, 90, 82,
+  88, 94, 86, 92, 96,
+];
+
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
@@ -77,7 +83,7 @@ export default function ZhiluWujiePage() {
   const [perf, setPerf] = useState({ inferMs: 28, gpuUtil: 62, decisionMs: 5, lossRate: 0.2 });
   const [bloom, setBloom] = useState<number>(DEFAULT_SCENE_STYLE.bloomStrength);
   const [fusionW, setFusionW] = useState(1.0);
-  const [throughputBars, setThroughputBars] = useState<number[]>(() => Array.from({ length: 25 }, () => 20 + Math.random() * 80));
+  const [throughputBars, setThroughputBars] = useState<number[]>(INITIAL_THROUGHPUT_BARS);
   const [dataMode, setDataMode] = useState<DataMode>('fallback');
   const [realtimeContext, setRealtimeContext] = useState({
     scenarioId: null as string | null,
@@ -315,7 +321,7 @@ export default function ZhiluWujiePage() {
                 <p className={styles.throughputLabel}>全网数据吞吐量</p>
                 <div className={styles.bars}>
                   {throughputBars.map((h, i) => (
-                    <div key={i} className={styles.bar} style={{ height: `${h}%`, background: Math.random() > 0.8 ? 'var(--neon-cyan)' : 'var(--neon-blue)' }} />
+                    <div key={i} className={styles.bar} style={{ height: `${h}%`, background: 'rgba(var(--hud-accent-rgb), 0.55)' }} />
                   ))}
                 </div>
               </div>

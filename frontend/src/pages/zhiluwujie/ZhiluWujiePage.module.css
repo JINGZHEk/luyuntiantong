@@ -148,7 +148,7 @@
   width: 380px;
   font-family: monospace;
   font-size: 0.75rem;
-  color: var(--hud-subtle);
+  color: var(--hud-muted);
   margin-bottom: 32px;
   height: 128px;
   overflow-y: auto;
@@ -251,7 +251,7 @@
   display: flex;
   gap: 10px;
   margin: 8px 0 2px;
-  color: var(--hud-subtle);
+  color: var(--hud-muted);
   font-size: 9px;
   font-family: monospace;
   letter-spacing: 0.06em;
@@ -289,7 +289,7 @@
 
 .metricUnit {
   font-size: 0.625rem;
-  color: var(--hud-subtle);
+  color: var(--hud-muted);
 }
 
 .throughputArea {
@@ -426,7 +426,7 @@
 
 .frameText {
   font-size: 10px;
-  color: var(--hud-subtle);
+  color: var(--hud-muted);
   margin: 2px 0 0;
 }
 
@@ -486,7 +486,7 @@
 
 .menuFooterLabel {
   font-size: 10px;
-  color: var(--hud-subtle);
+  color: var(--hud-muted);
   margin: 0 0 4px;
 }
 
@@ -554,7 +554,7 @@
 }
 
 .alertDotDanger {
-  background: var(--neon-red, #e2a098);
+  background: var(--neon-red, #d56f72);
   animation: pulse 1s ease-in-out infinite;
 }
 
@@ -585,9 +585,9 @@
 }
 
 .phaseTagDanger {
-  background: rgba(226, 160, 152, 0.2);
+  background: rgba(213, 111, 114, 0.2);
   color: #fecaca;
-  border-color: var(--neon-red, #e2a098);
+  border-color: var(--neon-red, #d56f72);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
@@ -626,7 +626,7 @@
 }
 
 .dangerText {
-  color: var(--neon-red, #e2a098) !important;
+  color: var(--neon-red, #d56f72) !important;
 }
 
 .riskBarBg {
@@ -646,7 +646,7 @@
 }
 
 .riskBarDanger {
-  background: var(--neon-red, #e2a098);
+  background: var(--neon-red, #d56f72);
 }
 
 .decisionGrid {
@@ -720,7 +720,7 @@
 
 .logInfo { color: var(--hud-muted); }
 .logWarn { color: var(--neon-orange, #a18358); }
-.logDanger { color: var(--neon-red, #e2a098); font-weight: bold; }
+.logDanger { color: var(--neon-red, #d56f72); font-weight: bold; }
 .logSuccess { color: var(--neon-green, #66856b); }
 
 .logTime {
@@ -984,7 +984,7 @@
 }
 
 .hbTime {
-  color: var(--hud-subtle);
+  color: var(--hud-muted);
   margin-left: auto;
 }
 
@@ -1096,7 +1096,7 @@
 
 .timelineLabel {
   font-size: 10px;
-  color: var(--hud-subtle);
+  color: var(--hud-muted);
   letter-spacing: 0.3em;
   font-weight: bold;
 }

@@ -93,19 +93,22 @@ describe('ZhiluWujie realtime data source', () => {
     expect(screen.getByText('FALLBACK')).toBeInTheDocument();
   });
 
-  it('rolls the throughput bars from the latest traffic flow sample', () => {
-    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
-
+  it('keeps throughput bars deterministic and rolls the latest traffic flow sample', () => {
     render(<ZhiluWujiePage />);
     act(() => vi.advanceTimersByTime(3300));
     fireEvent.click(screen.getByRole('button', { name: '接入孪生系统' }));
-    act(() => vi.advanceTimersByTime(250));
 
     const throughputLabel = screen.getByText('全网数据吞吐量');
+    const initialBars = throughputLabel.parentElement?.querySelectorAll('[style*="height"]');
+    expect(initialBars).toHaveLength(25);
+    expect(initialBars?.[0]).toHaveStyle({ height: '42%' });
+    expect(initialBars?.[24]).toHaveStyle({ height: '96%' });
+    expect(initialBars?.[24]).toHaveStyle({ background: 'rgba(var(--hud-accent-rgb), 0.55)' });
+
+    act(() => vi.advanceTimersByTime(250));
+
     const bars = throughputLabel.parentElement?.querySelectorAll('[style*="height"]');
     expect(bars).toHaveLength(25);
     expect(bars?.[24]).toHaveStyle({ height: '100%' });
-
-    randomSpy.mockRestore();
   });
 });
