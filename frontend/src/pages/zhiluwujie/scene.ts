@@ -94,9 +94,13 @@ export interface RealtimeSceneMetrics {
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 const T = {
-  cyan: 0x4f9791, blue: 0x717b8d, red: 0xe2a098,
-  green: 0x66856b, orange: 0xa18358,
-};
+  cyan: DEFAULT_SCENE_STYLE.palette.cyan,
+  blue: DEFAULT_SCENE_STYLE.palette.blue,
+  red: DEFAULT_SCENE_STYLE.palette.red,
+  green: DEFAULT_SCENE_STYLE.palette.green,
+  orange: DEFAULT_SCENE_STYLE.palette.orange,
+} as const;
+const SIGNAL_EMISSIVE = { active: 0.45, inactive: 0.03 } as const;
 const SCENARIO_DUR = 12;
 const EVT = { pedStart: 3, rsuDetect: 4.5, v2xWarn: 5, brakeStart: 5.5, stopTime: 7.5, safeCross: 9.5 };
 
@@ -185,15 +189,15 @@ export class ZhiluWujieScene {
     /* renderer */
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setSize(w, h);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, DEFAULT_SCENE_STYLE.maxPixelRatio));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.2;
+    this.renderer.toneMappingExposure = DEFAULT_SCENE_STYLE.toneMappingExposure;
     container.appendChild(this.renderer.domElement);
 
     /* scene */
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(DEFAULT_SCENE_STYLE.background);
-    this.scene.fog = new THREE.Fog(DEFAULT_SCENE_STYLE.background, 140, 360);
+    this.scene.fog = new THREE.Fog(DEFAULT_SCENE_STYLE.background, DEFAULT_SCENE_STYLE.fogNear, DEFAULT_SCENE_STYLE.fogFar);
 
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -211,7 +215,7 @@ export class ZhiluWujieScene {
 
     /* camera */
     this.camera = new THREE.PerspectiveCamera(45, w / h, 1, 500);
-    this.camera.position.set(82, 72, 86);
+    this.camera.position.set(100, 100, 100);
 
     /* post‑processing */
     this.composer = new EffectComposer(this.renderer);
@@ -227,12 +231,12 @@ export class ZhiluWujieScene {
     this.controls.maxDistance = 250;
 
     /* lights */
-    this.scene.add(new THREE.HemisphereLight(0xfff8e8, 0x667276, 1.5));
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.25));
-    const dir = new THREE.DirectionalLight(0xfff0d2, 2.2);
+    this.scene.add(new THREE.HemisphereLight(0x49617a, 0x02050a, 0.62));
+    this.scene.add(new THREE.AmbientLight(0x26384d, 0.28));
+    const dir = new THREE.DirectionalLight(0xa5b0bd, 1.15);
     dir.position.set(55, 105, 35);
     dir.castShadow = true;
-    dir.shadow.mapSize.set(2048, 2048);
+    dir.shadow.mapSize.set(DEFAULT_SCENE_STYLE.shadowMapSize, DEFAULT_SCENE_STYLE.shadowMapSize);
     dir.shadow.camera.near = 1;
     dir.shadow.camera.far = 260;
     dir.shadow.camera.left = -100;
@@ -272,14 +276,40 @@ export class ZhiluWujieScene {
   /* -------------------------------------------------------------- */
   /*  Build scene objects                                              */
   /* -------------------------------------------------------------- */
+  private disposeObject3D(root: THREE.Object3D) {
+    const geometries = new Set<THREE.BufferGeometry>();
+    const materials = new Set<THREE.Material>();
+
+    root.traverse((object) => {
+      const drawable = object as THREE.Mesh;
+      if (drawable.geometry instanceof THREE.BufferGeometry) geometries.add(drawable.geometry);
+
+      const material = drawable.material;
+      if (Array.isArray(material)) {
+        material.forEach((item) => {
+          if (item instanceof THREE.Material) materials.add(item);
+        });
+      } else if (material instanceof THREE.Material) {
+        materials.add(material);
+      }
+    });
+
+    geometries.forEach((geometry) => geometry.dispose());
+    materials.forEach((material) => material.dispose());
+  }
+
   private buildGround() {
     const layout = createIntersectionLayout();
-    layout.getObjectByName('traffic-signals')?.removeFromParent();
-    layout.getObjectByName('streetscape')?.removeFromParent();
+    ['traffic-signals', 'streetscape'].forEach((name) => {
+      const discardedBranch = layout.getObjectByName(name);
+      if (!discardedBranch) return;
+      this.disposeObject3D(discardedBranch);
+      discardedBranch.removeFromParent();
+    });
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(280, 280),
-      new THREE.MeshStandardMaterial({ color: 0xb9c1bd, roughness: 1 }),
+      new THREE.MeshStandardMaterial({ color: DEFAULT_SCENE_STYLE.palette.ground, roughness: 1 }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.05;
@@ -288,7 +318,7 @@ export class ZhiluWujieScene {
 
   private buildBuildings() {
     const streetscape = new THREE.Group();
-    streetscape.name = 'daylight-streetscape';
+    streetscape.name = 'night-streetscape';
 
     const northwest = createBuilding(8, 10, 6);
     northwest.name = 'building-northwest';
@@ -341,21 +371,21 @@ export class ZhiluWujieScene {
       g.position.set(x, 0, z);
       const pole = new THREE.Mesh(
         new THREE.CylinderGeometry(0.16, 0.22, 7, 10).translate(0, 3.5, 0),
-        new THREE.MeshStandardMaterial({ color: 0x687276, roughness: 0.8 }),
+        new THREE.MeshStandardMaterial({ color: DEFAULT_SCENE_STYLE.palette.metal, roughness: 0.8 }),
       );
       const head = new THREE.Mesh(
         new THREE.BoxGeometry(0.9, 0.55, 0.55).translate(0, 7.15, 0),
-        new THREE.MeshStandardMaterial({ color: 0x8b9799, roughness: 0.65 }),
+        new THREE.MeshStandardMaterial({ color: DEFAULT_SCENE_STYLE.palette.glass, roughness: 0.65 }),
       );
       const antenna = new THREE.Mesh(
         new THREE.BoxGeometry(0.08, 0.45, 0.08).translate(0, 7.65, 0),
-        new THREE.MeshStandardMaterial({ color: 0x5f686b, roughness: 0.85 }),
+        new THREE.MeshStandardMaterial({ color: DEFAULT_SCENE_STYLE.palette.metal, roughness: 0.85 }),
       );
-      const ringMat = new THREE.MeshBasicMaterial({ color: 0x9aafb6, transparent: true, opacity: 0.08, depthWrite: false });
-      const coneMat = new THREE.MeshBasicMaterial({ color: 0x81959b, transparent: true, opacity: 0.04, depthWrite: false, side: THREE.DoubleSide });
+      const ringMat = new THREE.MeshBasicMaterial({ color: T.cyan, transparent: true, opacity: 0.08, depthWrite: false });
+      const coneMat = new THREE.MeshBasicMaterial({ color: T.blue, transparent: true, opacity: 0.04, depthWrite: false, side: THREE.DoubleSide });
       g.add(pole, head, antenna);
       this.scene.add(g);
-      this.rsuObjects.push({ group: g, ringMat, coneMat, color: 0x9aafb6 });
+      this.rsuObjects.push({ group: g, ringMat, coneMat, color: T.cyan });
     };
     mkRSU(-15, 15); mkRSU(15, -15);
   }
@@ -366,7 +396,7 @@ export class ZhiluWujieScene {
       if (isEgo) {
         const lidar = new THREE.Mesh(
           new THREE.CylinderGeometry(0.4, 0.4, 0.3).translate(0, 1.3, -0.5),
-          new THREE.MeshStandardMaterial({ color: 0x6f7776, roughness: 0.5 }),
+          new THREE.MeshStandardMaterial({ color: DEFAULT_SCENE_STYLE.palette.metal, roughness: 0.5 }),
         );
         const aura = new THREE.Mesh(
           new THREE.RingGeometry(1.25, 1.5, 32),
@@ -434,8 +464,9 @@ export class ZhiluWujieScene {
     const colors = new Float32Array(count * 3);
     const vel = new Float32Array(count);
     const particlePalette = [
-      new THREE.Color(0xd5dcda), new THREE.Color(0xc5d1d0),
-      new THREE.Color(0xb7c9c8), new THREE.Color(0xcbd8d5),
+      new THREE.Color(DEFAULT_SCENE_STYLE.palette.metal),
+      new THREE.Color(DEFAULT_SCENE_STYLE.palette.glass),
+      new THREE.Color(DEFAULT_SCENE_STYLE.palette.generic),
     ];
     for (let i = 0; i < count; i++) {
       pos[i * 3] = (Math.random() - 0.5) * 50;
@@ -448,7 +479,7 @@ export class ZhiluWujieScene {
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     this.particles = new THREE.Points(geo, new THREE.PointsMaterial({
-      size: 0.12, transparent: true, opacity: 0.18, vertexColors: true,
+      size: 0.12, transparent: true, opacity: 0.1, vertexColors: true,
       blending: THREE.NormalBlending, depthWrite: false,
     }));
     this.particles.userData.velocities = vel;
@@ -694,7 +725,9 @@ export class ZhiluWujieScene {
           (tl.userData.phase === 'green' && l.color === T.green) ||
           (tl.userData.phase === 'yellow' && l.color === T.orange) ||
           (tl.userData.phase === 'red' && l.color === T.red);
-        (l.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = isActive ? 0.2 : 0.03;
+        (l.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = isActive
+          ? SIGNAL_EMISSIVE.active
+          : SIGNAL_EMISSIVE.inactive;
       });
     });
   }
@@ -942,6 +975,7 @@ export class ZhiluWujieScene {
         if (this.mode === 'ego' && this.realtimeDataMode === 'fallback') this.updateFallbackScenario(delta);
         this.updateMockData();
         this.updateRSU();
+        this.realtimePool?.advance(delta);
 
         /* camera follow in ego mode */
         if (this.mode === 'ego') {
@@ -971,8 +1005,10 @@ export class ZhiluWujieScene {
     cancelAnimationFrame(this.animId);
     window.removeEventListener('resize', this._onResize);
     this.realtimePool?.clear();
-    this.controls.dispose();
-    this.renderer.dispose();
-    this.renderer.domElement.remove();
+    if (this.scene) this.disposeObject3D(this.scene);
+    this.composer?.dispose();
+    this.controls?.dispose();
+    this.renderer?.dispose();
+    this.renderer?.domElement.remove();
   }
 }
