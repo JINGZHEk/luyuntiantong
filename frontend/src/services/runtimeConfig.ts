@@ -17,6 +17,21 @@ export const DEFAULT_CLOUD_API_BASE_URL = resolveDefaultCloudApiBaseUrl(
   viteEnv?.VITE_CLOUD_API_BASE_URL,
 );
 
+export function resolveStoredCloudApiBaseUrl(
+  rawValue: string | null,
+  fallback = DEFAULT_CLOUD_API_BASE_URL,
+): string {
+  if (!rawValue) return fallback;
+
+  try {
+    const parsed = JSON.parse(rawValue) as { state?: { cloudApiBaseUrl?: string } };
+    const configuredValue = parsed.state?.cloudApiBaseUrl;
+    return configuredValue?.trim() ? normalizeApiBaseUrl(configuredValue) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function normalizeApiBaseUrl(value?: string | null): string {
   const trimmed = (value || '').trim();
   if (!trimmed) return BUILTIN_CLOUD_API_BASE_URL;
@@ -42,9 +57,7 @@ export function getCloudApiBaseUrl(): string {
 
   try {
     const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (!raw) return DEFAULT_CLOUD_API_BASE_URL;
-    const parsed = JSON.parse(raw) as { state?: { cloudApiBaseUrl?: string } };
-    return normalizeApiBaseUrl(parsed.state?.cloudApiBaseUrl);
+    return resolveStoredCloudApiBaseUrl(raw);
   } catch {
     return DEFAULT_CLOUD_API_BASE_URL;
   }

@@ -4,6 +4,7 @@ import {
   buildWebSocketUrl,
   normalizeApiBaseUrl,
   resolveDefaultCloudApiBaseUrl,
+  resolveStoredCloudApiBaseUrl,
 } from '../src/services/runtimeConfig.js';
 
 function assertEqual(actual: string, expected: string): void {
@@ -27,6 +28,29 @@ assertEqual(
 assertEqual(
   resolveDefaultCloudApiBaseUrl(''),
   'http://localhost:8011/api/v1',
+);
+
+const configuredFallback = 'https://cloud.example.com/api/v1';
+
+assertEqual(
+  resolveStoredCloudApiBaseUrl(JSON.stringify({ state: {} }), configuredFallback),
+  configuredFallback,
+);
+
+assertEqual(
+  resolveStoredCloudApiBaseUrl(
+    JSON.stringify({ state: { cloudApiBaseUrl: '   ' } }),
+    configuredFallback,
+  ),
+  configuredFallback,
+);
+
+assertEqual(
+  resolveStoredCloudApiBaseUrl(
+    JSON.stringify({ state: { cloudApiBaseUrl: 'http://127.0.0.1:8010/api/v1///' } }),
+    configuredFallback,
+  ),
+  'http://127.0.0.1:8010/api/v1',
 );
 
 assertEqual(

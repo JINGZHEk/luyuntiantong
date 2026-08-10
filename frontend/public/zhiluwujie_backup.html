@@ -986,17 +986,21 @@ function updateMockData(delta) {
 // ============================================================
 function connectWS() {
     const baseUrl = localStorage.getItem('v2x-settings');
-    let host = 'localhost:8000';
+    let wsUrl = 'ws://localhost:8011/api/v1/realtime/ws';
     try {
         if(baseUrl) {
             const parsed = JSON.parse(baseUrl);
-            if(parsed.cloudApiBaseUrl) {
-                const u = new URL(parsed.cloudApiBaseUrl);
-                host = u.host;
+            const configuredApiBaseUrl = parsed?.state?.cloudApiBaseUrl;
+            if(typeof configuredApiBaseUrl === 'string' && configuredApiBaseUrl.trim()) {
+                const parsedBaseUrl = new URL(configuredApiBaseUrl);
+                if(parsedBaseUrl.protocol === 'http:' || parsedBaseUrl.protocol === 'https:') {
+                    const wsProtocol = parsedBaseUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const apiPath = parsedBaseUrl.pathname.replace(/\/+$/, '');
+                    wsUrl = `${wsProtocol}//${parsedBaseUrl.host}${apiPath}/realtime/ws`;
+                }
             }
         }
     } catch(e) {}
-    const wsUrl = `ws://${host}/api/v1/realtime/ws`;
     try {
         S.ws = new WebSocket(wsUrl);
         S.ws.onopen = () => {
