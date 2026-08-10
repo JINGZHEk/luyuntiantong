@@ -55,6 +55,24 @@ describe('semi-realistic scene visual factory', () => {
     expect(roadMeshes.every((mesh) => mesh.material instanceof THREE.MeshStandardMaterial)).toBe(true);
   });
 
+  it('extends road and sidewalk bounds across the fallback travel envelope', () => {
+    const layout = createIntersectionLayout();
+
+    const northSouthRoad = layout.getObjectByName('road-surface-north-south') as THREE.Mesh<THREE.PlaneGeometry>;
+    const eastWestRoad = layout.getObjectByName('road-surface-east-west') as THREE.Mesh<THREE.PlaneGeometry>;
+    expect(northSouthRoad.geometry.parameters.height).toBeGreaterThanOrEqual(220);
+    expect(eastWestRoad.geometry.parameters.width).toBeGreaterThanOrEqual(220);
+
+    for (const name of ['sidewalk-north', 'sidewalk-south']) {
+      expect((layout.getObjectByName(`${name}-surface`) as THREE.Mesh<THREE.BoxGeometry>).geometry.parameters.width)
+        .toBeGreaterThanOrEqual(220);
+    }
+    for (const name of ['sidewalk-east', 'sidewalk-west']) {
+      expect((layout.getObjectByName(`${name}-surface`) as THREE.Mesh<THREE.BoxGeometry>).geometry.parameters.depth)
+        .toBeGreaterThanOrEqual(220);
+    }
+  });
+
   it('builds a gray building with semantic window geometry', () => {
     const building = createBuilding(8, 12, 6);
 

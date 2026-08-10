@@ -243,8 +243,14 @@ export class ZhiluWujieScene {
     this.buildCoverage();
     this.scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
-        object.castShadow = true;
-        object.receiveShadow = true;
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        const isTransparentEffect = materials.some((material) =>
+          material.transparent || material.opacity < 0.95 || material.blending === THREE.AdditiveBlending,
+        );
+        if (!isTransparentEffect) {
+          object.castShadow = true;
+          object.receiveShadow = true;
+        }
       }
     });
 
@@ -262,7 +268,7 @@ export class ZhiluWujieScene {
     layout.getObjectByName('streetscape')?.removeFromParent();
 
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(180, 180),
+      new THREE.PlaneGeometry(280, 280),
       new THREE.MeshStandardMaterial({ color: 0xb9c1bd, roughness: 1 }),
     );
     ground.rotation.x = -Math.PI / 2;
@@ -299,15 +305,16 @@ export class ZhiluWujieScene {
 
   private buildTrafficLights() {
     const configs = [
-      { x: -10, z: 10, phase: 'green' as const, name: 'north' },
-      { x: 10, z: -10, phase: 'green' as const, name: 'south' },
-      { x: 10, z: 10, phase: 'red' as const, name: 'east' },
-      { x: -10, z: -10, phase: 'yellow' as const, name: 'west' },
+      { x: 0, z: 10, rotation: 0, phase: 'green' as const, name: 'north' },
+      { x: 10, z: 0, rotation: Math.PI / 2, phase: 'red' as const, name: 'east' },
+      { x: 0, z: -10, rotation: Math.PI, phase: 'green' as const, name: 'south' },
+      { x: -10, z: 0, rotation: (Math.PI * 3) / 2, phase: 'yellow' as const, name: 'west' },
     ];
-    configs.forEach(({ x, z, phase, name }) => {
+    configs.forEach(({ x, z, rotation, phase, name }) => {
       const signal = createTrafficSignal(phase);
       signal.name = `traffic-signal-${name}`;
       signal.position.set(x, 0, z);
+      signal.rotation.y = rotation;
       const lights = (['red', 'yellow', 'green'] as const).map((color) => ({
         mesh: signal.getObjectByName(`signal-${color}`) as THREE.Mesh,
         color: color === 'red' ? T.red : color === 'yellow' ? T.orange : T.green,
@@ -335,7 +342,7 @@ export class ZhiluWujieScene {
         new THREE.MeshStandardMaterial({ color: 0x5f686b, roughness: 0.85 }),
       );
       const ringMat = new THREE.MeshBasicMaterial({ color: 0x9aafb6, transparent: true, opacity: 0.08, depthWrite: false });
-      const coneMat = new THREE.MeshBasicMaterial({ color: 0x81959b, transparent: true, opacity: 0.04, depthWrite: false });
+      const coneMat = new THREE.MeshBasicMaterial({ color: 0x81959b, transparent: true, opacity: 0.04, depthWrite: false, side: THREE.DoubleSide });
       g.add(pole, head, antenna);
       this.scene.add(g);
       this.rsuObjects.push({ group: g, ringMat, coneMat, color: 0x9aafb6 });
@@ -493,14 +500,14 @@ export class ZhiluWujieScene {
     this.rsuObjects.forEach(r => {
       const disc = new THREE.Mesh(
         new THREE.CylinderGeometry(18, 18, 0.05, 48),
-        new THREE.MeshBasicMaterial({ color: 0x9aafb6, transparent: true, opacity: 0.08, depthWrite: false }),
+        r.coneMat,
       );
       disc.position.copy(r.group.position);
       disc.position.y = 0.04;
       this.coverageGroup.add(disc);
       const ring = new THREE.Mesh(
         new THREE.RingGeometry(17.7, 18, 48),
-        new THREE.MeshBasicMaterial({ color: 0x9aafb6, transparent: true, opacity: 0.12, side: THREE.DoubleSide }),
+        r.ringMat,
       );
       ring.rotation.x = -Math.PI / 2;
       ring.position.copy(r.group.position);

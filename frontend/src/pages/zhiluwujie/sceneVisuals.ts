@@ -210,20 +210,20 @@ export function createIntersectionLayout(): THREE.Group {
   const roadSurface = new THREE.Group();
   roadSurface.name = 'road-surface';
   const roadMaterial = standardMaterial(COLORS.asphalt, { roughness: 0.95 });
-  const northSouthRoad = mesh('road-surface-north-south', new THREE.PlaneGeometry(18, 80), roadMaterial);
+  const northSouthRoad = mesh('road-surface-north-south', new THREE.PlaneGeometry(18, 220), roadMaterial);
   northSouthRoad.rotation.x = -Math.PI / 2;
   northSouthRoad.position.y = 0.01;
   roadSurface.add(northSouthRoad);
-  const eastWestRoad = mesh('road-surface-east-west', new THREE.PlaneGeometry(80, 18), roadMaterial);
+  const eastWestRoad = mesh('road-surface-east-west', new THREE.PlaneGeometry(220, 18), roadMaterial);
   eastWestRoad.rotation.x = -Math.PI / 2;
   eastWestRoad.position.y = 0.012;
   roadSurface.add(eastWestRoad);
   layout.add(roadSurface);
 
-  addSidewalk(layout, 'sidewalk-north', [80, 0.12, 5], [0, 0.16, 11.5]);
-  addSidewalk(layout, 'sidewalk-south', [80, 0.12, 5], [0, 0.16, -11.5]);
-  addSidewalk(layout, 'sidewalk-east', [5, 0.12, 80], [11.5, 0.16, 0]);
-  addSidewalk(layout, 'sidewalk-west', [5, 0.12, 80], [-11.5, 0.16, 0]);
+  addSidewalk(layout, 'sidewalk-north', [220, 0.12, 5], [0, 0.16, 11.5]);
+  addSidewalk(layout, 'sidewalk-south', [220, 0.12, 5], [0, 0.16, -11.5]);
+  addSidewalk(layout, 'sidewalk-east', [5, 0.12, 220], [11.5, 0.16, 0]);
+  addSidewalk(layout, 'sidewalk-west', [5, 0.12, 220], [-11.5, 0.16, 0]);
 
   layout.add(createLaneMarkings());
   const crosswalks = new THREE.Group();
