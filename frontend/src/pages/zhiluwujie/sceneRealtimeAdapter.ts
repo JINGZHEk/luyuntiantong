@@ -85,8 +85,16 @@ export function createSceneRealtimeAdapter(
       lastFrameId = null;
     }
     const frameId = frameIdOf(data);
-    if (frameId !== null && lastFrameId !== null && frameId < lastFrameId) return false;
-    if (frameId !== null && (lastFrameId === null || frameId > lastFrameId)) {
+    const isLoopReset =
+      frameId === 0 &&
+      lastFrameId !== null &&
+      lastFrameId > 0 &&
+      incomingRunId !== null &&
+      incomingRunId === runId;
+    if (frameId !== null && lastFrameId !== null && frameId < lastFrameId && !isLoopReset) {
+      return false;
+    }
+    if (frameId !== null && (lastFrameId === null || frameId > lastFrameId || isLoopReset)) {
       lastFrameId = frameId;
     }
     lastMessageAt = now();
