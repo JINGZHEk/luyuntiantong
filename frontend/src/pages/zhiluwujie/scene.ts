@@ -94,7 +94,6 @@ export interface RealtimeSceneMetrics {
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 const T = {
-  bg: 0xc8d0cc, road: 0x4a5051, grid: 0x727f7d,
   cyan: 0x4f9791, blue: 0x717b8d, red: 0xb46660,
   green: 0x66856b, orange: 0xa18358, purple: 0x7c7084,
 };

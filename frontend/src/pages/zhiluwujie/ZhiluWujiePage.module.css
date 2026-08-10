@@ -22,6 +22,8 @@
   --neon-red: #b46660;
   --neon-purple: #7c7084;
   --hud-text: #dfe8e3;
+  --hud-muted: #c0cbc5;
+  --hud-subtle: #aebbb4;
   background: var(--bg-dark, #c8d0cc);
   color: var(--hud-text);
   font-family: 'PingFang SC', 'Rajdhani', system-ui, sans-serif;
@@ -135,7 +137,7 @@
 }
 
 .bootSub {
-  color: rgba(var(--hud-accent-rgb), 0.7);
+  color: var(--hud-muted);
   letter-spacing: 0.3em;
   font-size: 0.875rem;
   text-transform: uppercase;
@@ -146,7 +148,7 @@
   width: 380px;
   font-family: monospace;
   font-size: 0.75rem;
-  color: rgba(var(--hud-accent-rgb), 0.5);
+  color: var(--hud-subtle);
   margin-bottom: 32px;
   height: 128px;
   overflow-y: auto;
@@ -249,7 +251,7 @@
   display: flex;
   gap: 10px;
   margin: 8px 0 2px;
-  color: rgba(var(--hud-accent-rgb), 0.55);
+  color: var(--hud-subtle);
   font-size: 9px;
   font-family: monospace;
   letter-spacing: 0.06em;
@@ -272,7 +274,7 @@
 }
 
 .metricLabel {
-  color: rgba(var(--hud-accent-rgb), 0.5);
+  color: var(--hud-muted);
   font-size: 0.625rem;
   margin: 0 0 2px;
 }
@@ -287,7 +289,7 @@
 
 .metricUnit {
   font-size: 0.625rem;
-  color: rgba(var(--hud-accent-rgb), 0.6);
+  color: var(--hud-subtle);
 }
 
 .throughputArea {
@@ -298,7 +300,7 @@
 
 .throughputLabel {
   font-size: 0.625rem;
-  color: rgba(var(--hud-accent-rgb), 0.5);
+  color: var(--hud-muted);
   margin: 0 0 4px;
 }
 
@@ -336,7 +338,7 @@
 .radarTitle {
   font-size: 10px;
   font-weight: bold;
-  color: rgba(var(--hud-accent-rgb), 0.7);
+  color: var(--hud-muted);
   letter-spacing: 0.2em;
   text-transform: uppercase;
 }
@@ -417,14 +419,14 @@
 
 .clockText {
   font-size: 10px;
-  color: rgba(var(--hud-accent-rgb), 0.5);
+  color: var(--hud-muted);
   font-family: monospace;
   margin: 0;
 }
 
 .frameText {
   font-size: 10px;
-  color: rgba(var(--hud-accent-rgb), 0.35);
+  color: var(--hud-subtle);
   margin: 2px 0 0;
 }
 
@@ -451,7 +453,7 @@
   font-size: 0.875rem;
   font-weight: bold;
   letter-spacing: 0.05em;
-  color: rgba(var(--hud-accent-rgb), 0.5);
+  color: var(--hud-muted);
 }
 
 .menuItem {
@@ -484,7 +486,7 @@
 
 .menuFooterLabel {
   font-size: 10px;
-  color: rgba(var(--hud-accent-rgb), 0.35);
+  color: var(--hud-subtle);
   margin: 0 0 4px;
 }
 
@@ -495,7 +497,7 @@
   border: 1px solid rgba(var(--hud-accent-rgb), 0.3);
   border-radius: 4px;
   background: transparent;
-  color: rgba(var(--hud-accent-rgb), 0.7);
+  color: var(--hud-muted);
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -577,7 +579,7 @@
   padding: 2px 8px;
   border-radius: 4px;
   background: rgba(var(--hud-accent-rgb), 0.1);
-  color: rgba(var(--hud-accent-rgb), 0.9);
+  color: var(--hud-muted);
   border: 1px solid rgba(var(--hud-accent-rgb), 0.5);
   font-weight: bold;
 }
@@ -611,7 +613,7 @@
 
 .egoMetricLabel {
   font-size: 10px;
-  color: rgba(var(--hud-accent-rgb), 0.5);
+  color: var(--hud-muted);
   margin: 0 0 4px;
 }
 
@@ -664,7 +666,7 @@
 }
 
 .decisionLabel {
-  color: rgba(var(--hud-accent-rgb), 0.5);
+  color: var(--hud-muted);
 }
 
 .decisionVal {
@@ -717,7 +719,7 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-.logInfo { color: rgba(var(--hud-accent-rgb), 0.7); }
+.logInfo { color: var(--hud-muted); }
 .logWarn { color: var(--neon-orange, #a18358); }
 .logDanger { color: var(--neon-red, #b46660); font-weight: bold; }
 .logSuccess { color: var(--neon-green, #66856b); }
@@ -766,7 +768,7 @@
 
 .trafficLabel {
   font-size: 10px;
-  color: rgba(var(--hud-accent-rgb), 0.5);
+  color: var(--hud-muted);
   margin: 0 0 4px;
 }
 
@@ -783,7 +785,7 @@
 
 .flowChartLabel {
   font-size: 10px;
-  color: rgba(var(--hud-accent-rgb), 0.5);
+  color: var(--hud-muted);
   margin: 0 0 4px;
 }
 
@@ -896,7 +898,7 @@
 }
 
 .rsuLabel {
-  color: rgba(var(--hud-accent-rgb), 0.5);
+  color: var(--hud-muted);
 }
 
 .rsuVal {
@@ -983,7 +985,7 @@
 }
 
 .hbTime {
-  color: rgba(156, 163, 175, 0.5);
+  color: var(--hud-subtle);
   margin-left: auto;
 }
 
@@ -1009,7 +1011,7 @@
 .sliderHeader {
   display: flex;
   justify-content: space-between;
-  color: rgba(var(--hud-accent-rgb), 0.7);
+  color: var(--hud-muted);
   font-size: 11px;
 }
 
@@ -1050,7 +1052,7 @@
 }
 
 .perfLabel {
-  color: rgba(var(--hud-accent-rgb), 0.5);
+  color: var(--hud-muted);
 }
 
 .perfVal {
@@ -1064,7 +1066,7 @@
   border: 1px solid rgba(var(--hud-accent-rgb), 0.5);
   border-radius: 4px;
   background: transparent;
-  color: rgba(var(--hud-accent-rgb), 0.8);
+  color: var(--hud-muted);
   font-size: 0.75rem;
   cursor: pointer;
   transition: background 0.2s;
@@ -1095,7 +1097,7 @@
 
 .timelineLabel {
   font-size: 10px;
-  color: rgba(var(--hud-accent-rgb), 0.5);
+  color: var(--hud-subtle);
   letter-spacing: 0.3em;
   font-weight: bold;
 }

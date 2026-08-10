@@ -521,7 +521,7 @@ export default function ZhiluWujiePage() {
                       <input type="range" min="0" max="100" defaultValue="100" className={styles.slider} onChange={e => handleFusionChange(Number(e.target.value))} />
                     </div>
                     <div className={styles.sliderRow}>
-                      <div className={styles.sliderHeader}><span>Bloom 强度</span><span>{bloom.toFixed(1)}</span></div>
+                      <div className={styles.sliderHeader}><span>Bloom 强度</span><span>{bloom.toFixed(2)}</span></div>
                       <input type="range" min="0" max="10" defaultValue={DEFAULT_SCENE_STYLE.bloomStrength * 100} className={styles.slider} onChange={e => handleBloomChange(Number(e.target.value))} />
                     </div>
                   </div>
