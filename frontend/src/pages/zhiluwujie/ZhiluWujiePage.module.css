@@ -5,7 +5,7 @@
 
 @property --hud-accent {
   syntax: '<color>';
-  initial-value: #00f3ff;
+  initial-value: #4f9791;
   inherits: true;
 }
 
@@ -14,8 +14,16 @@
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: var(--bg-dark, #030712);
-  color: var(--hud-accent);
+  --bg-dark: #c8d0cc;
+  --neon-cyan: #4f9791;
+  --neon-blue: #717b8d;
+  --neon-green: #66856b;
+  --neon-orange: #a18358;
+  --neon-red: #b46660;
+  --neon-purple: #7c7084;
+  --hud-text: #dfe8e3;
+  background: var(--bg-dark, #c8d0cc);
+  color: var(--hud-text);
   font-family: 'PingFang SC', 'Rajdhani', system-ui, sans-serif;
   user-select: none;
   transition: --hud-accent 0.6s ease;
@@ -37,20 +45,18 @@
   inset: 0;
   z-index: 999;
   pointer-events: none;
-  opacity: 0.3;
-  background:
-    linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%),
-    linear-gradient(90deg, rgba(255,0,0,0.06), rgba(0,255,0,0.02), rgba(0,0,255,0.06));
-  background-size: 100% 2px, 3px 100%;
+  opacity: var(--scanline-opacity, 0.02);
+  background: linear-gradient(rgba(30, 35, 34, 0) 50%, rgba(30, 35, 34, 0.18) 50%);
+  background-size: 100% 3px;
 }
 
 /* ---- Glass Panel ---- */
 .panel {
-  background: rgba(3, 11, 25, 0.75);
+  background: rgba(30, 35, 34, 0.58);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(var(--hud-accent-rgb), 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 40px -12px rgba(var(--hud-accent-rgb), 0.08);
+  border: 1px solid rgba(223, 232, 227, 0.2);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32), 0 0 24px -12px rgba(var(--hud-accent-rgb), 0.06);
   position: relative;
   border-radius: 6px;
   padding: 12px;
@@ -65,6 +71,7 @@
   height: 15px;
   border-top: 2px solid var(--hud-accent);
   border-left: 2px solid var(--hud-accent);
+  opacity: 0.65;
   pointer-events: none;
 }
 
@@ -77,17 +84,18 @@
   height: 15px;
   border-bottom: 2px solid var(--hud-accent);
   border-right: 2px solid var(--hud-accent);
+  opacity: 0.65;
   pointer-events: none;
 }
 
 .panelRed {
-  border-color: rgba(255, 42, 85, 0.5) !important;
-  box-shadow: 0 0 30px rgba(255, 42, 85, 0.2) !important;
+  border-color: rgba(180, 102, 96, 0.65) !important;
+  box-shadow: 0 0 22px rgba(180, 102, 96, 0.14) !important;
 }
 
 .panelRed::before,
 .panelRed::after {
-  border-color: var(--neon-red, #ff2a55) !important;
+  border-color: var(--neon-red) !important;
 }
 
 /* ================================================================ */
@@ -97,7 +105,7 @@
   position: absolute;
   inset: 0;
   z-index: 100;
-  background: radial-gradient(circle at center, #0a1128 0%, #000 100%);
+  background: radial-gradient(circle at center, rgba(65, 76, 73, 0.96) 0%, rgba(30, 35, 34, 0.98) 100%);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -122,7 +130,7 @@
   color: #fff;
   letter-spacing: 0.2em;
   margin: 0 0 8px;
-  text-shadow: 0 0 15px rgba(var(--hud-accent-rgb), 0.8);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.32);
   font-family: 'Rajdhani', system-ui, sans-serif;
 }
 
@@ -164,13 +172,13 @@
   position: relative;
   overflow: hidden;
   transition: all 0.3s;
-  box-shadow: 0 0 15px rgba(var(--hud-accent-rgb), 0.2) inset;
+  box-shadow: 0 0 10px rgba(var(--hud-accent-rgb), 0.12) inset;
 }
 
 .cyberBtn:hover {
   background: var(--hud-accent);
   color: #000;
-  box-shadow: 0 0 30px rgba(var(--hud-accent-rgb), 0.8);
+  box-shadow: 0 0 18px rgba(var(--hud-accent-rgb), 0.25);
 }
 
 /* ================================================================ */
@@ -232,7 +240,7 @@
   font-weight: bold;
   letter-spacing: 1px;
   background: rgba(255, 170, 0, 0.15);
-  color: var(--neon-orange, #ffaa00);
+  color: var(--neon-orange, #a18358);
   border: 1px solid rgba(255, 170, 0, 0.4);
   margin-left: auto;
 }
@@ -303,7 +311,7 @@
 
 .bar {
   width: 5px;
-  background: var(--neon-blue, #0088ff);
+  background: var(--neon-blue, #717b8d);
   transition: height 0.2s;
   border-radius: 1px;
 }
@@ -710,9 +718,9 @@
 }
 
 .logInfo { color: rgba(var(--hud-accent-rgb), 0.7); }
-.logWarn { color: var(--neon-orange, #ffaa00); }
-.logDanger { color: var(--neon-red, #ff2a55); font-weight: bold; }
-.logSuccess { color: var(--neon-green, #00ffaa); }
+.logWarn { color: var(--neon-orange, #a18358); }
+.logDanger { color: var(--neon-red, #b46660); font-weight: bold; }
+.logSuccess { color: var(--neon-green, #66856b); }
 
 .logTime {
   opacity: 0.5;
@@ -896,7 +904,7 @@
 }
 
 .rsuStatusOnline {
-  color: var(--neon-green, #00ffaa);
+  color: var(--neon-green, #66856b);
 }
 
 .rsuBarBg {
@@ -971,7 +979,7 @@
 }
 
 .hbOnline {
-  color: var(--neon-green, #00ffaa);
+  color: var(--neon-green, #66856b);
 }
 
 .hbTime {
@@ -1023,7 +1031,7 @@
   border-radius: 50%;
   background: var(--hud-accent);
   cursor: pointer;
-  box-shadow: 0 0 8px rgba(var(--hud-accent-rgb), 0.6);
+  box-shadow: 0 0 5px rgba(var(--hud-accent-rgb), 0.28);
 }
 
 .perfGrid {
@@ -1103,7 +1111,7 @@
   height: 4px;
   background: var(--hud-accent);
   border-radius: 2px;
-  box-shadow: 0 0 5px var(--hud-accent);
+  box-shadow: 0 0 3px rgba(var(--hud-accent-rgb), 0.28);
   transition: all 0.2s;
 }
 

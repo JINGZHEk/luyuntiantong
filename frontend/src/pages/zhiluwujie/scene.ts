@@ -29,6 +29,7 @@ import {
   createRealtimeActorModel,
   createTrafficSignal,
   createTree,
+  DEFAULT_SCENE_STYLE,
 } from './sceneVisuals';
 
 /* ------------------------------------------------------------------ */
@@ -93,15 +94,19 @@ export interface RealtimeSceneMetrics {
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 const T = {
-  bg: 0x030712, road: 0x080c16, grid: 0x0a1930,
-  cyan: 0x00f3ff, blue: 0x0088ff, red: 0xff2a55,
-  green: 0x00ffaa, orange: 0xffaa00, purple: 0xa855f7,
+  bg: 0xc8d0cc, road: 0x4a5051, grid: 0x727f7d,
+  cyan: 0x4f9791, blue: 0x717b8d, red: 0xb46660,
+  green: 0x66856b, orange: 0xa18358, purple: 0x7c7084,
 };
 const SCENARIO_DUR = 12;
 const EVT = { pedStart: 3, rsuDetect: 4.5, v2xWarn: 5, brakeStart: 5.5, stopTime: 7.5, safeCross: 9.5 };
 
 export function trafficHeadingForLane(lane: number): number {
   return lane < 0 ? -Math.PI / 2 : Math.PI / 2;
+}
+
+export function shouldShowTrajectory(mode: Mode): boolean {
+  return mode === 'traffic' || mode === 'algo';
 }
 
 /* ------------------------------------------------------------------ */
@@ -131,7 +136,7 @@ export class ZhiluWujieScene {
   riskLevel = 0;
 
   /* config */
-  bloomStrength = 0.05;
+  bloomStrength: number = DEFAULT_SCENE_STYLE.bloomStrength;
   fusionWeight = 1.0;
 
   /* 3D objects */
@@ -188,8 +193,8 @@ export class ZhiluWujieScene {
 
     /* scene */
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xc8d0cc);
-    this.scene.fog = new THREE.Fog(0xc8d0cc, 140, 360);
+    this.scene.background = new THREE.Color(DEFAULT_SCENE_STYLE.background);
+    this.scene.fog = new THREE.Fog(DEFAULT_SCENE_STYLE.background, 140, 360);
 
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -517,7 +522,7 @@ export class ZhiluWujieScene {
 
   setMode(mode: Mode) {
     this.mode = mode;
-    this.trajLines.visible = mode === 'traffic';
+    this.trajLines.visible = shouldShowTrajectory(mode);
     this.coverageGroup.visible = mode === 'v2i';
     switch (mode) {
       case 'ego':

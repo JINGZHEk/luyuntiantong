@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { shouldShowTrajectory, ZhiluWujieScene } from './scene';
 import {
   createBuilding,
   createIntersectionLayout,
@@ -29,7 +30,26 @@ describe('semi-realistic scene visual factory', () => {
   it('exports a restrained default scene style', () => {
     expect(DEFAULT_SCENE_STYLE.background).toBe(0xc8d0cc);
     expect(DEFAULT_SCENE_STYLE.bloomStrength).toBeLessThanOrEqual(0.1);
-    expect(DEFAULT_SCENE_STYLE.scanlineOpacity).toBeLessThanOrEqual(0.05);
+    expect(DEFAULT_SCENE_STYLE.scanlineOpacity).toBeLessThanOrEqual(0.03);
+  });
+
+  it('uses the shared style for the scene bloom default', () => {
+    const style = DEFAULT_SCENE_STYLE as { bloomStrength: number };
+    const originalBloomStrength = style.bloomStrength;
+    style.bloomStrength = 0.07;
+
+    try {
+      expect(new ZhiluWujieScene().bloomStrength).toBe(0.07);
+    } finally {
+      style.bloomStrength = originalBloomStrength;
+    }
+  });
+
+  it('keeps trajectory overlays limited to traffic and algo modes', () => {
+    expect(shouldShowTrajectory('ego')).toBe(false);
+    expect(shouldShowTrajectory('traffic')).toBe(true);
+    expect(shouldShowTrajectory('v2i')).toBe(false);
+    expect(shouldShowTrajectory('algo')).toBe(true);
   });
 
   it('builds a layered intersection layout with four signals and crosswalks', () => {

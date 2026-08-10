@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { ZhiluWujieScene, type Mode, type EgoPhase, type ScenarioMetrics, type TrafficMetrics, type RSUData } from './scene';
 import { createSceneRealtimeAdapter, type SceneRealtimeAdapter } from './sceneRealtimeAdapter';
+import { DEFAULT_SCENE_STYLE } from './sceneVisuals';
 import { wsService } from '@/services/websocketService';
 import { buildWebSocketUrl } from '@/services/runtimeConfig';
 import type {
@@ -42,10 +43,10 @@ const PHASE_LABELS: Record<EgoPhase, string> = {
 };
 
 const MODE_COLORS: Record<Mode, { accent: string; rgb: string }> = {
-  ego:     { accent: '#00f3ff', rgb: '0, 243, 255' },
-  traffic: { accent: '#00ffaa', rgb: '0, 255, 170' },
-  v2i:     { accent: '#a855f7', rgb: '168, 85, 247' },
-  algo:    { accent: '#ffaa00', rgb: '255, 170, 0' },
+  ego:     { accent: '#4f9791', rgb: '79, 151, 145' },
+  traffic: { accent: '#66856b', rgb: '102, 133, 107' },
+  v2i:     { accent: '#717b8d', rgb: '113, 123, 141' },
+  algo:    { accent: '#a18358', rgb: '161, 131, 88' },
 };
 
 /* ------------------------------------------------------------------ */
@@ -74,7 +75,7 @@ export default function ZhiluWujiePage() {
   const [logs, setLogs] = useState<{ time: string; msg: string; type: string }[]>([]);
   const [scenarioTime, setScenarioTime] = useState(0);
   const [perf, setPerf] = useState({ inferMs: 28, gpuUtil: 62, decisionMs: 5, lossRate: 0.2 });
-  const [bloom, setBloom] = useState(1.5);
+  const [bloom, setBloom] = useState<number>(DEFAULT_SCENE_STYLE.bloomStrength);
   const [fusionW, setFusionW] = useState(1.0);
   const [throughputBars, setThroughputBars] = useState<number[]>(() => Array.from({ length: 25 }, () => 20 + Math.random() * 80));
   const [dataMode, setDataMode] = useState<DataMode>('fallback');
@@ -231,7 +232,7 @@ export default function ZhiluWujiePage() {
   }, []);
 
   const handleBloomChange = useCallback((v: number) => {
-    const val = v / 10;
+    const val = v / 100;
     setBloom(val);
     sceneRef.current?.setBloomStrength(val);
   }, []);
@@ -255,6 +256,7 @@ export default function ZhiluWujiePage() {
     <div className={styles.root} style={{
       '--hud-accent': MODE_COLORS[mode].accent,
       '--hud-accent-rgb': MODE_COLORS[mode].rgb,
+      '--scanline-opacity': DEFAULT_SCENE_STYLE.scanlineOpacity,
     } as React.CSSProperties}>
       {/* Three.js canvas */}
       <div ref={canvasRef} className={styles.canvasContainer} />
@@ -520,7 +522,7 @@ export default function ZhiluWujiePage() {
                     </div>
                     <div className={styles.sliderRow}>
                       <div className={styles.sliderHeader}><span>Bloom 强度</span><span>{bloom.toFixed(1)}</span></div>
-                      <input type="range" min="0" max="30" defaultValue="15" className={styles.slider} onChange={e => handleBloomChange(Number(e.target.value))} />
+                      <input type="range" min="0" max="10" defaultValue={DEFAULT_SCENE_STYLE.bloomStrength * 100} className={styles.slider} onChange={e => handleBloomChange(Number(e.target.value))} />
                     </div>
                   </div>
                   <div className={styles.sectionDivider}>
