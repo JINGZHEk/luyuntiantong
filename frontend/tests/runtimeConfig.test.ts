@@ -12,7 +12,12 @@ function assertEqual(actual: string, expected: string): void {
   }
 }
 
-assertEqual(DEFAULT_CLOUD_API_BASE_URL, 'http://localhost:8000/api/v1');
+assertEqual(DEFAULT_CLOUD_API_BASE_URL, 'http://localhost:8011/api/v1');
+
+assertEqual(
+  buildWebSocketUrl(),
+  'ws://localhost:8011/api/v1/realtime/ws',
+);
 
 assertEqual(
   resolveDefaultCloudApiBaseUrl(' http://localhost:8015/api/v1/// '),
@@ -21,7 +26,7 @@ assertEqual(
 
 assertEqual(
   resolveDefaultCloudApiBaseUrl(''),
-  'http://localhost:8000/api/v1',
+  'http://localhost:8011/api/v1',
 );
 
 assertEqual(

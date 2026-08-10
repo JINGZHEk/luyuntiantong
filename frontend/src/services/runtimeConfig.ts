@@ -1,4 +1,4 @@
-const BUILTIN_CLOUD_API_BASE_URL = 'http://localhost:8000/api/v1';
+const BUILTIN_CLOUD_API_BASE_URL = 'http://localhost:8011/api/v1';
 const SETTINGS_STORAGE_KEY = 'v2x-settings';
 
 function trimTrailingSlash(value: string): string {

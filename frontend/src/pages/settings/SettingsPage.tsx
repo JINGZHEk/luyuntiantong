@@ -166,7 +166,7 @@ const SettingsPage: React.FC = () => {
                   value={cloudApiBaseUrl}
                   onChange={(event) => setCloudApiBaseUrl(event.target.value)}
                   onBlur={() => setCloudApiBaseUrl(normalizeApiBaseUrl(cloudApiBaseUrl))}
-                  placeholder="http://localhost:8000/api/v1"
+                  placeholder="http://localhost:8011/api/v1"
                 />
               </Form.Item>
             </Form>
