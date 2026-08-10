@@ -23,6 +23,12 @@ import {
   mapRoadPoint,
 } from './sceneCoordinates';
 import { SceneObjectPool } from './sceneObjectPool';
+import {
+  createBuilding,
+  createIntersectionLayout,
+  createTrafficSignal,
+  createTree,
+} from './sceneVisuals';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -90,7 +96,6 @@ const T = {
   cyan: 0x00f3ff, blue: 0x0088ff, red: 0xff2a55,
   green: 0x00ffaa, orange: 0xffaa00, purple: 0xa855f7,
 };
-const ROAD_W = 24;
 const SCENARIO_DUR = 12;
 const EVT = { pedStart: 3, rsuDetect: 4.5, v2xWarn: 5, brakeStart: 5.5, stopTime: 7.5, safeCross: 9.5 };
 
@@ -121,7 +126,7 @@ export class ZhiluWujieScene {
   riskLevel = 0;
 
   /* config */
-  bloomStrength = 1.5;
+  bloomStrength = 0.05;
   fusionWeight = 1.0;
 
   /* 3D objects */
@@ -178,8 +183,11 @@ export class ZhiluWujieScene {
 
     /* scene */
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(T.bg, 0.008);
-    this.scene.background = new THREE.Color(T.bg);
+    this.scene.background = new THREE.Color(0xc8d0cc);
+    this.scene.fog = new THREE.Fog(0xc8d0cc, 140, 360);
+
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.realtimeObjectsGroup = new THREE.Group();
     this.realtimeObjectsGroup.name = 'realtime-object-pool';
@@ -193,29 +201,35 @@ export class ZhiluWujieScene {
 
     /* camera */
     this.camera = new THREE.PerspectiveCamera(45, w / h, 1, 500);
-    this.camera.position.set(100, 100, 100);
+    this.camera.position.set(82, 72, 86);
 
     /* post‑processing */
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), this.bloomStrength, 0.4, 0.1);
+    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), this.bloomStrength, 0.4, 0.9);
     this.composer.addPass(this.bloomPass);
 
     /* controls */
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.target.set(0, 0, 0);
     this.controls.enableDamping = true;
-    this.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+    this.controls.maxPolarAngle = Math.PI / 2 - 0.15;
     this.controls.maxDistance = 250;
 
     /* lights */
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.2));
-    const dir = new THREE.DirectionalLight(0xaaccff, 1.5);
-    dir.position.set(50, 100, 20);
+    this.scene.add(new THREE.HemisphereLight(0xfff8e8, 0x667276, 1.5));
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+    const dir = new THREE.DirectionalLight(0xfff0d2, 2.2);
+    dir.position.set(55, 105, 35);
+    dir.castShadow = true;
+    dir.shadow.mapSize.set(2048, 2048);
+    dir.shadow.camera.near = 1;
+    dir.shadow.camera.far = 260;
+    dir.shadow.camera.left = -100;
+    dir.shadow.camera.right = 100;
+    dir.shadow.camera.top = 100;
+    dir.shadow.camera.bottom = -100;
     this.scene.add(dir);
-    const pl1 = new THREE.PointLight(T.cyan, 0.8, 30); pl1.position.set(0, 12, 0); this.scene.add(pl1);
-    const pl2 = new THREE.PointLight(T.green, 0.4, 25); pl2.position.set(-15, 8, -15); this.scene.add(pl2);
-    const pl3 = new THREE.PointLight(T.purple, 0.3, 25); pl3.position.set(15, 8, 15); this.scene.add(pl3);
 
     /* build */
     this.buildGround();
@@ -227,6 +241,12 @@ export class ZhiluWujieScene {
     this.buildParticles();
     this.buildTrajectories();
     this.buildCoverage();
+    this.scene.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.castShadow = true;
+        object.receiveShadow = true;
+      }
+    });
 
     /* resize */
     this._onResize = this._onResize.bind(this);
@@ -237,163 +257,90 @@ export class ZhiluWujieScene {
   /*  Build scene objects                                              */
   /* -------------------------------------------------------------- */
   private buildGround() {
-    const g = new THREE.Group();
-    /* grid */
-    const grid = new THREE.GridHelper(400, 100, T.grid, T.grid);
-    grid.position.y = -0.1;
-    (grid.material as THREE.Material).opacity = 0.5;
-    (grid.material as THREE.Material).transparent = true;
-    g.add(grid);
+    const layout = createIntersectionLayout();
+    layout.getObjectByName('traffic-signals')?.removeFromParent();
+    layout.getObjectByName('streetscape')?.removeFromParent();
 
-    /* roads */
-    const mat = new THREE.MeshStandardMaterial({ color: T.road, roughness: 0.9, depthWrite: false });
-    const rZ = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_W, 400), mat);
-    rZ.rotation.x = -Math.PI / 2; g.add(rZ);
-    const rX = new THREE.Mesh(new THREE.PlaneGeometry(400, ROAD_W), mat);
-    rX.rotation.x = -Math.PI / 2; rX.position.y = 0.01; g.add(rX);
-
-    /* edge lines */
-    const addLine = (pts: THREE.Vector3[], color: number, op = 0.5) => {
-      const l = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({ color, transparent: true, opacity: op }),
-      );
-      g.add(l);
-    };
-    [-ROAD_W / 2, ROAD_W / 2].forEach(x => {
-      addLine([new THREE.Vector3(x, 0.02, -200), new THREE.Vector3(x, 0.02, 200)], T.cyan);
-      addLine([new THREE.Vector3(-200, 0.02, x), new THREE.Vector3(200, 0.02, x)], T.cyan);
-    });
-
-    /* crosswalk */
-    const cwMat = new THREE.MeshBasicMaterial({ color: 0x555555 });
-    for (let i = 0; i < 8; i++) {
-      const z = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 8), cwMat);
-      z.rotation.x = -Math.PI / 2;
-      z.position.set(-10 + i * 2.8, 0.03, ROAD_W / 2 + 2);
-      g.add(z);
-    }
-
-    /* dashed center lane markings */
-    const dashMat = new THREE.MeshBasicMaterial({ color: 0xffcc44, transparent: true, opacity: 0.35 });
-    for (let i = -20; i < 20; i++) {
-      if (Math.abs(i) < 2) continue; /* skip intersection center */
-      const dash = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 3), dashMat);
-      dash.rotation.x = -Math.PI / 2;
-      dash.position.set(0, 0.025, i * 5);
-      g.add(dash);
-      const dashH = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.3), dashMat);
-      dashH.rotation.x = -Math.PI / 2;
-      dashH.position.set(i * 5, 0.025, 0);
-      g.add(dashH);
-    }
-
-    /* subtle road edge glow strips */
-    const glowMat = new THREE.MeshBasicMaterial({ color: T.cyan, transparent: true, opacity: 0.04, depthWrite: false });
-    const stripW = 1.5;
-    [-ROAD_W / 2, ROAD_W / 2].forEach(x => {
-      const sZ = new THREE.Mesh(new THREE.PlaneGeometry(stripW, 400), glowMat);
-      sZ.rotation.x = -Math.PI / 2; sZ.position.set(x, 0.015, 0); g.add(sZ);
-      const sX = new THREE.Mesh(new THREE.PlaneGeometry(400, stripW), glowMat);
-      sX.rotation.x = -Math.PI / 2; sX.position.set(0, 0.015, x); g.add(sX);
-    });
-    this.scene.add(g);
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(180, 180),
+      new THREE.MeshStandardMaterial({ color: 0xb9c1bd, roughness: 1 }),
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.05;
+    this.scene.add(ground, layout);
   }
 
   private buildBuildings() {
-    const buildings = new THREE.Group();
-    const bMats = [
-      new THREE.MeshStandardMaterial({ color: 0x050a15, roughness: 0.2 }),
-      new THREE.MeshStandardMaterial({ color: 0x081020, roughness: 0.3 }),
-    ];
-    const edgeColors = [T.cyan, T.purple, T.blue, T.green, 0x4466ff, 0x22cccc];
-    const windowColors = [0x00f3ff, 0xa855f7, 0x0088ff, 0xffaa00, 0x00ffaa, 0xff6644];
-    const addBlock = (cx: number, cz: number) => {
-      for (let i = 0; i < 6; i++) {
-        const w = 10 + Math.random() * 15, d = 10 + Math.random() * 15, h = 20 + Math.random() * 60;
-        const x = cx + (Math.random() - 0.5) * 40, z = cz + (Math.random() - 0.5) * 40;
-        if (Math.abs(x) < ROAD_W / 2 + 10 && Math.abs(z) < ROAD_W / 2 + 10) return;
-        const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bMats[Math.floor(Math.random() * 2)]);
-        b.position.set(x, h / 2, z);
-        const edgeColor = edgeColors[Math.floor(Math.random() * edgeColors.length)];
-        const edges = new THREE.EdgesGeometry(b.geometry);
-        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: edgeColor, transparent: true, opacity: 0.12 + Math.random() * 0.1 }));
-        line.position.copy(b.position);
-        buildings.add(b, line);
-        /* window lights — small emissive dots on building faces */
-        const winCount = Math.floor(3 + Math.random() * 5);
-        for (let j = 0; j < winCount; j++) {
-          const winColor = windowColors[Math.floor(Math.random() * windowColors.length)];
-          const wy = h * 0.2 + Math.random() * h * 0.7;
-          const side = Math.floor(Math.random() * 4);
-          const wx = side < 2 ? (side === 0 ? -w / 2 - 0.05 : w / 2 + 0.05) : (Math.random() - 0.5) * w * 0.8;
-          const wz = side >= 2 ? (side === 2 ? -d / 2 - 0.05 : d / 2 + 0.05) : (Math.random() - 0.5) * d * 0.8;
-          const win = new THREE.Mesh(
-            new THREE.PlaneGeometry(1.2, 0.8),
-            new THREE.MeshBasicMaterial({ color: winColor, transparent: true, opacity: 0.15 + Math.random() * 0.25, side: THREE.DoubleSide, depthWrite: false }),
-          );
-          win.position.set(x + wx, wy, z + wz);
-          if (side < 2) win.rotation.y = Math.PI / 2;
-          buildings.add(win);
-        }
-      }
-    };
-    addBlock(-60, -60); addBlock(60, -60); addBlock(-60, 60); addBlock(60, 60);
-    this.scene.add(buildings);
+    const streetscape = new THREE.Group();
+    streetscape.name = 'daylight-streetscape';
+
+    const northwest = createBuilding(8, 10, 6);
+    northwest.name = 'building-northwest';
+    northwest.position.set(-19, 0, 18);
+    streetscape.add(northwest);
+
+    const southeast = createBuilding(9, 12, 7);
+    southeast.name = 'building-southeast';
+    southeast.position.set(19, 0, -18);
+    streetscape.add(southeast);
+
+    const northeastTree = createTree();
+    northeastTree.name = 'tree-northeast';
+    northeastTree.position.set(18, 0, 18);
+    streetscape.add(northeastTree);
+
+    const southwestTree = createTree();
+    southwestTree.name = 'tree-southwest';
+    southwestTree.position.set(-18, 0, -18);
+    streetscape.add(southwestTree);
+
+    this.scene.add(streetscape);
   }
 
   private buildTrafficLights() {
-    const mkTL = (x: number, z: number, phase: string) => {
-      const g = new THREE.Group();
-      g.position.set(x, 0, z);
-      const pole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.08, 0.08, 4, 8).translate(0, 2, 0),
-        new THREE.MeshStandardMaterial({ color: 0x333333 }),
-      );
-      const box = new THREE.Mesh(
-        new THREE.BoxGeometry(0.5, 1.2, 0.3).translate(0, 4.5, 0),
-        new THREE.MeshStandardMaterial({ color: 0x222222 }),
-      );
-      const lights: { mesh: THREE.Mesh; color: number }[] = [];
-      [T.red, T.orange, T.green].forEach(c => {
-        const idx = [T.red, T.orange, T.green].indexOf(c);
-        const s = new THREE.Mesh(
-          new THREE.SphereGeometry(0.12, 8, 8).translate(0, 4.8 - idx * 0.35, 0.16),
-          new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.1 }),
-        );
-        g.add(s);
-        lights.push({ mesh: s, color: c });
-      });
-      g.add(pole, box);
-      g.userData = { phase, lights, timer: 0 };
-      this.scene.add(g);
-      this.trafficLights.push(g);
-    };
-    mkTL(-10, 10, 'green'); mkTL(10, -10, 'green');
-    mkTL(10, 10, 'red'); mkTL(-10, -10, 'yellow');
+    const configs = [
+      { x: -10, z: 10, phase: 'green' as const, name: 'north' },
+      { x: 10, z: -10, phase: 'green' as const, name: 'south' },
+      { x: 10, z: 10, phase: 'red' as const, name: 'east' },
+      { x: -10, z: -10, phase: 'yellow' as const, name: 'west' },
+    ];
+    configs.forEach(({ x, z, phase, name }) => {
+      const signal = createTrafficSignal(phase);
+      signal.name = `traffic-signal-${name}`;
+      signal.position.set(x, 0, z);
+      const lights = (['red', 'yellow', 'green'] as const).map((color) => ({
+        mesh: signal.getObjectByName(`signal-${color}`) as THREE.Mesh,
+        color: color === 'red' ? T.red : color === 'yellow' ? T.orange : T.green,
+      }));
+      signal.userData = { phase, lights, timer: 0 };
+      this.scene.add(signal);
+      this.trafficLights.push(signal);
+    });
   }
 
   private buildRSUs() {
-    const mkRSU = (x: number, z: number, color: number = T.cyan) => {
+    const mkRSU = (x: number, z: number) => {
       const g = new THREE.Group();
       g.position.set(x, 0, z);
       const pole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.3, 0.4, 12, 8).translate(0, 6, 0),
-        new THREE.MeshStandardMaterial({ color: 0x222222 }),
+        new THREE.CylinderGeometry(0.16, 0.22, 7, 10).translate(0, 3.5, 0),
+        new THREE.MeshStandardMaterial({ color: 0x687276, roughness: 0.8 }),
       );
       const head = new THREE.Mesh(
-        new THREE.BoxGeometry(1.5, 1, 1).translate(0, 12.5, 0),
-        new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1 }),
+        new THREE.BoxGeometry(0.9, 0.55, 0.55).translate(0, 7.15, 0),
+        new THREE.MeshStandardMaterial({ color: 0x8b9799, roughness: 0.65 }),
       );
-      const ringMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false });
-      const ring = new THREE.Mesh(new THREE.CylinderGeometry(25, 25, 0.1, 32).translate(0, 0.5, 0), ringMat);
-      const coneMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.04, side: THREE.DoubleSide, depthWrite: false });
-      const cone = new THREE.Mesh(new THREE.ConeGeometry(18, 12, 16, 1, true).translate(0, 6, 0), coneMat);
-      g.add(pole, head, ring, cone);
+      const antenna = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.45, 0.08).translate(0, 7.65, 0),
+        new THREE.MeshStandardMaterial({ color: 0x5f686b, roughness: 0.85 }),
+      );
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x9aafb6, transparent: true, opacity: 0.08, depthWrite: false });
+      const coneMat = new THREE.MeshBasicMaterial({ color: 0x81959b, transparent: true, opacity: 0.04, depthWrite: false });
+      g.add(pole, head, antenna);
       this.scene.add(g);
-      this.rsuObjects.push({ group: g, ringMat, coneMat, color });
+      this.rsuObjects.push({ group: g, ringMat, coneMat, color: 0x9aafb6 });
     };
-    mkRSU(-15, 15, T.cyan); mkRSU(15, -15, T.purple);
+    mkRSU(-15, 15); mkRSU(15, -15);
   }
 
   private buildVehicles() {
@@ -541,22 +488,23 @@ export class ZhiluWujieScene {
 
   private buildCoverage() {
     this.coverageGroup = new THREE.Group();
+    this.coverageGroup.name = 'v2i-coverage';
     this.coverageGroup.visible = false;
     this.rsuObjects.forEach(r => {
       const disc = new THREE.Mesh(
-        new THREE.CylinderGeometry(25, 25, 0.2, 32),
-        new THREE.MeshBasicMaterial({ color: r.color, transparent: true, opacity: 0.06, depthWrite: false, side: THREE.DoubleSide }),
+        new THREE.CylinderGeometry(18, 18, 0.05, 48),
+        new THREE.MeshBasicMaterial({ color: 0x9aafb6, transparent: true, opacity: 0.08, depthWrite: false }),
       );
       disc.position.copy(r.group.position);
-      disc.position.y = 0.3;
+      disc.position.y = 0.04;
       this.coverageGroup.add(disc);
       const ring = new THREE.Mesh(
-        new THREE.RingGeometry(24.5, 25, 32),
-        new THREE.MeshBasicMaterial({ color: r.color, transparent: true, opacity: 0.3, side: THREE.DoubleSide }),
+        new THREE.RingGeometry(17.7, 18, 48),
+        new THREE.MeshBasicMaterial({ color: 0x9aafb6, transparent: true, opacity: 0.12, side: THREE.DoubleSide }),
       );
       ring.rotation.x = -Math.PI / 2;
       ring.position.copy(r.group.position);
-      ring.position.y = 0.4;
+      ring.position.y = 0.07;
       this.coverageGroup.add(ring);
     });
     this.scene.add(this.coverageGroup);
@@ -756,7 +704,7 @@ export class ZhiluWujieScene {
           (tl.userData.phase === 'green' && l.color === T.green) ||
           (tl.userData.phase === 'yellow' && l.color === T.orange) ||
           (tl.userData.phase === 'red' && l.color === T.red);
-        (l.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = isActive ? 1.0 : 0.1;
+        (l.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = isActive ? 0.2 : 0.03;
       });
     });
   }

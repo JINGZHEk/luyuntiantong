@@ -45,9 +45,9 @@ describe('semi-realistic scene visual factory', () => {
       'crosswalks',
       'streetscape',
     ]));
-    expect(layout.getObjectByName('traffic-signals')).toHaveProperty('children.length', 4);
-    expect(layout.getObjectByName('crosswalks')).toHaveProperty('children.length', 4);
-    expect((layout.getObjectByName('streetscape') as THREE.Group).children.length).toBeGreaterThanOrEqual(4);
+    expect(layout.getObjectByName('traffic-signals')?.children.length).toBe(4);
+    expect(layout.getObjectByName('crosswalks')?.children.length).toBe(4);
+    expect(layout.getObjectByName('streetscape')?.children.length).toBeGreaterThanOrEqual(4);
 
     const roadMeshes = meshes(layout.getObjectByName('road-surface') as THREE.Object3D);
     expect(roadMeshes).toHaveLength(2);
