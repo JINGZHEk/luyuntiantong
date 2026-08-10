@@ -95,7 +95,7 @@ export interface RealtimeSceneMetrics {
 /* ------------------------------------------------------------------ */
 const T = {
   cyan: 0x4f9791, blue: 0x717b8d, red: 0xb46660,
-  green: 0x66856b, orange: 0xa18358, purple: 0x7c7084,
+  green: 0x66856b, orange: 0xa18358,
 };
 const SCENARIO_DUR = 12;
 const EVT = { pedStart: 3, rsuDetect: 4.5, v2xWarn: 5, brakeStart: 5.5, stopTime: 7.5, safeCross: 9.5 };
