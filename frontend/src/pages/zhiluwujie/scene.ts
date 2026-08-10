@@ -100,6 +100,10 @@ const T = {
 const SCENARIO_DUR = 12;
 const EVT = { pedStart: 3, rsuDetect: 4.5, v2xWarn: 5, brakeStart: 5.5, stopTime: 7.5, safeCross: 9.5 };
 
+export function trafficHeadingForLane(lane: number): number {
+  return lane < 0 ? -Math.PI / 2 : Math.PI / 2;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Scene Manager                                                      */
 /* ------------------------------------------------------------------ */
@@ -357,7 +361,7 @@ export class ZhiluWujieScene {
       const g = createRealtimeActorModel({ class: vehicleClass, modelType: 'vehicle' });
       if (isEgo) {
         const lidar = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.4, 0.4, 0.3).translate(0, 2, -0.5),
+          new THREE.CylinderGeometry(0.4, 0.4, 0.3).translate(0, 1.3, -0.5),
           new THREE.MeshStandardMaterial({ color: 0x6f7776, roughness: 0.5 }),
         );
         const aura = new THREE.Mesh(
@@ -370,7 +374,7 @@ export class ZhiluWujieScene {
         this.egoAuraMat = aura.material as THREE.MeshBasicMaterial;
         /* V2X line */
         const v2x = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 2, 0), new THREE.Vector3(-15, 12, 15)]),
+          new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 1.3, 0), new THREE.Vector3(-15, 12, 15)]),
           new THREE.LineBasicMaterial({ color: T.blue, transparent: true, opacity: 0, linewidth: 1 }),
         );
         g.add(v2x);
@@ -402,7 +406,7 @@ export class ZhiluWujieScene {
       const lane = isV ? laneX[i % 2] : laneZ[i % 2];
       const pos = Math.random() * 200 - 100;
       if (isV) { tc.position.set(lane, 0, pos); if (lane > 0) tc.rotation.y = Math.PI; }
-      else { tc.position.set(pos, 0, lane); tc.rotation.y = lane < 0 ? Math.PI / 2 : -Math.PI / 2; }
+      else { tc.position.set(pos, 0, lane); tc.rotation.y = trafficHeadingForLane(lane); }
       tc.userData = { isVertical: isV, speed: 20 + Math.random() * 20, lane };
       this.scene.add(tc);
       this.trafficCars.push(tc);
@@ -420,16 +424,14 @@ export class ZhiluWujieScene {
   }
 
   private buildParticles() {
-    const count = 150;
+    const count = 24;
     const geo = new THREE.BufferGeometry();
     const pos = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const vel = new Float32Array(count);
     const particlePalette = [
-      new THREE.Color(T.cyan), new THREE.Color(T.cyan), new THREE.Color(T.cyan),
-      new THREE.Color(T.purple), new THREE.Color(T.purple),
-      new THREE.Color(T.blue), new THREE.Color(T.blue),
-      new THREE.Color(T.green), new THREE.Color(0x4466ff),
+      new THREE.Color(0xd5dcda), new THREE.Color(0xc5d1d0),
+      new THREE.Color(0xb7c9c8), new THREE.Color(0xcbd8d5),
     ];
     for (let i = 0; i < count; i++) {
       pos[i * 3] = (Math.random() - 0.5) * 50;
@@ -442,8 +444,8 @@ export class ZhiluWujieScene {
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     this.particles = new THREE.Points(geo, new THREE.PointsMaterial({
-      size: 0.15, transparent: true, opacity: 0.6, vertexColors: true,
-      blending: THREE.AdditiveBlending, depthWrite: false,
+      size: 0.12, transparent: true, opacity: 0.18, vertexColors: true,
+      blending: THREE.NormalBlending, depthWrite: false,
     }));
     this.particles.userData.velocities = vel;
     this.scene.add(this.particles);

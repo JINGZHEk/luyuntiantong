@@ -83,8 +83,15 @@ export class SceneObjectPool {
         .map((point) => mapRoadPoint([Number(point[0]), Number(point[1])], this.coordinateConfig)),
     };
 
+    const previousState = this.states.get(key);
     this.states.set(key, state);
     let model = this.models.get(key);
+    if (model && previousState && (previousState.class !== state.class || previousState.modelType !== state.modelType)) {
+      this.group?.remove(model);
+      this.disposeModel(model);
+      this.models.delete(key);
+      model = undefined;
+    }
     if (!model) {
       model = this.createModel(state);
       this.models.set(key, model);
