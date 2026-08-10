@@ -123,6 +123,12 @@ describe('semi-realistic scene visual factory', () => {
       'bicycle-frame',
       'bicycle-rider',
     ]));
+    for (const wheelName of ['bicycle-wheel-front', 'bicycle-wheel-rear']) {
+      const wheel = bicycle.getObjectByName(wheelName);
+      expect(wheel).toBeInstanceOf(THREE.Mesh);
+      const wheelSize = new THREE.Box3().setFromObject(wheel as THREE.Mesh).getSize(new THREE.Vector3());
+      expect(wheelSize.y).toBeGreaterThan(wheelSize.z * 2);
+    }
     expect(namedDescendants(generic)).toEqual(expect.arrayContaining(['generic-body', 'generic-label-anchor']));
   });
 });

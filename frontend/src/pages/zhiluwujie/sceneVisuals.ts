@@ -331,11 +331,9 @@ function createBicycleModel(): THREE.Group {
   bicycle.name = 'actor-bicycle';
   const wheelMaterial = standardMaterial(COLORS.black, { roughness: 0.95 });
   const frontWheel = mesh('bicycle-wheel-front', new THREE.TorusGeometry(0.62, 0.055, 8, 16), wheelMaterial);
-  frontWheel.rotation.x = Math.PI / 2;
   frontWheel.position.set(0.68, 0.65, 0);
   bicycle.add(frontWheel);
   const rearWheel = mesh('bicycle-wheel-rear', new THREE.TorusGeometry(0.62, 0.055, 8, 16), wheelMaterial);
-  rearWheel.rotation.x = Math.PI / 2;
   rearWheel.position.set(-0.68, 0.65, 0);
   bicycle.add(rearWheel);
 
