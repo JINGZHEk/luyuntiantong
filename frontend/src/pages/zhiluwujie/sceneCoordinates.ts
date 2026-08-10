@@ -32,6 +32,19 @@ export function mapRoadPoint(
   };
 }
 
+export function mapRoadVector(
+  [worldX, worldY]: [number, number],
+  config: SceneCoordinateConfig = DEFAULT_SCENE_COORDINATES,
+): [number, number] {
+  const x = worldY * config.scale;
+  const z = worldX * config.scale;
+  const angle = (config.rotationDeg * Math.PI) / 180;
+  return [
+    x * Math.cos(angle) - z * Math.sin(angle),
+    x * Math.sin(angle) + z * Math.cos(angle),
+  ];
+}
+
 export function mapRoadHeading(headingDeg: number, rotationDeg: number): number {
   return ((headingDeg + rotationDeg) * Math.PI) / 180;
 }

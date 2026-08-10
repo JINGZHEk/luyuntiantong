@@ -8,12 +8,15 @@ import {
   isFiniteRoadPoint,
   mapRoadHeading,
   mapRoadPoint,
+  mapRoadVector,
   SceneCoordinateConfig,
 } from './sceneCoordinates';
 
 export interface SceneObjectPoolOptions {
   coordinateConfig?: SceneCoordinateConfig;
   ttlMs?: number;
+  smoothingRate?: number;
+  predictionWindowMs?: number;
   group?: THREE.Group;
   createModel?: (state: PooledObjectState) => THREE.Object3D;
 }
@@ -40,14 +43,22 @@ function finitePair(value: number[] | undefined): [number, number] {
 export class SceneObjectPool {
   private readonly coordinateConfig: SceneCoordinateConfig;
   private readonly ttlMs: number;
+  private readonly smoothingRate: number;
+  private readonly predictionWindowMs: number;
   private group?: THREE.Group;
   private readonly createModel: (state: PooledObjectState) => THREE.Object3D;
   private readonly states = new Map<string, PooledObjectState>();
   private readonly models = new Map<string, THREE.Object3D>();
+  private readonly displayStates = new Map<string, {
+    position: THREE.Vector3;
+    heading: number;
+  }>();
 
   constructor(options: SceneObjectPoolOptions = {}) {
     this.coordinateConfig = options.coordinateConfig || DEFAULT_SCENE_COORDINATES;
     this.ttlMs = options.ttlMs ?? 1000;
+    this.smoothingRate = options.smoothingRate ?? 12;
+    this.predictionWindowMs = options.predictionWindowMs ?? 250;
     this.group = options.group;
     this.createModel = options.createModel || this.createDefaultModel;
   }
@@ -65,7 +76,7 @@ export class SceneObjectPool {
     const key = `${normalizedNodeId}:${String(trackId)}`;
     const worldPoint: [number, number] = [Number(object.world_pos[0]), Number(object.world_pos[1])];
     const roadPoint = mapRoadPoint(worldPoint, this.coordinateConfig);
-    const [vx, vz] = finitePair(object.velocity);
+    const velocity = mapRoadVector(finitePair(object.velocity), this.coordinateConfig);
     const state: PooledObjectState = {
       key,
       trackId,
@@ -74,7 +85,7 @@ export class SceneObjectPool {
       modelType: modelTypeForClass(object.class || 'unknown'),
       position: roadPoint,
       heading: mapRoadHeading(Number(object.heading || 0), this.coordinateConfig.rotationDeg),
-      velocity: [vx, vz],
+      velocity,
       confidence: object.confidence,
       lastSeenAt: receivedAt,
       occlusionLevel: Number.isFinite(Number(object.occlusion_level)) ? Number(object.occlusion_level) : 0,
@@ -90,15 +101,49 @@ export class SceneObjectPool {
       this.group?.remove(model);
       this.disposeModel(model);
       this.models.delete(key);
+      this.displayStates.delete(key);
       model = undefined;
     }
     if (!model) {
       model = this.createModel(state);
       this.models.set(key, model);
       this.group?.add(model);
+      const displayState = {
+        position: new THREE.Vector3(state.position.x, state.position.y, state.position.z),
+        heading: state.heading,
+      };
+      this.displayStates.set(key, displayState);
+      this.updateModelTransform(model, displayState);
     }
-    this.updateModel(model, state);
+    this.updateModelMetadata(model, state);
     return this.cloneState(state);
+  }
+
+  advance(deltaSeconds: number): void {
+    const dt = Number.isFinite(deltaSeconds)
+      ? Math.min(1, Math.max(0, deltaSeconds))
+      : 0;
+    const blend = 1 - Math.exp(-this.smoothingRate * dt);
+    const predictionSeconds = Math.min(this.predictionWindowMs / 1000, dt);
+
+    for (const [key, state] of this.states) {
+      const model = this.models.get(key);
+      const displayState = this.displayStates.get(key);
+      if (!model || !displayState) continue;
+
+      const targetX = state.position.x + state.velocity[0] * predictionSeconds;
+      const targetZ = state.position.z + state.velocity[1] * predictionSeconds;
+      displayState.position.x += (targetX - displayState.position.x) * blend;
+      displayState.position.z += (targetZ - displayState.position.z) * blend;
+      displayState.position.y = state.position.y;
+
+      const headingDelta = state.heading - displayState.heading;
+      displayState.heading += Math.atan2(
+        Math.sin(headingDelta),
+        Math.cos(headingDelta),
+      ) * blend;
+      this.updateModelTransform(model, displayState);
+    }
   }
 
   tick(now: number): void {
@@ -111,6 +156,7 @@ export class SceneObjectPool {
 
   clear(): void {
     for (const key of this.states.keys()) this.remove(key);
+    this.displayStates.clear();
   }
 
   snapshot(): PooledObjectState[] {
@@ -129,11 +175,10 @@ export class SceneObjectPool {
       this.models.delete(key);
     }
     this.states.delete(key);
+    this.displayStates.delete(key);
   }
 
-  private updateModel(model: THREE.Object3D, state: PooledObjectState): void {
-    model.position.set(state.position.x, state.position.y, state.position.z);
-    model.rotation.y = state.heading;
+  private updateModelMetadata(model: THREE.Object3D, state: PooledObjectState): void {
     model.userData.realtimeState = state;
     const opacity = state.occlusionLevel >= 3 ? 0.35 : state.occlusionLevel >= 1 ? 0.65 : 1;
     model.traverse((child) => {
@@ -143,6 +188,14 @@ export class SceneObjectPool {
         material.opacity = opacity;
       }
     });
+  }
+
+  private updateModelTransform(
+    model: THREE.Object3D,
+    displayState: { position: THREE.Vector3; heading: number },
+  ): void {
+    model.position.copy(displayState.position);
+    model.rotation.y = displayState.heading;
   }
 
   private createDefaultModel(state: PooledObjectState): THREE.Object3D {
