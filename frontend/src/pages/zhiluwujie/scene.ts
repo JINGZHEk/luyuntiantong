@@ -94,7 +94,7 @@ export interface RealtimeSceneMetrics {
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 const T = {
-  cyan: 0x4f9791, blue: 0x717b8d, red: 0xb46660,
+  cyan: 0x4f9791, blue: 0x717b8d, red: 0xe2a098,
   green: 0x66856b, orange: 0xa18358,
 };
 const SCENARIO_DUR = 12;

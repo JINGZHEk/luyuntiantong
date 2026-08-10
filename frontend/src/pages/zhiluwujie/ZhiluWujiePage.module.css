@@ -19,7 +19,7 @@
   --neon-blue: #717b8d;
   --neon-green: #66856b;
   --neon-orange: #a18358;
-  --neon-red: #d9867c;
+  --neon-red: #e2a098;
   --neon-purple: #7c7084;
   --hud-text: #dfe8e3;
   --hud-muted: #c0cbc5;
@@ -91,8 +91,8 @@
 }
 
 .panelRed {
-  border-color: rgba(217, 134, 124, 0.65) !important;
-  box-shadow: 0 0 22px rgba(217, 134, 124, 0.14) !important;
+  border-color: rgba(226, 160, 152, 0.65) !important;
+  box-shadow: 0 0 22px rgba(226, 160, 152, 0.14) !important;
 }
 
 .panelRed::before,
@@ -554,7 +554,7 @@
 }
 
 .alertDotDanger {
-  background: var(--neon-red, #d9867c);
+  background: var(--neon-red, #e2a098);
   animation: pulse 1s ease-in-out infinite;
 }
 
@@ -585,9 +585,9 @@
 }
 
 .phaseTagDanger {
-  background: rgba(217, 134, 124, 0.2);
+  background: rgba(226, 160, 152, 0.2);
   color: #fecaca;
-  border-color: var(--neon-red, #d9867c);
+  border-color: var(--neon-red, #e2a098);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
@@ -626,8 +626,7 @@
 }
 
 .dangerText {
-  color: var(--neon-red, #d9867c) !important;
-  animation: pulse 1s ease-in-out infinite;
+  color: var(--neon-red, #e2a098) !important;
 }
 
 .riskBarBg {
@@ -647,7 +646,7 @@
 }
 
 .riskBarDanger {
-  background: var(--neon-red, #d9867c);
+  background: var(--neon-red, #e2a098);
 }
 
 .decisionGrid {
@@ -721,7 +720,7 @@
 
 .logInfo { color: var(--hud-muted); }
 .logWarn { color: var(--neon-orange, #a18358); }
-.logDanger { color: var(--neon-red, #d9867c); font-weight: bold; }
+.logDanger { color: var(--neon-red, #e2a098); font-weight: bold; }
 .logSuccess { color: var(--neon-green, #66856b); }
 
 .logTime {
