@@ -102,6 +102,36 @@ function Get-RequiredCommand {
     return $command.Source
 }
 
+function Resolve-V2XPython {
+    if ($env:V2X_PYTHON) {
+        if (-not (Test-Path -LiteralPath $env:V2X_PYTHON)) {
+            throw "V2X_PYTHON does not point to an executable: $env:V2X_PYTHON"
+        }
+        return (Resolve-Path -LiteralPath $env:V2X_PYTHON).Path
+    }
+
+    $candidatePaths = @()
+    if ($env:CONDA_PREFIX) {
+        $condaRoot = Split-Path -Parent $env:CONDA_PREFIX
+        $candidatePaths += Join-Path $condaRoot "v2x-ghost-algorithm\python.exe"
+    }
+
+    $pythonCommand = Get-Command "python" -ErrorAction SilentlyContinue
+    if ($pythonCommand) {
+        $pythonRoot = Split-Path -Parent (Split-Path -Parent $pythonCommand.Source)
+        $candidatePaths += Join-Path $pythonRoot "envs\v2x-ghost-algorithm\python.exe"
+    }
+
+    $candidatePaths += "D:\Anaconda\envs\v2x-ghost-algorithm\python.exe"
+    foreach ($candidatePath in ($candidatePaths | Select-Object -Unique)) {
+        if (Test-Path -LiteralPath $candidatePath) {
+            return (Resolve-Path -LiteralPath $candidatePath).Path
+        }
+    }
+
+    return Get-RequiredCommand -Name "python" -InstallHint "Install Python 3.10+ and add it to PATH, or set V2X_PYTHON to the project environment executable."
+}
+
 function Test-PortListening {
     param([int]$Port)
 
@@ -125,7 +155,7 @@ New-Item -ItemType Directory -Force -Path $LogRoot | Out-Null
 Write-Host "V2X Ghost-Probe Demo Launcher" -ForegroundColor Green
 Write-Host "Project: $ProjectRoot"
 
-$PythonExe = Get-RequiredCommand -Name "python" -InstallHint "Install Python 3.10+ and add it to PATH."
+$PythonExe = Resolve-V2XPython
 $NpmExe = Get-Command "npm.cmd" -ErrorAction SilentlyContinue
 if ($NpmExe) {
     $NpmExe = $NpmExe.Source

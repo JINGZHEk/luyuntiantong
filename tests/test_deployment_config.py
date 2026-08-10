@@ -88,6 +88,13 @@ class DeploymentConfigTest(unittest.TestCase):
         self.assertIn("$previousCloudApiBaseUrl", script)
         self.assertIn("$env:VITE_CLOUD_API_BASE_URL = $previousCloudApiBaseUrl", script)
 
+    def test_start_demo_supports_the_project_python_environment(self):
+        script = Path("scripts/start_demo.ps1").read_text(encoding="utf-8")
+
+        self.assertIn("$env:V2X_PYTHON", script)
+        self.assertIn("v2x-ghost-algorithm", script)
+        self.assertIn("V2X_PYTHON does not point to an executable", script)
+
     def test_start_demo_validates_v2x_backend_before_reusing_port(self):
         script = Path("scripts/start_demo.ps1").read_text(encoding="utf-8")
 
