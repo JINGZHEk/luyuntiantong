@@ -272,10 +272,16 @@ export function createIntersectionLayout(): THREE.Group {
   return layout;
 }
 
-function createVehicleModel(): THREE.Group {
+function createVehicleModel(actorClass: string): THREE.Group {
   const vehicle = new THREE.Group();
   vehicle.name = 'actor-vehicle';
-  const bodyMaterial = standardMaterial(COLORS.vehicle);
+  const normalizedClass = actorClass.toLowerCase();
+  const bodyColor = normalizedClass === 'truck'
+    ? 0x756f68
+    : normalizedClass === 'bus'
+      ? 0x687a78
+      : COLORS.vehicle;
+  const bodyMaterial = standardMaterial(bodyColor);
   addBox(vehicle, 'vehicle-body', 1.55, 0.5, 3.2, bodyMaterial, [0, 0.62, 0]);
 
   const windows = new THREE.Group();
@@ -307,6 +313,11 @@ function createVehicleModel(): THREE.Group {
   addBox(taillightRear, 'vehicle-taillight-rear-left', 0.28, 0.16, 0.08, standardMaterial(0x8b625f), [-0.48, 0.68, 1.63]);
   addBox(taillightRear, 'vehicle-taillight-rear-right', 0.48, 0.16, 0.08, standardMaterial(0x8b625f), [0.48, 0.68, 1.63]);
   vehicle.add(taillightRear);
+  if (normalizedClass === 'truck') {
+    vehicle.scale.set(1.18, 1.22, 1.35);
+  } else if (normalizedClass === 'bus') {
+    vehicle.scale.set(1.25, 1.35, 1.55);
+  }
   return vehicle;
 }
 
@@ -368,7 +379,7 @@ export function createRealtimeActorModel(state: ActorVisualState): THREE.Group {
   let model: THREE.Group;
   switch (state.modelType) {
     case 'vehicle':
-      model = createVehicleModel();
+      model = createVehicleModel(state.class);
       break;
     case 'person':
       model = createPersonModel();

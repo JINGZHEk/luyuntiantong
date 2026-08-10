@@ -26,6 +26,7 @@ import { SceneObjectPool } from './sceneObjectPool';
 import {
   createBuilding,
   createIntersectionLayout,
+  createRealtimeActorModel,
   createTrafficSignal,
   createTree,
 } from './sceneVisuals';
@@ -196,6 +197,7 @@ export class ZhiluWujieScene {
       group: this.realtimeObjectsGroup,
       coordinateConfig: DEFAULT_SCENE_COORDINATES,
       ttlMs: 1000,
+      createModel: state => createRealtimeActorModel(state),
     });
     this.scene.add(this.realtimeObjectsGroup);
 
@@ -351,72 +353,51 @@ export class ZhiluWujieScene {
   }
 
   private buildVehicles() {
-    const mkVehicle = (color: number, isEgo = false) => {
-      const g = new THREE.Group();
-      const body = new THREE.Mesh(
-        new THREE.BoxGeometry(2.2, 1.2, 5).translate(0, 0.8, 0),
-        new THREE.MeshStandardMaterial({ color, roughness: 0.2 }),
-      );
-      const glass = new THREE.Mesh(
-        new THREE.BoxGeometry(2.3, 0.6, 2.8).translate(0, 1.6, -0.2),
-        new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.1 }),
-      );
-      g.add(body, glass);
+    const mkVehicle = (vehicleClass: 'car' | 'truck' | 'bus', isEgo = false) => {
+      const g = createRealtimeActorModel({ class: vehicleClass, modelType: 'vehicle' });
       if (isEgo) {
         const lidar = new THREE.Mesh(
           new THREE.CylinderGeometry(0.4, 0.4, 0.3).translate(0, 2, -0.5),
-          new THREE.MeshBasicMaterial({ color: T.cyan }),
+          new THREE.MeshStandardMaterial({ color: 0x6f7776, roughness: 0.5 }),
         );
         const aura = new THREE.Mesh(
-          new THREE.BoxGeometry(2.6, 2, 5.4).translate(0, 1.2, 0),
-          new THREE.MeshBasicMaterial({ color: T.cyan, wireframe: true, transparent: true, opacity: 0.2 }),
+          new THREE.RingGeometry(1.25, 1.5, 32),
+          new THREE.MeshBasicMaterial({ color: T.cyan, transparent: true, opacity: 0.2, depthWrite: false }),
         );
+        aura.rotation.x = -Math.PI / 2;
+        aura.position.y = 0.06;
         g.add(lidar, aura);
         this.egoAuraMat = aura.material as THREE.MeshBasicMaterial;
         /* V2X line */
         const v2x = new THREE.Line(
           new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 2, 0), new THREE.Vector3(-15, 12, 15)]),
-          new THREE.LineBasicMaterial({ color: T.blue, transparent: true, opacity: 0 }),
+          new THREE.LineBasicMaterial({ color: T.blue, transparent: true, opacity: 0, linewidth: 1 }),
         );
         g.add(v2x);
         this.egoV2xLine = v2x;
-        /* sensor cone */
-        const sCone = new THREE.Mesh(
-          new THREE.ConeGeometry(6, 18, 12, 1, true).rotateX(Math.PI / 2).translate(0, 1, -12),
-          new THREE.MeshBasicMaterial({ color: T.cyan, transparent: true, opacity: 0.04, side: THREE.DoubleSide, depthWrite: false }),
-        );
-        g.add(sCone);
       }
       return g;
     };
 
     /* ego */
-    this.egoCar = mkVehicle(0x111111, true);
+    this.egoCar = mkVehicle('car', true);
     this.scene.add(this.egoCar);
 
     /* truck */
-    this.truck = new THREE.Group();
+    this.truck = createRealtimeActorModel({ class: 'truck', modelType: 'vehicle' });
     this.truck.position.set(6, 0, 15);
-    this.truck.add(new THREE.Mesh(
-      new THREE.BoxGeometry(3.5, 3.5, 8).translate(0, 2.5, 1),
-      new THREE.MeshStandardMaterial({ color: 0x111111 }),
-    ));
-    this.truck.add(new THREE.Mesh(
-      new THREE.BoxGeometry(3.2, 2.5, 2.5).translate(0, 2, -4),
-      new THREE.MeshStandardMaterial({ color: 0x334455 }),
-    ));
     const blind = new THREE.Mesh(
-      new THREE.BoxGeometry(10, 0.1, 8).translate(5, 0.1, 0),
+      new THREE.BoxGeometry(6, 0.1, 4).translate(3, 0.1, 0),
       new THREE.MeshBasicMaterial({ color: T.red, transparent: true, opacity: 0.1, depthWrite: false }),
     );
     this.truck.add(blind);
     this.scene.add(this.truck);
 
     /* traffic cars */
-    const trafficColors = [0x1a2a44, 0x2a1a3a, 0x1a3a2a, 0x333344, 0x2a2a3a, 0x1a2a3a, 0x3a2a1a, 0x222233];
+    const trafficClasses: ('car' | 'truck' | 'bus')[] = ['car', 'truck', 'bus'];
     const laneX = [-6, 6], laneZ = [-6, 6];
     for (let i = 0; i < 12; i++) {
-      const tc = mkVehicle(trafficColors[i % trafficColors.length]);
+      const tc = mkVehicle(trafficClasses[i % trafficClasses.length]);
       const isV = i % 2 === 0;
       const lane = isV ? laneX[i % 2] : laneZ[i % 2];
       const pos = Math.random() * 200 - 100;
@@ -429,11 +410,7 @@ export class ZhiluWujieScene {
   }
 
   private buildPedestrian() {
-    this.pedestrian = new THREE.Group();
-    this.pedestrian.add(new THREE.Mesh(
-      new THREE.CylinderGeometry(0.3, 0.3, 1.8).translate(0, 0.9, 0),
-      new THREE.MeshStandardMaterial({ color: 0xffccaa }),
-    ));
+    this.pedestrian = createRealtimeActorModel({ class: 'person', modelType: 'person' });
     this.pedWarn = new THREE.Mesh(
       new THREE.CylinderGeometry(2, 2, 0.1).translate(0, 0.1, 0),
       new THREE.MeshBasicMaterial({ color: T.red, transparent: true, opacity: 0, depthWrite: false }),
@@ -630,7 +607,7 @@ export class ZhiluWujieScene {
       this.egoAuraMat.opacity = 0.6 + Math.sin(st * 20) * 0.2;
       this.rsuObjects[0].ringMat.color.setHex(T.red);
       (this.pedWarn.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(st * 15) * 0.5;
-      (this.egoV2xLine.material as THREE.LineBasicMaterial).opacity = 1;
+      (this.egoV2xLine.material as THREE.LineBasicMaterial).opacity = 0.35;
       this.egoV2xLine.geometry.setFromPoints([
         new THREE.Vector3(0, 2, 0),
         this.rsuObjects[0].group.position.clone().sub(this.egoCar.position).add(new THREE.Vector3(0, 12, 0)),

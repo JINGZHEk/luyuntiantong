@@ -149,4 +149,35 @@ describe('semi-realistic scene visual factory', () => {
     }
     expect(namedDescendants(generic)).toEqual(expect.arrayContaining(['generic-body', 'generic-label-anchor']));
   });
+
+  it('gives truck and bus actors readable proportions while keeping generic actors renderable', () => {
+    const car = createRealtimeActorModel({ class: 'car', modelType: 'vehicle' });
+    const truck = createRealtimeActorModel({ class: 'truck', modelType: 'vehicle' });
+    const bus = createRealtimeActorModel({ class: 'bus', modelType: 'vehicle' });
+
+    const sizeOf = (model: THREE.Group) => {
+      model.updateWorldMatrix(true, true);
+      return new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
+    };
+    const carSize = sizeOf(car);
+    const truckSize = sizeOf(truck);
+    const busSize = sizeOf(bus);
+
+    expect(truckSize.y).toBeGreaterThan(carSize.y);
+    expect(truckSize.z).toBeGreaterThan(carSize.z);
+    expect(busSize.y).toBeGreaterThan(carSize.y);
+    expect(busSize.z).toBeGreaterThan(carSize.z);
+    for (const model of [truck, bus]) {
+      expect(namedDescendants(model)).toEqual(expect.arrayContaining([
+        'vehicle-body',
+        'vehicle-windows',
+        'vehicle-wheel-front-left',
+        'vehicle-wheel-front-right',
+        'vehicle-wheel-rear-left',
+        'vehicle-wheel-rear-right',
+        'vehicle-headlight-front',
+        'vehicle-taillight-rear',
+      ]));
+    }
+  });
 });
