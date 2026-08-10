@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapRoadHeading, mapRoadPoint } from './sceneCoordinates';
+import { mapRoadHeading, mapRoadPoint, mapRoadVector } from './sceneCoordinates';
 import { createSceneRealtimeAdapter } from './sceneRealtimeAdapter';
 
 function perceptionPayload(frameId: number, timestamp = frameId * 100): Record<string, unknown> {
@@ -34,6 +34,15 @@ describe('scene coordinate mapping', () => {
       rotationDeg: 0,
     })).toEqual({ x: 10, y: 0, z: 17 });
     expect(mapRoadHeading(90, 0)).toBeCloseTo(Math.PI / 2);
+  });
+
+  it('maps world velocity into scene coordinates', () => {
+    expect(mapRoadVector([3, 2], {
+      originX: 0,
+      originZ: 0,
+      scale: 2,
+      rotationDeg: 0,
+    })).toEqual([4, 6]);
   });
 });
 

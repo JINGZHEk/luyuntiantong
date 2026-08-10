@@ -49,6 +49,41 @@ describe('scene object pool model lifecycle', () => {
     expect(materialDispose).toHaveBeenCalledTimes(1);
   });
 
+  it('smoothly interpolates a reused model between updates', () => {
+    const group = new THREE.Group();
+    const pool = new SceneObjectPool({ group, predictionWindowMs: 0 });
+
+    pool.upsert('node-1', { ...objectPayload('car'), world_pos: [0, 0] }, 1000);
+    const model = group.children[0];
+    pool.upsert('node-1', { ...objectPayload('car'), world_pos: [0, 10] }, 1100);
+
+    pool.advance(0.05);
+    expect(model.position.x).toBeGreaterThan(0);
+    expect(model.position.x).toBeLessThan(10);
+
+    pool.advance(1);
+    expect(model.position.x).toBeCloseTo(10, 1);
+  });
+
+  it('bounds velocity prediction and cleans up models', () => {
+    const group = new THREE.Group();
+    const pool = new SceneObjectPool({ group, predictionWindowMs: 50 });
+
+    pool.upsert(
+      'node-1',
+      { ...objectPayload('car'), world_pos: [0, 0], velocity: [100, 0] },
+      1000,
+    );
+    const model = group.children[0];
+
+    pool.advance(2);
+    expect(model.position.z).toBeLessThanOrEqual(5);
+
+    pool.clear();
+    expect(pool.size).toBe(0);
+    expect(group.children).toHaveLength(0);
+  });
+
   it('removes expired objects with tick and clears remaining objects', () => {
     const group = new THREE.Group();
     const pool = new SceneObjectPool({ group, ttlMs: 1000 });

@@ -27,10 +27,13 @@ function meshes(root: THREE.Object3D): THREE.Mesh[] {
 }
 
 describe('semi-realistic scene visual factory', () => {
-  it('exports a restrained default scene style', () => {
-    expect(DEFAULT_SCENE_STYLE.background).toBe(0xc8d0cc);
-    expect(DEFAULT_SCENE_STYLE.bloomStrength).toBeLessThanOrEqual(0.1);
-    expect(DEFAULT_SCENE_STYLE.scanlineOpacity).toBeLessThanOrEqual(0.03);
+  it('exports the approved dark night scene style', () => {
+    expect(DEFAULT_SCENE_STYLE.background).toBe(0x030712);
+    expect(DEFAULT_SCENE_STYLE.bloomStrength).toBeCloseTo(0.16);
+    expect(DEFAULT_SCENE_STYLE.scanlineOpacity).toBeCloseTo(0.018);
+    expect(DEFAULT_SCENE_STYLE.palette.road).toBe(0x080c16);
+    expect(DEFAULT_SCENE_STYLE.palette.ground).toBe(0x0d1721);
+    expect(DEFAULT_SCENE_STYLE.palette.windowGlow).toBe(0xb09a72);
   });
 
   it('uses the shared style for the scene bloom default', () => {
