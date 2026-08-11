@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { ZhiluWujieScene, type Mode, type EgoPhase, type ScenarioMetrics, type TrafficMetrics, type RSUData } from './scene';
+import { ZhiluWujieScene, type Mode, type EgoPhase, type ScenarioMetrics, type TrafficMetrics, type RSUData, type SceneVisualPreset } from './scene';
 import { createSceneRealtimeAdapter, type SceneRealtimeAdapter } from './sceneRealtimeAdapter';
 import { DEFAULT_SCENE_STYLE } from './sceneVisuals';
 import { wsService } from '@/services/websocketService';
@@ -58,7 +58,12 @@ const INITIAL_THROUGHPUT_BARS = [
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
-export default function ZhiluWujiePage() {
+export interface ZhiluWujiePageProps {
+  scenePreset?: SceneVisualPreset;
+  autoEnter?: boolean;
+}
+
+export default function ZhiluWujiePage({ scenePreset = 'day', autoEnter = false }: ZhiluWujiePageProps) {
   /* refs */
   const canvasRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<ZhiluWujieScene | null>(null);
@@ -94,10 +99,16 @@ export default function ZhiluWujiePage() {
 
   /* ---- Boot sequence ---- */
   useEffect(() => {
+    if (autoEnter) {
+      setBooted(true);
+      setShowBtn(false);
+      return;
+    }
     let idx = 0;
     const iv = setInterval(() => {
       if (idx < BOOT_MSGS.length) {
-        setBootLines(prev => [...prev, `> ${BOOT_MSGS[idx]}`]);
+        const message = BOOT_MSGS[idx];
+        if (message) setBootLines(prev => [...prev, `> ${message}`]);
         idx++;
       } else {
         clearInterval(iv);
@@ -105,14 +116,15 @@ export default function ZhiluWujiePage() {
       }
     }, 350);
     return () => clearInterval(iv);
-  }, []);
+  }, [autoEnter]);
 
   /* ---- Init scene ---- */
   useEffect(() => {
     if (!canvasRef.current) return;
-    const sc = new ZhiluWujieScene();
+    const sc = new ZhiluWujieScene(scenePreset);
     sc.init(canvasRef.current);
     sc.start();
+    if (autoEnter) sc.enterScene();
     sceneRef.current = sc;
 
     sc.onLog = (msg, type) => {
@@ -145,7 +157,7 @@ export default function ZhiluWujiePage() {
       sc.dispose();
       sceneRef.current = null;
     };
-  }, []);
+  }, [autoEnter, scenePreset]);
 
   /* ---- UI update loop (10Hz) ---- */
   useEffect(() => {

@@ -1,0 +1,87 @@
+.previewRoot {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #030507;
+}
+
+.previewToolbar {
+  position: fixed;
+  z-index: 1200;
+  right: 24px;
+  bottom: 18px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 6px 10px;
+  border: 1px solid rgba(242, 240, 234, 0.16);
+  background: rgba(7, 9, 10, 0.84);
+  color: rgba(242, 240, 234, 0.72);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(14px);
+  pointer-events: auto;
+}
+
+.previewLabel {
+  color: rgba(242, 240, 234, 0.48);
+  font: 10px/1.2 'JetBrains Mono', Consolas, monospace;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+
+.previewRule {
+  width: 1px;
+  height: 16px;
+  background: rgba(242, 240, 234, 0.16);
+}
+
+.skinButton {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(242, 240, 234, 0.56);
+  cursor: pointer;
+  transition: 180ms ease;
+}
+
+.skinButton:hover,
+.skinButtonActive {
+  border-color: rgba(205, 177, 121, 0.55);
+  background: rgba(183, 154, 104, 0.12);
+  color: #f2f0ea;
+}
+
+.skinButton strong {
+  color: #d9bd86;
+  font: 11px/1 'JetBrains Mono', Consolas, monospace;
+}
+
+.skinButton span {
+  font-size: 11px;
+}
+
+.previewHint {
+  margin-left: auto;
+  color: rgba(242, 240, 234, 0.34);
+  font: 10px/1.2 'JetBrains Mono', Consolas, monospace;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .previewToolbar {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+  }
+
+  .previewHint {
+    display: none;
+  }
+}

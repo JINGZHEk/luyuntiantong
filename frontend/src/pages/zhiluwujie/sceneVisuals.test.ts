@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { shouldShowTrajectory, ZhiluWujieScene } from './scene';
+import { getSceneVisualProfile, shouldShowTrajectory, ZhiluWujieScene } from './scene';
 import {
   createBuilding,
   createIntersectionLayout,
@@ -27,6 +27,17 @@ function meshes(root: THREE.Object3D): THREE.Mesh[] {
 }
 
 describe('semi-realistic scene visual factory', () => {
+  it('exposes the approved realistic preview profiles', () => {
+    expect(getSceneVisualProfile('day')).toMatchObject({
+      background: 0xb5c4c6,
+      road: 0x454d4d,
+      sidewalk: 0x838d89,
+      accent: 0x3d8790,
+    });
+    expect(getSceneVisualProfile('dusk').cameraPosition).toEqual([16, 11, 56]);
+    expect(getSceneVisualProfile('night').fogNear).toBe(78);
+  });
+
   it('exports the approved dark night scene style', () => {
     expect(DEFAULT_SCENE_STYLE.background).toBe(0x030712);
     expect(DEFAULT_SCENE_STYLE.bloomStrength).toBeCloseTo(0.16);

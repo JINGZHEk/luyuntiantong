@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 export interface ActorVisualState {
   class: string;
@@ -304,7 +305,16 @@ function createVehicleModel(actorClass: string): THREE.Group {
     emissive: 0x000000,
     emissiveIntensity: 0,
   });
-  addBox(vehicle, 'vehicle-body', 1.55, 0.5, 3.2, bodyMaterial, [0, 0.62, 0]);
+  const body = mesh('vehicle-body', new RoundedBoxGeometry(1.55, 0.5, 3.2, 0.12, 3), bodyMaterial);
+  body.position.set(0, 0.62, 0);
+  vehicle.add(body);
+  const lowerMaterial = standardMaterial(COLORS.metal, { color: 0x202628, roughness: 0.58, metalness: 0.35 });
+  const lowerBody = mesh('vehicle-lower-body', new RoundedBoxGeometry(1.62, 0.18, 3.08, 0.05, 2), lowerMaterial);
+  lowerBody.position.y = 0.4;
+  vehicle.add(lowerBody);
+  const cabin = mesh('vehicle-cabin', new RoundedBoxGeometry(1.28, 0.46, 1.72, 0.16, 3), bodyMaterial);
+  cabin.position.set(0, 0.98, 0.12);
+  vehicle.add(cabin);
 
   const bumperMaterial = standardMaterial(COLORS.metal, { roughness: 0.72, metalness: 0.18 });
   addBox(vehicle, 'vehicle-bumper-front', 1.42, 0.12, 0.1, bumperMaterial, [0, 0.4, -1.62]);
@@ -329,6 +339,10 @@ function createVehicleModel(actorClass: string): THREE.Group {
     addBox(windows, name, 0.06, 0.3, 0.72, glassMaterial, [x, 0.96, z]);
   });
   vehicle.add(windows);
+
+  const mirrorMaterial = standardMaterial(COLORS.metal, { roughness: 0.48, metalness: 0.38 });
+  addBox(vehicle, 'vehicle-mirror-left', 0.14, 0.1, 0.22, mirrorMaterial, [-0.8, 1.08, -0.72]);
+  addBox(vehicle, 'vehicle-mirror-right', 0.14, 0.1, 0.22, mirrorMaterial, [0.8, 1.08, -0.72]);
 
   const wheelMaterial = standardMaterial(COLORS.metal, { roughness: 0.95, metalness: 0.18 });
   ([
