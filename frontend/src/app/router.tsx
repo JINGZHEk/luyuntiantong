@@ -30,6 +30,10 @@ export const router = createBrowserRouter([
     element: withSuspense(ZhiluWujiePage),
   },
   {
+    path: '/zhiluwujie-preview',
+    element: withSuspense(ZhiluWujiePage),
+  },
+  {
     path: '/',
     element: (
       <MainLayout />
