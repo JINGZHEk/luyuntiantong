@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Row, Col, Result, Button, Card, Space, Tag, message, Select, Switch } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { MonitorOutlined, PlayCircleOutlined, PauseCircleOutlined, StepForwardOutlined, SyncOutlined } from '@ant-design/icons';
 import { ConnectionPanel } from '@/widgets/connection-panel/ConnectionPanel';
 import { TopicManager } from '@/widgets/topic-manager/TopicManager';
@@ -10,6 +11,7 @@ import { PageLoading } from '@/shared/components/PageLoading';
 import { PageHeader } from '@/shared/components/PageHeader';
 import { DemoStatus, demoApi } from '@/services/demoApi';
 import { ScenarioSummary } from '@/types/realtime';
+import { SCENARIO_CATALOG, buildZhiluWujieUrl, mergeScenarioCatalog } from '@/pages/zhiluwujie/scenarioCatalog';
 import styles from './MonitorPage.module.css';
 
 const LEGACY_SCENARIOS: ScenarioSummary[] = [
@@ -20,21 +22,23 @@ const LEGACY_SCENARIOS: ScenarioSummary[] = [
 
 const MonitorPage: React.FC = () => {
   const { messages, pageState, setError } = useMonitorStore();
+  const navigate = useNavigate();
   const [demoStatus, setDemoStatus] = useState<DemoStatus | null>(null);
   const [scenario, setScenario] = useState('GP-01');
-  const [scenarioCatalog, setScenarioCatalog] = useState<ScenarioSummary[]>(LEGACY_SCENARIOS);
+  const [scenarioCatalog, setScenarioCatalog] = useState<ScenarioSummary[]>([...SCENARIO_CATALOG, ...LEGACY_SCENARIOS]);
   const [loop, setLoop] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const loadScenarioCatalog = useCallback(async () => {
     try {
       const result = await demoApi.list();
-      setScenarioCatalog([...LEGACY_SCENARIOS, ...result.items]);
-      setScenario((current) => result.items.some((item) => item.scenario_id === current)
+      const mergedCatalog = [...mergeScenarioCatalog(result.items), ...LEGACY_SCENARIOS];
+      setScenarioCatalog(mergedCatalog);
+      setScenario((current) => mergedCatalog.some((item) => item.scenario_id === current)
         ? current
-        : result.items[0]?.scenario_id || current);
+        : mergedCatalog[0]?.scenario_id || current);
     } catch {
-      setScenarioCatalog(LEGACY_SCENARIOS);
+      setScenarioCatalog([...SCENARIO_CATALOG, ...LEGACY_SCENARIOS]);
     }
   }, []);
 
@@ -62,6 +66,9 @@ const MonitorPage: React.FC = () => {
             : await demoApi.step(scenario);
       setDemoStatus(next);
       message.success(action === 'start' ? '演示已启动' : action === 'stop' ? '演示已停止' : '已推进一帧');
+      if (action === 'start') {
+        navigate(buildZhiluWujieUrl(scenario, loop));
+      }
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Demo API 请求失败');
     } finally {

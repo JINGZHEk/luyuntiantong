@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import type { ScenarioVisualSpec } from './scenarioCatalog';
 
 export interface ActorVisualState {
   class: string;
+  subtype?: string;
   modelType: 'person' | 'bicycle' | 'vehicle' | 'generic';
 }
 
@@ -290,6 +292,118 @@ export function createIntersectionLayout(): THREE.Group {
   return layout;
 }
 
+function createCuePlane(
+  name: string,
+  width: number,
+  depth: number,
+  color: number,
+  position: [number, number, number],
+): THREE.Mesh {
+  const cue = mesh(
+    name,
+    new THREE.PlaneGeometry(width, depth),
+    basicMaterial(color, { transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide }),
+  );
+  cue.rotation.x = -Math.PI / 2;
+  cue.position.set(...position);
+  return cue;
+}
+
+function createCueLine(name: string, points: THREE.Vector3[], color: number): THREE.Line {
+  const line = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(points),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.72, depthWrite: false }),
+  );
+  line.name = name;
+  line.position.y = 0.11;
+  return line;
+}
+
+export function createScenarioVisualContext(spec: ScenarioVisualSpec): THREE.Group {
+  const context = new THREE.Group();
+  context.name = 'scenario-context';
+  context.userData.scenarioId = spec.scenario_id;
+  context.userData.description = spec.description;
+
+  const { visualContext } = spec;
+  const cueColor = visualContext.sensorCue === 'infrared' ? COLORS.orange : COLORS.cyan;
+  if (visualContext.occluder !== 'none') {
+    context.add(createCuePlane('scenario-occluder-zone', 7.5, 5.5, cueColor, [4, 0.06, 2.8]));
+    if (visualContext.occluder === 'building') {
+      const corner = addBox(context, 'scenario-corner-blind-wall', 4.5, 4.8, 0.55, standardMaterial(COLORS.building), [8, 2.4, 5.4]);
+      corner.castShadow = true;
+    }
+  }
+
+  if (visualContext.sensorCue === 'infrared') {
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(3.5, 3.62, 48),
+      basicMaterial(COLORS.orange, { transparent: true, opacity: 0.48, depthWrite: false, side: THREE.DoubleSide }),
+    );
+    ring.name = 'scenario-infrared-ring';
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(4, 0.1, 2.8);
+    context.add(ring);
+  }
+
+  if (visualContext.signalMode === 'yellow_to_red') {
+    context.add(createCuePlane('scenario-signal-transition', 3.2, 1.8, COLORS.orange, [0, 0.08, 0]));
+  }
+  if (visualContext.signalMode === 'none') {
+    context.add(createCueLine('scenario-unsignalized-crossing', [new THREE.Vector3(-7, 0, 0), new THREE.Vector3(7, 0, 0)], COLORS.marking));
+  }
+
+  switch (visualContext.conflictCue) {
+    case 'cross_traffic':
+      context.add(createCueLine('scenario-cross-traffic', [new THREE.Vector3(-12, 0, 4), new THREE.Vector3(12, 0, -4)], cueColor));
+      break;
+    case 'left_turn':
+      context.add(createCueLine('scenario-left-turn-arc', [
+        new THREE.Vector3(-10, 0, 0),
+        new THREE.Vector3(-4, 0, 0),
+        new THREE.Vector3(0, 0, 3),
+        new THREE.Vector3(4, 0, 6),
+      ], cueColor));
+      break;
+    case 'ramp_merge':
+      context.add(createCueLine('scenario-ramp-merge', [
+        new THREE.Vector3(12, 0, 12),
+        new THREE.Vector3(8, 0, 8),
+        new THREE.Vector3(2, 0, 3),
+        new THREE.Vector3(-2, 0, 0),
+      ], cueColor));
+      break;
+    default:
+      break;
+  }
+
+  switch (visualContext.behavior) {
+    case 'consecutive_pedestrians':
+      context.add(createCueLine('scenario-sequence-path', [new THREE.Vector3(14, 0, 5), new THREE.Vector3(9, 0, 1), new THREE.Vector3(4, 0, -4)], COLORS.green));
+      break;
+    case 'pedestrian_return':
+      context.add(createCueLine('scenario-return-path', [new THREE.Vector3(14, 0, 5), new THREE.Vector3(9, 0, -1), new THREE.Vector3(11, 0, 5)], COLORS.orange));
+      break;
+    case 'fast_ebike':
+      context.add(createCueLine('scenario-fast-ecycle-path', [new THREE.Vector3(14, 0, 4), new THREE.Vector3(8, 0, 0), new THREE.Vector3(2, 0, -4)], COLORS.red));
+      break;
+    case 'wrong_way_delivery':
+      context.add(createCueLine('scenario-wrong-way-arrow', [new THREE.Vector3(12, 0, -4), new THREE.Vector3(6, 0, 0), new THREE.Vector3(0, 0, 4)], COLORS.orange));
+      break;
+    case 'bicycle_lane_change':
+      context.add(createCueLine('scenario-lane-change', [new THREE.Vector3(14, 0, 3), new THREE.Vector3(8, 0, 3), new THREE.Vector3(3, 0, 0)], COLORS.green));
+      break;
+    case 'child_cyclist':
+      context.add(createCueLine('scenario-unstable-cycle-path', [new THREE.Vector3(14, 0, 4), new THREE.Vector3(10, 0, 1), new THREE.Vector3(7, 0, 3), new THREE.Vector3(3, 0, -2)], COLORS.orange));
+      break;
+    case 'signal_transition':
+    case 'standard_crossing':
+      break;
+  }
+
+  return context;
+}
+
 function createVehicleModel(actorClass: string): THREE.Group {
   const vehicle = new THREE.Group();
   vehicle.name = 'actor-vehicle';
@@ -385,11 +499,12 @@ function createVehicleModel(actorClass: string): THREE.Group {
   return vehicle;
 }
 
-function createPersonModel(): THREE.Group {
+function createPersonModel(subtype?: string): THREE.Group {
   const person = new THREE.Group();
   person.name = 'actor-person';
   const skin = standardMaterial(COLORS.windowGlow);
-  const clothing = standardMaterial(COLORS.person);
+  const clothingColor = subtype === 'delivery_rider' ? COLORS.orange : subtype === 'child' ? COLORS.green : COLORS.person;
+  const clothing = standardMaterial(clothingColor);
   const head = mesh('person-head', new THREE.SphereGeometry(0.24, 12, 8), skin);
   head.position.y = 1.75;
   person.add(head);
@@ -398,10 +513,11 @@ function createPersonModel(): THREE.Group {
   addCylinderBetween(person, 'person-arm-right', new THREE.Vector3(0.25, 1.4, 0), new THREE.Vector3(0.42, 0.85, 0), 0.08, clothing);
   addCylinderBetween(person, 'person-leg-left', new THREE.Vector3(-0.13, 0.78, 0), new THREE.Vector3(-0.15, 0.1, 0), 0.1, clothing);
   addCylinderBetween(person, 'person-leg-right', new THREE.Vector3(0.13, 0.78, 0), new THREE.Vector3(0.15, 0.1, 0), 0.1, clothing);
+  if (subtype === 'child') person.scale.setScalar(0.78);
   return person;
 }
 
-function createBicycleModel(): THREE.Group {
+function createBicycleModel(subtype?: string): THREE.Group {
   const bicycle = new THREE.Group();
   bicycle.name = 'actor-bicycle';
   const wheelMaterial = standardMaterial(COLORS.metal, { roughness: 0.95, metalness: 0.18 });
@@ -420,11 +536,12 @@ function createBicycleModel(): THREE.Group {
   addCylinderBetween(frame, 'bicycle-frame-handle-bar', new THREE.Vector3(0.68, 0.65, 0), new THREE.Vector3(0.48, 1.2, 0), 0.045, frameMaterial);
   bicycle.add(frame);
 
-  const rider = createPersonModel();
+  const rider = createPersonModel(subtype);
   rider.name = 'bicycle-rider';
   rider.scale.setScalar(0.72);
   rider.position.set(-0.05, 0.58, 0);
   bicycle.add(rider);
+  if (subtype === 'child') bicycle.scale.setScalar(0.82);
   return bicycle;
 }
 
@@ -446,15 +563,16 @@ export function createRealtimeActorModel(state: ActorVisualState): THREE.Group {
       model = createVehicleModel(state.class);
       break;
     case 'person':
-      model = createPersonModel();
+      model = createPersonModel(state.subtype);
       break;
     case 'bicycle':
-      model = createBicycleModel();
+      model = createBicycleModel(state.subtype);
       break;
     case 'generic':
       model = createGenericModel();
       break;
   }
   model.userData.actorClass = state.class;
+  model.userData.actorSubtype = state.subtype;
   return model;
 }

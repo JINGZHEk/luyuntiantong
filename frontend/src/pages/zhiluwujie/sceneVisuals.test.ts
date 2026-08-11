@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { getSceneVisualProfile, shouldShowTrajectory, ZhiluWujieScene } from './scene';
+import { findScenario } from './scenarioCatalog';
 import {
   createBuilding,
   createIntersectionLayout,
   createRealtimeActorModel,
+  createScenarioVisualContext,
   createTrafficSignal,
   createTree,
   DEFAULT_SCENE_STYLE,
@@ -270,5 +272,29 @@ describe('semi-realistic scene visual factory', () => {
         'vehicle-taillight-rear',
       ]));
     }
+  });
+
+  it('builds restrained physical cues that match the selected scenario', () => {
+    const night = createScenarioVisualContext(findScenario('GP-06'));
+    expect(namedDescendants(night)).toEqual(expect.arrayContaining([
+      'scenario-occluder-zone',
+      'scenario-infrared-ring',
+    ]));
+    expect(night.userData.scenarioId).toBe('GP-06');
+
+    const leftTurn = createScenarioVisualContext(findScenario('IC-02'));
+    expect(namedDescendants(leftTurn)).toContain('scenario-left-turn-arc');
+
+    const ramp = createScenarioVisualContext(findScenario('IC-04'));
+    expect(namedDescendants(ramp)).toContain('scenario-ramp-merge');
+  });
+
+  it('adjusts actor scale and metadata for child and delivery rider subtypes', () => {
+    const child = createRealtimeActorModel({ class: 'bicycle', modelType: 'bicycle', subtype: 'child' });
+    const adult = createRealtimeActorModel({ class: 'bicycle', modelType: 'bicycle', subtype: 'adult' });
+    const delivery = createRealtimeActorModel({ class: 'person', modelType: 'person', subtype: 'delivery_rider' });
+
+    expect(child.scale.x).toBeLessThan(adult.scale.x);
+    expect(delivery.userData.actorSubtype).toBe('delivery_rider');
   });
 });

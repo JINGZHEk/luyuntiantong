@@ -49,6 +49,21 @@ describe('scene object pool model lifecycle', () => {
     expect(materialDispose).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps detector subtypes for scenario-specific actor styling', () => {
+    const group = new THREE.Group();
+    const createModel = vi.fn((state: PooledObjectState) => {
+      const model = new THREE.Group();
+      model.name = state.subtype || 'actor';
+      return model;
+    });
+    const pool = new SceneObjectPool({ group, createModel });
+
+    pool.upsert('node-1', { ...objectPayload('bicycle'), subtype: 'child' }, 1000);
+
+    expect(pool.snapshot()[0]?.subtype).toBe('child');
+    expect(createModel.mock.calls[0]?.[0].subtype).toBe('child');
+  });
+
   it('smoothly interpolates a reused model between updates', () => {
     const group = new THREE.Group();
     const pool = new SceneObjectPool({ group, predictionWindowMs: 0 });

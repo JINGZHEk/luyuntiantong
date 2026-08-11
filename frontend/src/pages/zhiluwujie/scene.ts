@@ -28,10 +28,12 @@ import {
   createBuilding,
   createIntersectionLayout,
   createRealtimeActorModel,
+  createScenarioVisualContext,
   createTrafficSignal,
   createTree,
   DEFAULT_SCENE_STYLE,
 } from './sceneVisuals';
+import type { ScenarioVisualSpec } from './scenarioCatalog';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -220,6 +222,8 @@ export class ZhiluWujieScene {
   private rsuObjects: { group: THREE.Group; ringMat: THREE.MeshBasicMaterial; coneMat: THREE.MeshBasicMaterial; color: number }[] = [];
   private realtimeObjectsGroup!: THREE.Group;
   private realtimePool!: SceneObjectPool;
+  private scenarioContextGroup?: THREE.Group;
+  private scenarioVisualSpec: ScenarioVisualSpec | null = null;
   private pedWarn!: THREE.Mesh;
   private egoAuraMat!: THREE.MeshBasicMaterial;
   private egoV2xLine!: THREE.Line;
@@ -354,6 +358,7 @@ export class ZhiluWujieScene {
     }
     this.buildTrajectories();
     this.buildCoverage();
+    this.attachScenarioVisualContext();
     this.scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         const materials = Array.isArray(object.material) ? object.material : [object.material];
@@ -1511,6 +1516,30 @@ export class ZhiluWujieScene {
   /* -------------------------------------------------------------- */
   /*  Realtime data API                                               */
   /* -------------------------------------------------------------- */
+  setScenarioVisual(spec: ScenarioVisualSpec): void {
+    this.scenarioVisualSpec = spec;
+    this.attachScenarioVisualContext();
+  }
+
+  private attachScenarioVisualContext(): void {
+    if (!this.scene || !this.scenarioVisualSpec) return;
+    if (this.scenarioContextGroup) {
+      this.scene.remove(this.scenarioContextGroup);
+      this.disposeObject3D(this.scenarioContextGroup);
+    }
+    this.scenarioContextGroup = createScenarioVisualContext(this.scenarioVisualSpec);
+    this.scene.add(this.scenarioContextGroup);
+
+    const signalMode = this.scenarioVisualSpec.visualContext.signalMode;
+    this.trafficLights.forEach((trafficLight) => {
+      trafficLight.visible = signalMode !== 'none';
+      if (signalMode === 'yellow_to_red') {
+        trafficLight.userData.phase = 'yellow';
+        trafficLight.userData.timer = 0;
+      }
+    });
+  }
+
   getRealtimeObjectPool(): SceneObjectPool {
     return this.realtimePool;
   }
@@ -1682,6 +1711,7 @@ export class ZhiluWujieScene {
   }
 
   getTrafficSignalData() {
+    if (this.scenarioVisualSpec?.visualContext.signalMode === 'none') return [];
     const names = ['北向', '南向', '东向', '西向'];
     return this.trafficLights.map((tl, i) => ({
       name: names[i],

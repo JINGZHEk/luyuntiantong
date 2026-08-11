@@ -10,6 +10,10 @@ export interface ScenarioSummary {
   duration_ms: number;
   default_fps: number;
   environment: Record<string, unknown>;
+  description?: string;
+  road_layout?: Record<string, unknown>;
+  expected_outcome?: string;
+  source_refs?: string[];
 }
 
 export interface DemoRunStatus {
@@ -31,6 +35,7 @@ export interface PooledObjectState {
   trackId: string | number;
   nodeId: string;
   class: string;
+  subtype?: string;
   modelType: 'person' | 'bicycle' | 'vehicle' | 'generic';
   position: { x: number; y: number; z: number };
   heading: number;
@@ -65,6 +70,7 @@ export interface PredictionMeta {
 export interface CloudObjectPayload {
   track_id?: string | number;
   class?: string;
+  subtype?: string;
   bbox?: NumericPair;
   occlusion_level?: number;
   world_pos?: NumericPair;

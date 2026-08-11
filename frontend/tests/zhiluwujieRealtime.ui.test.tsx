@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ZhiluWujiePage from '../src/pages/zhiluwujie/ZhiluWujiePage';
 
@@ -68,8 +69,14 @@ describe('ZhiluWujie realtime data source', () => {
     realtimeMocks.connectionHandlers = [];
   });
 
+  const renderPage = () => render(
+    <MemoryRouter>
+      <ZhiluWujiePage />
+    </MemoryRouter>,
+  );
+
   it('shows LIVE for realtime data and FALLBACK after the timeout', () => {
-    render(<ZhiluWujiePage />);
+    renderPage();
     act(() => vi.advanceTimersByTime(3300));
     fireEvent.click(screen.getByRole('button', { name: '接入孪生系统' }));
 
@@ -87,14 +94,14 @@ describe('ZhiluWujie realtime data source', () => {
       vi.advanceTimersByTime(250);
     });
     expect(screen.getByText('LIVE')).toBeInTheDocument();
-    expect(screen.getByText('GP-01')).toBeInTheDocument();
+    expect(screen.getAllByText('GP-01').length).toBeGreaterThan(0);
 
     act(() => vi.advanceTimersByTime(4100));
     expect(screen.getByText('FALLBACK')).toBeInTheDocument();
   });
 
   it('keeps throughput bars deterministic and rolls the latest traffic flow sample', () => {
-    render(<ZhiluWujiePage />);
+    renderPage();
     act(() => vi.advanceTimersByTime(3300));
     fireEvent.click(screen.getByRole('button', { name: '接入孪生系统' }));
 

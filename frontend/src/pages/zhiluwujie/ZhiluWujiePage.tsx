@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ZhiluWujieScene, type Mode, type EgoPhase, type ScenarioMetrics, type TrafficMetrics, type RSUData, type SceneVisualPreset } from './scene';
 import { createSceneRealtimeAdapter, type SceneRealtimeAdapter } from './sceneRealtimeAdapter';
+import { SCENARIO_CATALOG, findScenario } from './scenarioCatalog';
+import { demoApi } from '@/services/demoApi';
 import { DEFAULT_SCENE_STYLE } from './sceneVisuals';
 import { wsService } from '@/services/websocketService';
 import { buildWebSocketUrl } from '@/services/runtimeConfig';
@@ -63,13 +66,20 @@ export interface ZhiluWujiePageProps {
   autoEnter?: boolean;
 }
 
-export default function ZhiluWujiePage({ scenePreset = 'day', autoEnter = false }: ZhiluWujiePageProps) {
+export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: ZhiluWujiePageProps) {
   /* refs */
   const canvasRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<ZhiluWujieScene | null>(null);
   const realtimeAdapterRef = useRef<SceneRealtimeAdapter | null>(null);
   const flowCanvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryScenarioId = searchParams.get('scenario');
+  const queryLoop = searchParams.get('loop') === 'true';
+  const [selectedScenarioId, setSelectedScenarioId] = useState(() => findScenario(queryScenarioId).scenario_id);
+  const selectedScenario = findScenario(selectedScenarioId);
+  const effectiveAutoEnter = autoEnter || Boolean(queryScenarioId);
+  const effectiveScenePreset: SceneVisualPreset = scenePreset || selectedScenario.visualContext.preset;
 
   /* state */
   const [booted, setBooted] = useState(false);
@@ -96,10 +106,16 @@ export default function ZhiluWujiePage({ scenePreset = 'day', autoEnter = false 
     objectCount: 0,
     predictionStatus: 'unknown',
   });
+  const [scenarioSwitchStatus, setScenarioSwitchStatus] = useState('');
+
+  useEffect(() => {
+    const nextScenarioId = findScenario(queryScenarioId).scenario_id;
+    setSelectedScenarioId((current) => current === nextScenarioId ? current : nextScenarioId);
+  }, [queryScenarioId]);
 
   /* ---- Boot sequence ---- */
   useEffect(() => {
-    if (autoEnter) {
+    if (effectiveAutoEnter) {
       setBooted(true);
       setShowBtn(false);
       return;
@@ -116,15 +132,15 @@ export default function ZhiluWujiePage({ scenePreset = 'day', autoEnter = false 
       }
     }, 350);
     return () => clearInterval(iv);
-  }, [autoEnter]);
+  }, [effectiveAutoEnter]);
 
   /* ---- Init scene ---- */
   useEffect(() => {
     if (!canvasRef.current) return;
-    const sc = new ZhiluWujieScene(scenePreset);
+    const sc = new ZhiluWujieScene(effectiveScenePreset);
     sc.init(canvasRef.current);
     sc.start();
-    if (autoEnter) sc.enterScene();
+    if (effectiveAutoEnter) sc.enterScene();
     sceneRef.current = sc;
 
     sc.onLog = (msg, type) => {
@@ -157,7 +173,11 @@ export default function ZhiluWujiePage({ scenePreset = 'day', autoEnter = false 
       sc.dispose();
       sceneRef.current = null;
     };
-  }, [autoEnter, scenePreset]);
+  }, [effectiveAutoEnter, effectiveScenePreset]);
+
+  useEffect(() => {
+    sceneRef.current?.setScenarioVisual?.(selectedScenario);
+  }, [selectedScenario]);
 
   /* ---- UI update loop (10Hz) ---- */
   useEffect(() => {
@@ -249,6 +269,23 @@ export default function ZhiluWujiePage({ scenePreset = 'day', autoEnter = false 
     sceneRef.current?.enterScene();
   }, []);
 
+  const handleScenarioChange = useCallback(async (nextScenarioId: string) => {
+    const nextScenario = findScenario(nextScenarioId);
+    setSelectedScenarioId(nextScenario.scenario_id);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('scenario', nextScenario.scenario_id);
+    nextParams.set('loop', String(queryLoop));
+    setSearchParams(nextParams, { replace: true });
+    sceneRef.current?.setScenarioVisual?.(nextScenario);
+    setScenarioSwitchStatus('切换中 · 正在同步演示数据');
+    try {
+      await demoApi.start(nextScenario.scenario_id, 10, queryLoop);
+      setScenarioSwitchStatus('已同步 · 3D 场景与后端演示一致');
+    } catch {
+      setScenarioSwitchStatus('演示接口暂不可用 · 当前保留场景上下文');
+    }
+  }, [queryLoop, searchParams, setSearchParams]);
+
   const handleModeChange = useCallback((m: Mode) => {
     setMode(m);
     sceneRef.current?.setMode(m);
@@ -309,6 +346,33 @@ export default function ZhiluWujiePage({ scenePreset = 'day', autoEnter = false 
       {/* HUD Layer */}
       {booted && (
         <div className={styles.hud}>
+          <div className={styles.scenarioBar}>
+            <div className={styles.scenarioBarTop}>
+              <div className={styles.scenarioBarKicker}>SCENARIO LINK · 16 CASES</div>
+              <label className={styles.scenarioBarLabel} htmlFor="zhiluwujie-scenario-select">场景选择</label>
+              <select
+                id="zhiluwujie-scenario-select"
+                aria-label="3D场景选择"
+                className={styles.scenarioSelect}
+                value={selectedScenario.scenario_id}
+                onChange={(event) => void handleScenarioChange(event.target.value)}
+              >
+                {SCENARIO_CATALOG.map((item) => (
+                  <option key={item.scenario_id} value={item.scenario_id}>
+                    {item.scenario_id} · {item.name}
+                  </option>
+                ))}
+              </select>
+              <span className={styles.scenarioBarState}>{scenarioSwitchStatus || '3D / DATA LINKED'}</span>
+            </div>
+            <div className={styles.scenarioBarBody}>
+              <span className={styles.scenarioId}>{selectedScenario.scenario_id}</span>
+              <strong>{selectedScenario.name}</strong>
+              <span className={styles.scenarioPreset}>{selectedScenario.visualContext.preset.toUpperCase()}</span>
+            </div>
+            <p className={styles.scenarioDescription}>{selectedScenario.description}</p>
+            <p className={styles.scenarioCue}>视觉提示 · {selectedScenario.visualCue}</p>
+          </div>
           {/* ===== TOP BAR ===== */}
           <div className={styles.topBar}>
             {/* Left: System Monitor */}
