@@ -107,6 +107,7 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
     predictionStatus: 'unknown',
   });
   const [scenarioSwitchStatus, setScenarioSwitchStatus] = useState('');
+  const [presentationMode, setPresentationMode] = useState(true);
 
   useEffect(() => {
     const nextScenarioId = findScenario(queryScenarioId).scenario_id;
@@ -286,6 +287,10 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
     }
   }, [queryLoop, searchParams, setSearchParams]);
 
+  const handlePresentationModeToggle = useCallback(() => {
+    setPresentationMode((current) => !current);
+  }, []);
+
   const handleModeChange = useCallback((m: Mode) => {
     setMode(m);
     sceneRef.current?.setMode(m);
@@ -346,7 +351,7 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
       {/* HUD Layer */}
       {booted && (
         <div className={styles.hud}>
-          <div className={styles.scenarioBar}>
+          <div className={`${styles.scenarioBar} ${presentationMode ? styles.scenarioBarPresentation : styles.scenarioBarOperator}`}>
             <div className={styles.scenarioBarTop}>
               <div className={styles.scenarioBarKicker}>SCENARIO LINK · 16 CASES</div>
               <label className={styles.scenarioBarLabel} htmlFor="zhiluwujie-scenario-select">场景选择</label>
@@ -364,6 +369,14 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
                 ))}
               </select>
               <span className={styles.scenarioBarState}>{scenarioSwitchStatus || '3D / DATA LINKED'}</span>
+              <button
+                type="button"
+                className={styles.presentationToggle}
+                aria-label={presentationMode ? '进入操作模式' : '返回展示模式'}
+                onClick={handlePresentationModeToggle}
+              >
+                {presentationMode ? '操作面板' : '返回展示'}
+              </button>
             </div>
             <div className={styles.scenarioBarBody}>
               <span className={styles.scenarioId}>{selectedScenario.scenario_id}</span>
@@ -371,7 +384,7 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
               <span className={styles.scenarioPreset}>{selectedScenario.visualContext.preset.toUpperCase()}</span>
             </div>
             <p className={styles.scenarioDescription}>{selectedScenario.description}</p>
-            <p className={styles.scenarioCue}>视觉提示 · {selectedScenario.visualCue}</p>
+            {!presentationMode && <p className={styles.scenarioCue}>视觉提示 · {selectedScenario.visualCue}</p>}
           </div>
           {/* ===== TOP BAR ===== */}
           <div className={styles.topBar}>
@@ -425,24 +438,26 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
           </div>
 
           {/* ===== MIDDLE ===== */}
-          <div className={styles.middle}>
+          <div className={`${styles.middle} ${presentationMode ? styles.presentationMiddle : ''}`}>
             {/* Left: Mode Menu */}
-            <div className={`${styles.panel} ${styles.modeMenu}`}>
-              {MODE_ITEMS.map(item => (
-                <div
-                  key={item.mode}
-                  className={`${styles.menuItem} ${mode === item.mode ? styles.menuActive : ''}`}
-                  onClick={() => handleModeChange(item.mode)}
-                >
-                  {item.icon}
-                  {item.label}
+            {!presentationMode && (
+              <div className={`${styles.panel} ${styles.modeMenu}`}>
+                {MODE_ITEMS.map(item => (
+                  <div
+                    key={item.mode}
+                    className={`${styles.menuItem} ${mode === item.mode ? styles.menuActive : ''}`}
+                    onClick={() => handleModeChange(item.mode)}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </div>
+                ))}
+                <div className={styles.menuFooter}>
+                  <p className={styles.menuFooterLabel}>数据源</p>
+                  <button className={styles.wsBtn}>{dataMode === 'fallback' ? '等待实时数据' : '实时链路已接入'}</button>
                 </div>
-              ))}
-              <div className={styles.menuFooter}>
-                <p className={styles.menuFooterLabel}>数据源</p>
-                <button className={styles.wsBtn}>{dataMode === 'fallback' ? '等待实时数据' : '实时链路已接入'}</button>
               </div>
-            </div>
+            )}
 
             {/* Right: Mode Panels */}
             <div className={styles.panelsCol}>
@@ -484,15 +499,17 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
                   <div className={styles.logBox}>
                     <div className={styles.logScan} />
                     <div className={styles.logContent}>
-                      {logs.map((l, i) => (
-                        <p key={i} className={
-                          l.type === 'danger' ? styles.logDanger :
-                          l.type === 'warn' ? styles.logWarn :
-                          l.type === 'success' ? styles.logSuccess : styles.logInfo
-                        }>
-                          <span className={styles.logTime}>[{l.time}s]</span> {l.msg}
-                        </p>
-                      ))}
+                      {logs.length === 0 ? (
+                        <p className={styles.logEmpty}>等待事件数据</p>
+                      ) : logs.map((l, i) => (
+                          <p key={i} className={
+                            l.type === 'danger' ? styles.logDanger :
+                            l.type === 'warn' ? styles.logWarn :
+                            l.type === 'success' ? styles.logSuccess : styles.logInfo
+                          }>
+                            <span className={styles.logTime}>[{l.time}s]</span> {l.msg}
+                          </p>
+                        ))}
                     </div>
                   </div>
                 </div>
@@ -628,16 +645,18 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
           </div>
 
           {/* ===== BOTTOM TIMELINE ===== */}
-          <div className={styles.bottomBar}>
-            <div className={styles.timelineWrap}>
-              <span className={styles.timelineLabel}>{dataMode === 'fallback' ? 'DIGITAL TWIN FALLBACK TIMELINE' : `REALTIME ${dataMode.toUpperCase()} · ${realtimeContext.scenarioId || 'SCENE'}`}</span>
-              <div className={styles.timeline}>
-                {Array.from({ length: 40 }, (_, i) => (
-                  <div key={i} className={i < activeBlocks ? styles.timelineActive : styles.timelineInactive} />
-                ))}
+          {!presentationMode && (
+            <div className={styles.bottomBar}>
+              <div className={styles.timelineWrap}>
+                <span className={styles.timelineLabel}>{dataMode === 'fallback' ? 'DIGITAL TWIN FALLBACK TIMELINE' : `REALTIME ${dataMode.toUpperCase()} · ${realtimeContext.scenarioId || 'SCENE'}`}</span>
+                <div className={styles.timeline}>
+                  {Array.from({ length: 40 }, (_, i) => (
+                    <div key={i} className={i < activeBlocks ? styles.timelineActive : styles.timelineInactive} />
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>

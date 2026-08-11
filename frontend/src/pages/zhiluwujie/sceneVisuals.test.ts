@@ -297,4 +297,42 @@ describe('semi-realistic scene visual factory', () => {
     expect(child.scale.x).toBeLessThan(adult.scale.x);
     expect(delivery.userData.actorSubtype).toBe('delivery_rider');
   });
+
+  it('renders distinct physical cues for buses, trucks, ebikes, and delivery riders', () => {
+    const car = createRealtimeActorModel({ class: 'car', modelType: 'vehicle' });
+    const bus = createRealtimeActorModel({ class: 'bus', modelType: 'vehicle' });
+    const truck = createRealtimeActorModel({ class: 'truck', modelType: 'vehicle' });
+    const ebike = createRealtimeActorModel({ class: 'motorcycle', modelType: 'bicycle', subtype: 'ebike' });
+    const delivery = createRealtimeActorModel({
+      class: 'motorcycle',
+      modelType: 'bicycle',
+      subtype: 'delivery_rider',
+    });
+
+    expect(namedDescendants(bus)).toEqual(expect.arrayContaining([
+      'vehicle-bus-window-band',
+      'vehicle-bus-door',
+      'vehicle-bus-route-display',
+    ]));
+    expect(namedDescendants(truck)).toEqual(expect.arrayContaining([
+      'vehicle-truck-cab',
+      'vehicle-truck-bed',
+      'vehicle-truck-bed-door',
+    ]));
+    expect(namedDescendants(ebike)).toEqual(expect.arrayContaining([
+      'ebike-battery',
+      'ebike-motor',
+      'ebike-handlebar',
+    ]));
+    expect(namedDescendants(delivery)).toEqual(expect.arrayContaining([
+      'delivery-box',
+      'delivery-helmet',
+    ]));
+    expect(namedDescendants(car)).not.toEqual(expect.arrayContaining([
+      'vehicle-bus-window-band',
+      'vehicle-truck-bed',
+      'ebike-battery',
+      'delivery-box',
+    ]));
+  });
 });

@@ -24,6 +24,7 @@ function getSkin(value: string | null): Skin {
 export default function ZhiluWujiePreviewPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [skin, setSkin] = useState<Skin>(() => getSkin(searchParams.get('skin')));
+  const [showPreviewToolbar, setShowPreviewToolbar] = useState(false);
 
   const selectSkin = (next: Skin) => {
     setSkin(next);
@@ -35,22 +36,32 @@ export default function ZhiluWujiePreviewPage() {
   return (
     <main className={styles.previewRoot} data-ui-skin={skin}>
       <ZhiluWujiePage scenePreset={selected.preset} autoEnter />
-      <div className={styles.previewToolbar} aria-label="大屏视觉预览控制">
-        <span className={styles.previewLabel}>视觉预览</span>
-        <span className={styles.previewRule} />
-        {SKINS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={`${styles.skinButton} ${skin === item.id ? styles.skinButtonActive : ''}`}
-            onClick={() => selectSkin(item.id)}
-          >
-            <strong>{item.label}</strong>
-            <span>{item.detail}</span>
-          </button>
-        ))}
-        <span className={styles.previewHint}>同一数据与交互 / 真实 3D 光照与材质预览</span>
-      </div>
+      <button
+        type="button"
+        className={styles.previewToggle}
+        aria-label={showPreviewToolbar ? '隐藏视觉设置' : '显示视觉设置'}
+        onClick={() => setShowPreviewToolbar((current) => !current)}
+      >
+        {showPreviewToolbar ? '收起设置' : '视觉设置'}
+      </button>
+      {showPreviewToolbar && (
+        <div className={styles.previewToolbar} aria-label="大屏视觉预览控制">
+          <span className={styles.previewLabel}>视觉预览</span>
+          <span className={styles.previewRule} />
+          {SKINS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`${styles.skinButton} ${skin === item.id ? styles.skinButtonActive : ''}`}
+              onClick={() => selectSkin(item.id)}
+            >
+              <strong>{item.label}</strong>
+              <span>{item.detail}</span>
+            </button>
+          ))}
+          <span className={styles.previewHint}>同一数据与交互 / 真实 3D 光照与材质预览</span>
+        </div>
+      )}
     </main>
   );
 }

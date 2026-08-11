@@ -79,4 +79,30 @@ describe('3D screen scenario linkage', () => {
     expect(screen.getByTestId('location-search')).toHaveTextContent('scenario=NM-02');
     expect(screen.getByText('外卖骑手沿相反方向横穿机动车道，TTC 快速下降。')).toBeInTheDocument();
   });
+
+  it('starts in presentation mode and reveals operator details on demand', () => {
+    render(
+      <MemoryRouter initialEntries={['/zhiluwujie?scenario=GP-01&loop=false']}>
+        <ZhiluWujiePage autoEnter />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('button', { name: '进入操作模式' })).toBeInTheDocument();
+    expect(screen.queryByText('视觉提示 · 公交车头形成遮挡，行人从车头前横穿。')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '进入操作模式' }));
+
+    expect(screen.getByRole('button', { name: '返回展示模式' })).toBeInTheDocument();
+    expect(screen.getByText('视觉提示 · 公交车头形成遮挡，行人从车头前横穿。')).toBeInTheDocument();
+  });
+
+  it('explains an empty event stream instead of leaving a blank risk panel', () => {
+    render(
+      <MemoryRouter initialEntries={['/zhiluwujie?scenario=GP-01&loop=false']}>
+        <ZhiluWujiePage autoEnter />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('等待事件数据')).toBeInTheDocument();
+  });
 });

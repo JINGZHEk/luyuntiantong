@@ -492,8 +492,48 @@ function createVehicleModel(actorClass: string): THREE.Group {
   addBox(taillightRear, 'vehicle-taillight-rear-right', 0.48, 0.16, 0.08, taillightMaterial, [0.48, 0.68, 1.63]);
   vehicle.add(taillightRear);
   if (normalizedClass === 'truck') {
+    const truckCab = new THREE.Group();
+    truckCab.name = 'vehicle-truck-cab';
+    vehicle.remove(cabin);
+    cabin.name = 'vehicle-truck-cab-shell';
+    cabin.position.set(0, 0.98, -0.72);
+    cabin.scale.z = 0.78;
+    truckCab.add(cabin);
+    addBox(truckCab, 'vehicle-truck-grille', 1.12, 0.2, 0.05, lowerMaterial, [0, 0.62, -1.62]);
+    vehicle.add(truckCab);
+
+    const cargoMaterial = standardMaterial(COLORS.blue, { roughness: 0.76, metalness: 0.12 });
+    addBox(vehicle, 'vehicle-truck-bed', 1.48, 0.98, 1.72, cargoMaterial, [0, 0.96, 0.78]);
+    addBox(vehicle, 'vehicle-truck-bed-door', 1.24, 0.78, 0.05, lowerMaterial, [0, 0.96, 1.66]);
+    addBox(vehicle, 'vehicle-truck-bed-stripe', 1.5, 0.08, 1.74, standardMaterial(COLORS.windowGlow, {
+      roughness: 0.58,
+      metalness: 0.12,
+    }), [0, 1.1, 0.78]);
+    ['vehicle-window-rear', 'vehicle-window-side-rear-left', 'vehicle-window-side-rear-right'].forEach((name) => {
+      const window = windows.getObjectByName(name);
+      if (window) window.visible = false;
+    });
     vehicle.scale.set(1.18, 1.22, 1.35);
   } else if (normalizedClass === 'bus') {
+    const busWindowBand = new THREE.Group();
+    busWindowBand.name = 'vehicle-bus-window-band';
+    for (let index = 0; index < 5; index += 1) {
+      const z = -1.18 + index * 0.59;
+      addBox(busWindowBand, `vehicle-bus-window-left-${index + 1}`, 0.06, 0.3, 0.44, glassMaterial, [-0.81, 1.04, z]);
+      addBox(busWindowBand, `vehicle-bus-window-right-${index + 1}`, 0.06, 0.3, 0.44, glassMaterial, [0.81, 1.04, z]);
+    }
+    vehicle.add(busWindowBand);
+
+    const busDoor = new THREE.Group();
+    busDoor.name = 'vehicle-bus-door';
+    addBox(busDoor, 'vehicle-bus-door-panel', 0.05, 0.78, 0.48, lowerMaterial, [0.83, 0.68, -0.35]);
+    addBox(busDoor, 'vehicle-bus-door-window', 0.06, 0.34, 0.34, glassMaterial, [0.86, 0.98, -0.35]);
+    vehicle.add(busDoor);
+    addBox(vehicle, 'vehicle-bus-route-display', 0.72, 0.12, 0.05, standardMaterial(COLORS.windowGlow, {
+      emissive: COLORS.windowGlow,
+      emissiveIntensity: 0.14,
+      roughness: 0.42,
+    }), [0, 1.2, -1.66]);
     vehicle.scale.set(1.25, 1.35, 1.55);
   }
   return vehicle;
@@ -541,6 +581,35 @@ function createBicycleModel(subtype?: string): THREE.Group {
   rider.scale.setScalar(0.72);
   rider.position.set(-0.05, 0.58, 0);
   bicycle.add(rider);
+  if (subtype === 'ebike' || subtype === 'delivery_rider') {
+    const ebikeBatteryMaterial = standardMaterial(COLORS.blue, { roughness: 0.68, metalness: 0.2 });
+    addBox(bicycle, 'ebike-battery', 0.42, 0.18, 0.22, ebikeBatteryMaterial, [0, 0.66, 0.14]);
+
+    const ebikeMotor = mesh('ebike-motor', new THREE.CylinderGeometry(0.14, 0.14, 0.16, 12), ebikeBatteryMaterial);
+    ebikeMotor.rotation.x = Math.PI / 2;
+    ebikeMotor.position.set(-0.32, 0.49, 0.1);
+    bicycle.add(ebikeMotor);
+    addCylinderBetween(
+      bicycle,
+      'ebike-handlebar',
+      new THREE.Vector3(0.68, 0.72, 0),
+      new THREE.Vector3(0.86, 1.18, 0),
+      0.045,
+      standardMaterial(COLORS.metal, { roughness: 0.52, metalness: 0.38 }),
+    );
+  }
+  if (subtype === 'delivery_rider') {
+    const deliveryMaterial = standardMaterial(COLORS.orange, { roughness: 0.72, metalness: 0.06 });
+    addBox(bicycle, 'delivery-box', 0.52, 0.46, 0.34, deliveryMaterial, [-0.25, 1.5, 0.18]);
+    addBox(bicycle, 'delivery-box-logo', 0.24, 0.12, 0.03, standardMaterial(COLORS.windowGlow, {
+      emissive: COLORS.windowGlow,
+      emissiveIntensity: 0.12,
+      roughness: 0.5,
+    }), [-0.25, 1.52, -0.01]);
+    const helmet = mesh('delivery-helmet', new THREE.SphereGeometry(0.28, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), deliveryMaterial);
+    helmet.position.set(-0.05, 1.86, 0.02);
+    bicycle.add(helmet);
+  }
   if (subtype === 'child') bicycle.scale.setScalar(0.82);
   return bicycle;
 }

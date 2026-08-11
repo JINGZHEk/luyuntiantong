@@ -54,13 +54,13 @@
 
 /* ---- Glass Panel ---- */
 .panel {
-  background: rgba(3, 11, 25, 0.76);
-  backdrop-filter: blur(12px);
+  background: rgba(3, 11, 25, 0.84);
+  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(var(--hud-accent-rgb), 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 40px -12px rgba(var(--hud-accent-rgb), 0.08);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.52), 0 0 28px -14px rgba(var(--hud-accent-rgb), 0.08);
   position: relative;
-  border-radius: 6px;
+  border-radius: 4px;
   padding: 12px;
 }
 
@@ -69,11 +69,11 @@
   position: absolute;
   top: -1px;
   left: -1px;
-  width: 15px;
-  height: 15px;
-  border-top: 2px solid var(--hud-accent);
-  border-left: 2px solid var(--hud-accent);
-  opacity: 0.65;
+  width: 11px;
+  height: 11px;
+  border-top: 1px solid var(--hud-accent);
+  border-left: 1px solid var(--hud-accent);
+  opacity: 0.5;
   pointer-events: none;
 }
 
@@ -82,11 +82,11 @@
   position: absolute;
   bottom: -1px;
   right: -1px;
-  width: 15px;
-  height: 15px;
-  border-bottom: 2px solid var(--hud-accent);
-  border-right: 2px solid var(--hud-accent);
-  opacity: 0.65;
+  width: 11px;
+  height: 11px;
+  border-bottom: 1px solid var(--hud-accent);
+  border-right: 1px solid var(--hud-accent);
+  opacity: 0.5;
   pointer-events: none;
 }
 
@@ -218,10 +218,10 @@
   z-index: 4;
   top: 16px;
   left: 50%;
-  width: min(560px, calc(100vw - 620px));
+  width: min(500px, calc(100vw - 620px));
   min-width: 380px;
   transform: translateX(-50%);
-  padding: 10px 14px 11px;
+  padding: 8px 12px 9px;
   pointer-events: auto;
   background: rgba(3, 11, 25, 0.84);
   border: 1px solid rgba(var(--hud-accent-rgb), 0.3);
@@ -229,6 +229,14 @@
   box-shadow: 0 10px 34px rgba(0, 0, 0, 0.48), 0 0 24px -12px rgba(var(--hud-accent-rgb), 0.22);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+}
+
+.scenarioBarPresentation {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42), 0 0 20px -14px rgba(var(--hud-accent-rgb), 0.18);
+}
+
+.scenarioBarOperator {
+  border-color: rgba(var(--hud-accent-rgb), 0.48);
 }
 
 .scenarioBarTop {
@@ -282,6 +290,27 @@
   white-space: nowrap;
 }
 
+.presentationToggle {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border: 1px solid rgba(var(--hud-accent-rgb), 0.28);
+  border-radius: 3px;
+  background: rgba(var(--hud-accent-rgb), 0.06);
+  color: var(--hud-muted);
+  font: 9px/1.2 'PingFang SC', system-ui, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.presentationToggle:hover,
+.presentationToggle:focus-visible {
+  border-color: var(--hud-accent);
+  background: rgba(var(--hud-accent-rgb), 0.14);
+  color: #fff;
+  outline: none;
+}
+
 .scenarioBarBody {
   display: flex;
   align-items: baseline;
@@ -312,13 +341,19 @@
   line-height: 1.45;
 }
 
+.scenarioBarPresentation .scenarioDescription {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .scenarioCue {
   color: var(--hud-subtle);
   font: 10px/1.4 monospace;
 }
 
 .sysMonitor {
-  width: 288px;
+  width: 260px;
   padding: 12px;
 }
 
@@ -548,6 +583,10 @@
   gap: 16px;
 }
 
+.presentationMiddle {
+  justify-content: flex-end;
+}
+
 /* ---- Mode Menu ---- */
 .modeMenu {
   padding: 12px 0;
@@ -616,7 +655,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  width: 380px;
+  width: 348px;
 }
 
 .modePanel {
@@ -633,7 +672,7 @@
 
 /* ---- Ego Panel ---- */
 .egoPanel {
-  padding: 16px;
+  padding: 13px;
 }
 
 .egoHeader {
@@ -827,6 +866,7 @@
 .logWarn { color: var(--neon-orange, #a18358); }
 .logDanger { color: var(--neon-red, #d56f72); font-weight: bold; }
 .logSuccess { color: var(--neon-green, #66856b); }
+.logEmpty { color: var(--hud-subtle); letter-spacing: 0.04em; }
 
 .logTime {
   opacity: 0.5;
@@ -1230,6 +1270,10 @@
 }
 
 @media (max-width: 900px) {
+  .topBar {
+    margin-top: 92px;
+  }
+
   .scenarioBar {
     top: 8px;
     width: calc(100vw - 24px);

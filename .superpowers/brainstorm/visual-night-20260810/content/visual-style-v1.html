@@ -1,0 +1,95 @@
+<style>
+  :root {
+    --night: #05080b;
+    --panel: rgba(8, 13, 17, .82);
+    --line: rgba(175, 186, 181, .22);
+    --text: #e5e5dc;
+    --muted: #8a928d;
+    --gold: #c8b27b;
+    --red: #d95755;
+  }
+
+  * { box-sizing: border-box; }
+  body { background: #05080b; color: var(--text); }
+  .intro { margin-bottom: 22px; }
+  .intro h2 { letter-spacing: .08em; margin-bottom: 5px; }
+  .intro p { color: var(--muted); margin: 0; }
+  .options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .option { padding: 0; overflow: hidden; border: 1px solid rgba(194, 201, 194, .16); background: rgba(10, 15, 18, .82); }
+  .option:hover { border-color: rgba(200, 178, 123, .68); }
+  .choice-head { display: flex; align-items: baseline; justify-content: space-between; padding: 15px 16px 13px; }
+  .choice-head strong { color: var(--gold); font-size: 12px; letter-spacing: .14em; }
+  .choice-head h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  .choice-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .scene { position: relative; height: 240px; overflow: hidden; background: linear-gradient(180deg, #030507 0%, #081016 53%, #0d171d 100%); }
+  .scene::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 45%, rgba(57, 78, 83, .2), transparent 58%); }
+  .grid { position: absolute; inset: 0; opacity: .18; background: linear-gradient(rgba(160, 176, 170, .12) 1px, transparent 1px), linear-gradient(90deg, rgba(160, 176, 170, .12) 1px, transparent 1px); background-size: 36px 36px; transform: perspective(240px) rotateX(58deg) scale(1.45); transform-origin: 50% 100%; }
+  .road { position: absolute; background: #020406; box-shadow: 0 0 0 1px rgba(185, 190, 175, .16); }
+  .road.vertical { left: 39%; top: -18%; width: 25%; height: 140%; transform: rotate(24deg); }
+  .road.horizontal { left: -12%; top: 48%; width: 124%; height: 17%; transform: rotate(-10deg); }
+  .road.vertical::after, .road.horizontal::after { content: ''; position: absolute; inset: 9% 49%; border-left: 1px dashed rgba(205, 173, 91, .75); }
+  .road.horizontal::after { inset: 48% 3%; border-left: 0; border-top: 1px dashed rgba(205, 173, 91, .75); }
+  .crosswalk { position: absolute; width: 28%; height: 8%; left: 44%; top: 48%; transform: rotate(24deg); background: repeating-linear-gradient(90deg, #d9d7c9 0 7px, transparent 7px 13px); opacity: .86; }
+  .crosswalk.alt { left: 29%; top: 56%; width: 25%; transform: rotate(-10deg); }
+  .building { position: absolute; width: 23%; height: 27%; background: #030507; border: 1px solid rgba(164, 176, 170, .18); box-shadow: 18px 20px 0 rgba(0,0,0,.22); }
+  .building::after { content: ''; position: absolute; inset: 13px; background: repeating-linear-gradient(90deg, transparent 0 14px, #9b8d6c 14px 19px, transparent 19px 30px), repeating-linear-gradient(0deg, transparent 0 15px, #8c8062 15px 20px, transparent 20px 31px); opacity: .66; }
+  .building.one { left: 8%; top: 7%; transform: skewY(7deg); }
+  .building.two { right: 7%; top: 13%; width: 18%; height: 23%; transform: skewY(-8deg); }
+  .tree { position: absolute; width: 23px; height: 23px; border-radius: 50%; background: #071014; border: 1px solid rgba(86, 110, 104, .42); box-shadow: 0 14px 0 -8px #2e2920, 0 18px 16px rgba(0,0,0,.5); }
+  .tree.one { left: 22%; top: 55%; }
+  .tree.two { right: 20%; top: 36%; }
+  .car { position: absolute; width: 32px; height: 15px; border-radius: 7px 7px 3px 3px; background: linear-gradient(180deg, #344550, #080b0d 65%); box-shadow: 0 5px 12px rgba(0,0,0,.9); transform: rotate(-10deg); }
+  .car::before { content: ''; position: absolute; left: 7px; top: 2px; width: 16px; height: 6px; background: #0c151a; border: 1px solid rgba(172, 192, 194, .35); border-radius: 4px 4px 1px 1px; }
+  .car::after { content: ''; position: absolute; right: 1px; top: 6px; width: 3px; height: 3px; background: #d85b57; box-shadow: 0 0 8px #d85b57; }
+  .car.a { left: 24%; top: 65%; } .car.b { left: 70%; top: 57%; transform: rotate(18deg); } .car.c { left: 78%; top: 30%; transform: scale(.72) rotate(-8deg); }
+  .truck { position: absolute; width: 44px; height: 23px; left: 54%; top: 58%; background: linear-gradient(90deg, #121b20 0 72%, #667174 73%); border-radius: 3px; transform: rotate(-10deg); box-shadow: 0 8px 15px rgba(0,0,0,.8); }
+  .truck::after { content: ''; position: absolute; right: 2px; top: 3px; width: 8px; height: 8px; background: #a9b9b5; }
+  .signal { position: absolute; width: 5px; height: 55px; background: #101719; box-shadow: 0 0 0 1px rgba(185,190,175,.12); }
+  .signal::after { content: ''; position: absolute; left: -3px; top: -2px; width: 11px; height: 22px; border-radius: 3px; background: #080b0c; box-shadow: inset 0 5px #c94d50, inset 0 -5px #6d866d; }
+  .signal.one { left: 48%; top: 46%; transform: rotate(24deg); } .signal.two { left: 66%; top: 43%; transform: rotate(-10deg); }
+  .hud { position: absolute; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0,0,0,.3); font-size: 8px; letter-spacing: .06em; }
+  .hud.left { left: 10px; top: 10px; width: 28%; padding: 10px; } .hud.right { right: 10px; bottom: 10px; width: 32%; padding: 10px; }
+  .hud-title { font-size: 10px; font-weight: 700; margin-bottom: 9px; } .hud-rule { height: 1px; background: rgba(185,190,175,.18); margin: 7px 0; }
+  .hud-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; color: var(--muted); } .hud-grid b { display: block; color: var(--text); font-size: 12px; margin-top: 2px; }
+  .hud.right .danger { color: var(--red); } .hud.right .gold { color: var(--gold); }
+  .bottom { position: absolute; left: 10px; right: 10px; bottom: 0; height: 18px; border-top: 1px solid rgba(185,190,175,.25); color: var(--muted); font-size: 8px; padding: 5px 8px; background: rgba(1, 3, 4, .78); }
+  .choice-copy { padding: 13px 16px 16px; border-top: 1px solid rgba(185,190,175,.12); }
+  .choice-copy p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  @media (max-width: 900px) { .options { grid-template-columns: 1fr; } .scene { height: 220px; } }
+</style>
+
+<div class="intro">
+  <h2>路云天瞳 · 夜间视觉定稿</h2>
+  <p>三种都保持现有数据功能；请选择你希望我写回正式三维大屏的视觉方向。</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="A" onclick="toggleSelect(this)">
+    <div class="choice-head"><div><strong>A · REFERENCE</strong><h3>复刻你给的旧版效果</h3><p>深黑道路、冷蓝环境、暖色窗光、金色辅助线。</p></div></div>
+    <div class="scene">
+      <div class="grid"></div><div class="road vertical"></div><div class="road horizontal"></div><div class="crosswalk"></div><div class="crosswalk alt"></div>
+      <div class="building one"></div><div class="building two"></div><div class="tree one"></div><div class="tree two"></div><div class="signal one"></div><div class="signal two"></div>
+      <div class="car a"></div><div class="car b"></div><div class="car c"></div><div class="truck"></div>
+      <div class="hud left"><div class="hud-title">▣ 全局路网监控中心 <span style="float:right;color:var(--gold)">MOCK</span></div><div class="hud-rule"></div><div class="hud-grid"><span>云端算力负载<b>73%</b></span><span>接入终端<b>141 nodes</b></span><span>感知帧率<b>26 fps</b></span><span>通信延迟<b>22 ms</b></span></div></div>
+      <div class="hud right"><div class="hud-title">● 协同驾驶意图 <span class="gold">EGO-01</span></div><div class="hud-grid"><span>当前车速<b>45 km/h</b></span><span>碰撞时间<b>5.0s</b></span><span>干预风险<b class="danger">0%</b></span><span>决策模式<b>cooperative</b></span></div></div>
+      <div class="bottom">视 觉 预 览　 A 自然日间　 B 蓝调黄昏　 <b style="color:var(--gold)">C 真实夜间</b></div>
+    </div>
+    <div class="choice-copy"><p>推荐。最接近参考图，改动集中在环境、材质、灯光和 HUD 颜色，不破坏现在的实时链路。</p></div>
+  </div>
+
+  <div class="option" data-choice="B" onclick="toggleSelect(this)">
+    <div class="choice-head"><div><strong>B · CINEMATIC</strong><h3>参考图 + 电影化真实感</h3><p>保留夜间黑金关系，增加雾气、车灯光晕和湿路反射。</p></div></div>
+    <div class="scene" style="filter:saturate(1.12) brightness(1.08)">
+      <div class="grid"></div><div class="road vertical"></div><div class="road horizontal"></div><div class="crosswalk"></div><div class="crosswalk alt"></div><div class="building one"></div><div class="building two"></div><div class="tree one"></div><div class="tree two"></div><div class="signal one"></div><div class="signal two"></div><div class="car a"></div><div class="car b"></div><div class="car c"></div><div class="truck"></div><div class="hud left"><div class="hud-title">▣ 全局路网监控中心 <span style="float:right;color:var(--gold)">LIVE</span></div><div class="hud-rule"></div><div class="hud-grid"><span>云端算力负载<b>73%</b></span><span>接入终端<b>141 nodes</b></span><span>感知帧率<b>26 fps</b></span><span>通信延迟<b>22 ms</b></span></div></div><div class="hud right"><div class="hud-title">● 协同驾驶意图 <span class="gold">EGO-01</span></div><div class="hud-grid"><span>当前车速<b>45 km/h</b></span><span>碰撞时间<b>5.0s</b></span><span>干预风险<b class="danger">0%</b></span><span>决策模式<b>cooperative</b></span></div></div><div class="bottom">真实夜间 · 光照 / 反射 / 雾效开启</div>
+    </div>
+    <div class="choice-copy"><p>画面最好看，但 GPU 开销最高，需要控制阴影、Bloom 和动态车辆数量。</p></div>
+  </div>
+
+  <div class="option" data-choice="C" onclick="toggleSelect(this)">
+    <div class="choice-head"><div><strong>C · PERFORMANCE</strong><h3>参考图 + 流畅优先</h3><p>保持黑金夜景和构图，降低后处理，保证普通电脑稳定运行。</p></div></div>
+    <div class="scene" style="filter:contrast(1.08) brightness(.92)">
+      <div class="grid"></div><div class="road vertical"></div><div class="road horizontal"></div><div class="crosswalk"></div><div class="crosswalk alt"></div><div class="building one"></div><div class="building two"></div><div class="tree one"></div><div class="tree two"></div><div class="signal one"></div><div class="signal two"></div><div class="car a"></div><div class="car b"></div><div class="car c"></div><div class="truck"></div><div class="hud left"><div class="hud-title">▣ 全局路网监控中心 <span style="float:right;color:var(--gold)">LIVE</span></div><div class="hud-rule"></div><div class="hud-grid"><span>云端算力负载<b>73%</b></span><span>接入终端<b>141 nodes</b></span><span>感知帧率<b>30 fps</b></span><span>通信延迟<b>16 ms</b></span></div></div><div class="hud right"><div class="hud-title">● 协同驾驶意图 <span class="gold">EGO-01</span></div><div class="hud-grid"><span>当前车速<b>45 km/h</b></span><span>碰撞时间<b>5.0s</b></span><span>干预风险<b class="danger">0%</b></span><span>决策模式<b>cooperative</b></span></div></div><div class="bottom">真实夜间 · 性能模式 · 目标插值开启</div>
+    </div>
+    <div class="choice-copy"><p>推荐给现场汇报电脑：画面仍然保持旧版风格，但优先稳定帧率和交互响应。</p></div>
+  </div>
+</div>

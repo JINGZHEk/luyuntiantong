@@ -8,9 +8,9 @@
 .previewToolbar {
   position: fixed;
   z-index: 1200;
-  right: 24px;
-  bottom: 18px;
-  left: 24px;
+  right: 18px;
+  bottom: 58px;
+  left: auto;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -22,6 +22,31 @@
   box-shadow: 0 14px 35px rgba(0, 0, 0, 0.32);
   backdrop-filter: blur(14px);
   pointer-events: auto;
+}
+
+.previewToggle {
+  position: fixed;
+  z-index: 1201;
+  right: 18px;
+  bottom: 18px;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid rgba(242, 240, 234, 0.24);
+  border-radius: 3px;
+  background: rgba(7, 9, 10, 0.72);
+  color: rgba(242, 240, 234, 0.66);
+  font: 10px/1.2 'JetBrains Mono', Consolas, monospace;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.previewToggle:hover,
+.previewToggle:focus-visible {
+  opacity: 1;
+  border-color: rgba(205, 177, 121, 0.65);
+  color: #f2f0ea;
+  outline: none;
 }
 
 .previewLabel {
@@ -77,8 +102,13 @@
 @media (max-width: 900px) {
   .previewToolbar {
     right: 12px;
-    bottom: 12px;
+    bottom: 52px;
     left: 12px;
+  }
+
+  .previewToggle {
+    right: 12px;
+    bottom: 12px;
   }
 
   .previewHint {
