@@ -241,12 +241,9 @@ export class ZhiluWujieScene {
   private realtimeBrakeDecel = 0;
 
   /* data */
-  rsuData: RSUData[] = [
-    { id: 'RSU-01', cpu: 45, gpu: 62, fps: 28, temp: 58, latency: 12, status: 'online' },
-    { id: 'RSU-02', cpu: 52, gpu: 58, fps: 26, temp: 61, latency: 15, status: 'online' },
-  ];
+  rsuData: RSUData[] = [];
   trafficMetrics: TrafficMetrics = { vehicles: 0, avgSpeed: 0, density: '0', congestion: 0, flowHistory: [], laneStats: [] };
-  metrics = { cpu: 70, nodes: 142, fps: 28, latency: 12, inferMs: 28, gpuUtil: 62, decisionMs: 5, lossRate: 0.2 };
+  metrics = { cpu: 0, nodes: 0, fps: 0, latency: Number.NaN, inferMs: 0, gpuUtil: 0, decisionMs: 0, lossRate: 0 };
 
   /* log callback */
   onLog?: (msg: string, type: string) => void;
@@ -1477,28 +1474,14 @@ export class ZhiluWujieScene {
   /*  RSU data                                                         */
   /* -------------------------------------------------------------- */
   private updateRSU() {
-    this.rsuData.forEach(rsu => {
-      rsu.cpu = Math.max(20, Math.min(95, rsu.cpu + (Math.random() - 0.5) * 5));
-      rsu.gpu = Math.max(30, Math.min(90, rsu.gpu + (Math.random() - 0.5) * 4));
-      rsu.fps = Math.max(20, Math.min(30, rsu.fps + (Math.random() - 0.5) * 2));
-      rsu.temp = Math.max(45, Math.min(75, rsu.temp + (Math.random() - 0.5) * 2));
-      rsu.latency = Math.max(5, Math.min(30, rsu.latency + (Math.random() - 0.5) * 3));
-    });
+    // Hardware telemetry is intentionally not synthesized in the online demo.
   }
 
   /* -------------------------------------------------------------- */
   /*  Mock metrics                                                     */
   /* -------------------------------------------------------------- */
   private updateMockData() {
-    const m = this.metrics;
-    m.cpu = Math.max(40, Math.min(95, m.cpu + (Math.random() - 0.5) * 8));
-    m.nodes = 130 + Math.floor(Math.random() * 20);
-    m.fps = Math.max(20, Math.min(30, m.fps + (Math.random() - 0.5) * 3));
-    m.latency = Math.max(5, Math.min(25, m.latency + (Math.random() - 0.5) * 4));
-    m.inferMs = Math.max(15, Math.min(45, m.inferMs + (Math.random() - 0.5) * 5));
-    m.gpuUtil = Math.max(40, Math.min(85, m.gpuUtil + (Math.random() - 0.5) * 5));
-    m.decisionMs = Math.max(2, Math.min(10, m.decisionMs + (Math.random() - 0.5) * 2));
-    m.lossRate = Math.max(0, Math.min(2, m.lossRate + (Math.random() - 0.5) * 0.3));
+    // Performance cards are populated by real messages and /health only.
   }
 
   /* -------------------------------------------------------------- */
@@ -1561,6 +1544,9 @@ export class ZhiluWujieScene {
     this.realtimeRunId = payload.run_id || this.realtimeRunId;
     this.realtimeLastMessageAt = receivedAt;
     this.realtimePredictionStatus = payload.prediction?.status || 'unknown';
+    this.metrics.nodes = payload.node_id ? 1 : 0;
+    this.metrics.fps = 10;
+    this.metrics.latency = Number.NaN;
     if (Number.isFinite(payload.processing_time_ms)) {
       this.metrics.inferMs = Number(payload.processing_time_ms);
     }

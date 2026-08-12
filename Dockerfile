@@ -14,7 +14,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     V2X_DATABASE_PATH=/app/runtime/v2x_cloud.db \
     V2X_AUTO_DEMO=true \
     V2X_DEMO_FPS=10 \
-    V2X_DEMO_SCENARIO=moderate
+    V2X_DEMO_SCENARIO=moderate \
+    V2X_DEMO_SCENARIO_ID=GP-01
 
 WORKDIR /app
 COPY requirements-ci.txt ./

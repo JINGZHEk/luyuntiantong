@@ -88,7 +88,7 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
   const [mode, setMode] = useState<Mode>('ego');
   const [clock, setClock] = useState('--:--:--');
   const [frame, setFrame] = useState(0);
-  const [metrics, setMetrics] = useState({ cpu: 70, nodes: 142, fps: 28, latency: 12 });
+  const [metrics, setMetrics] = useState({ cpu: null as number | null, nodes: 0, fps: 0, latency: null as number | null });
   const [scenario, setScenario] = useState<ScenarioMetrics>({ egoSpeed: 45, ttc: '> 5.0s', riskLevel: 0, phase: 'CRUISE', isDanger: false, decisionMode: 'cooperative', fusionWeight: '1.00', brakeDecel: '0.0 m/s\u00B2', collisionProb: '0.02' });
   const [traffic, setTraffic] = useState<TrafficMetrics>({ vehicles: 0, avgSpeed: 0, density: '0', congestion: 0, flowHistory: [], laneStats: [] });
   const [rsuData, setRsuData] = useState<RSUData[]>([]);
@@ -96,6 +96,7 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
   const [logs, setLogs] = useState<{ time: string; msg: string; type: string }[]>([]);
   const [scenarioTime, setScenarioTime] = useState(0);
   const [perf, setPerf] = useState({ inferMs: null as number | null, gpuMemoryMb: null as number | null });
+  const [modelLoaded, setModelLoaded] = useState(false);
   const [predictionMetrics, setPredictionMetrics] = useState({ ade: null as number | null, fde: null as number | null });
   const [bloom, setBloom] = useState<number>(DEFAULT_SCENE_STYLE.bloomStrength);
   const [fusionW, setFusionW] = useState(1.0);
@@ -215,7 +216,12 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
           }
           setClock(new Date().toLocaleTimeString('zh-CN', { hour12: false }));
         setFrame(sc['frame']);
-        setMetrics({ cpu: sc.metrics.cpu, nodes: sc.metrics.nodes, fps: sc.metrics.fps, latency: sc.metrics.latency });
+        setMetrics(current => ({
+          ...current,
+          nodes: sc.metrics.nodes,
+          fps: sc.metrics.fps,
+          latency: Number.isFinite(sc.metrics.latency) ? sc.metrics.latency : null,
+        }));
         setScenario(sc.getScenarioMetrics());
         setTraffic({ ...sc.trafficMetrics, flowHistory: [...sc.trafficMetrics.flowHistory], laneStats: [...sc.trafficMetrics.laneStats] });
         setRsuData(sc.rsuData.map(r => ({ ...r })));
@@ -242,6 +248,7 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
         const response = await fetch(buildApiUrl('/health'));
         if (!response.ok) return;
         const health = await response.json() as {
+          model_loaded?: boolean;
           recent_infer_ms?: number | null;
           gpu?: { available?: boolean; allocated_mb?: number };
         };
@@ -252,6 +259,7 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
             inferMs: Number.isFinite(inferMs) ? inferMs : null,
             gpuMemoryMb: health.gpu?.available && Number.isFinite(gpuMemoryMb) ? gpuMemoryMb : null,
           });
+          setModelLoaded(Boolean(health.model_loaded));
         }
       } catch {
         // Preserve the last real sample while the health endpoint reconnects.
@@ -436,10 +444,10 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
                 <span>TARGETS {realtimeContext.objectCount}</span>
               </div>
               <div className={styles.metricsGrid}>
-                <div><p className={styles.metricLabel}>云端算力负载</p><p className={styles.metricValue}>{metrics.cpu.toFixed(0)}<span className={styles.metricUnit}> %</span></p></div>
+                <div><p className={styles.metricLabel}>云端算力负载</p><p className={styles.metricValue}>{metrics.cpu === null ? '--' : metrics.cpu.toFixed(0)}<span className={styles.metricUnit}>{metrics.cpu === null ? '' : ' %'}</span></p></div>
                 <div><p className={styles.metricLabel}>接入终端</p><p className={styles.metricValue}>{metrics.nodes}<span className={styles.metricUnit}> nodes</span></p></div>
                 <div><p className={styles.metricLabel}>感知帧率</p><p className={styles.metricValue}>{metrics.fps.toFixed(0)}<span className={styles.metricUnit}> fps</span></p></div>
-                <div><p className={styles.metricLabel}>通信延迟</p><p className={styles.metricValue}>{metrics.latency.toFixed(0)}<span className={styles.metricUnit}> ms</span></p></div>
+                <div><p className={styles.metricLabel}>通信延迟</p><p className={styles.metricValue}>{metrics.latency === null ? '--' : metrics.latency.toFixed(0)}<span className={styles.metricUnit}>{metrics.latency === null ? '' : ' ms'}</span></p></div>
               </div>
               <div className={styles.throughputArea}>
                 <p className={styles.throughputLabel}>全网数据吞吐量</p>
@@ -593,6 +601,9 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
                     <h3>V2I 基础设施状态</h3>
                   </div>
                   <div className={styles.rsuCards}>
+                    {rsuData.length === 0 && (
+                      <div className={styles.logEmpty}>线上展示未接入硬件遥测，CPU/GPU/温度不使用模拟值</div>
+                    )}
                     {rsuData.map(r => (
                       <div key={r.id} className={styles.rsuCard}>
                         <div className={styles.rsuHeader}>
@@ -667,6 +678,7 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
                   <div className={styles.sectionDivider}>
                     <p className={styles.trafficLabel}>实时性能指标</p>
                     <div className={styles.perfGrid}>
+                      <div className={styles.perfCell}><span className={styles.perfLabel}>模型状态:</span> <span className={styles.perfVal}>{modelLoaded ? 'TorchScript 已加载' : '常速度降级演示'}</span></div>
                       <div className={styles.perfCell}><span className={styles.perfLabel}>推理耗时:</span> <span className={styles.perfVal}>{perf.inferMs === null ? '--' : `${perf.inferMs.toFixed(0)} ms`}</span></div>
                       <div className={styles.perfCell}><span className={styles.perfLabel}>GPU显存:</span> <span className={styles.perfVal}>{perf.gpuMemoryMb === null ? '--' : `${perf.gpuMemoryMb.toFixed(0)} MB`}</span></div>
                       <div className={styles.perfCell}><span className={styles.perfLabel}>ADE:</span> <span className={styles.perfVal}>{predictionMetrics.ade === null ? '--' : predictionMetrics.ade.toFixed(2)} m</span></div>

@@ -379,3 +379,31 @@ class _DemoPublisher:
             **kwargs,
         )
         asyncio.create_task(self.broadcaster(message_type, payload))
+        if message_type == "perception":
+            predictions = []
+            for obj in payload.get("objects", []):
+                trajectory = obj.get("predicted_traj") or []
+                if obj.get("track_id") is None or not trajectory:
+                    continue
+                predictions.append(
+                    {
+                        "track_id": obj["track_id"],
+                        "future_traj": [
+                            {"x": point[0], "y": point[1], "t": round((index + 1) / 10.0, 3)}
+                            for index, point in enumerate(trajectory)
+                        ],
+                        "confidence": obj.get("prediction_confidence", obj.get("confidence", 0.0)),
+                    }
+                )
+            if predictions:
+                asyncio.create_task(
+                    self.broadcaster(
+                        "prediction",
+                        {
+                            "timestamp": payload.get("timestamp"),
+                            "node_id": payload.get("node_id", "mock-roadside-001"),
+                            "run_id": run_id,
+                            "predictions": predictions,
+                        },
+                    )
+                )

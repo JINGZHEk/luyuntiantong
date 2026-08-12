@@ -24,6 +24,7 @@ class DeploymentConfigTest(unittest.TestCase):
         self.assertIn("RUN npm ci --legacy-peer-deps", dockerfile)
         self.assertIn("${PORT:-8000}", dockerfile)
         self.assertIn("V2X_DATABASE_PATH=/app/runtime/v2x_cloud.db", dockerfile)
+        self.assertIn("V2X_DEMO_SCENARIO_ID=GP-01", dockerfile)
         self.assertEqual(railway["build"]["builder"], "DOCKERFILE")
         self.assertEqual(railway["deploy"]["healthcheckPath"], "/health")
         self.assertIn("const BUILTIN_CLOUD_API_BASE_URL = '/api/v1'", runtime_config)

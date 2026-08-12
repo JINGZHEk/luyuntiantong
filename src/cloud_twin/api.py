@@ -183,6 +183,8 @@ async def health():
         "recent_infer_ms": inference.get("last_infer_ms"),
         "gpu": inference.get("gpu", {"available": False}),
         "sqlite": {"connected": sqlite_ok},
+        "demo": demo_engine.status() if demo_engine is not None else {"running": False},
+        "runtime_mode": "online_simulation" if demo_engine is not None else "service",
     }
 
 

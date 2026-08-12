@@ -102,7 +102,16 @@ class ScenarioCompiler:
                 "heading": round(state.heading_deg % 360.0, 6),
                 "confidence": round(state.confidence, 6),
                 "occlusion_level": state.occlusion_level,
-                "predicted_traj": [],
+                "predicted_traj": [
+                    [
+                        round(state.position[0] + state.velocity[0] * step * 0.1, 6),
+                        round(state.position[1] + state.velocity[1] * step * 0.1, 6),
+                    ]
+                    for step in range(1, 21)
+                ],
+                "prediction_status": "fallback",
+                "prediction_reason": "online demo uses deterministic constant-velocity fallback",
+                "prediction_confidence": round(min(state.confidence, 0.75), 6),
                 "coordinate_status": "valid",
                 "actor_id": actor.actor_id,
             }
@@ -122,6 +131,14 @@ class ScenarioCompiler:
             "node_id": "mock-roadside-001",
             "coordinate_frame": "road_xy",
             "objects": objects,
+            "prediction": {
+                "location": "cloud",
+                "backend": "constant_velocity",
+                "status": "fallback",
+                "model_path": None,
+                "latency_ms": None,
+                "reason": "TorchScript checkpoint is not bundled in the lightweight online demo",
+            },
             "source": {
                 "device_type": "scenario_replay",
                 "input_type": "sqlite",
