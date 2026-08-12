@@ -221,6 +221,7 @@ export class ZhiluWujieScene {
   private coverageGroup!: THREE.Group;
   private rsuObjects: { group: THREE.Group; ringMat: THREE.MeshBasicMaterial; coneMat: THREE.MeshBasicMaterial; color: number }[] = [];
   private realtimeObjectsGroup!: THREE.Group;
+  private realtimeTrajectoryGroup!: THREE.Group;
   private realtimePool!: SceneObjectPool;
   private scenarioContextGroup?: THREE.Group;
   private scenarioVisualSpec: ScenarioVisualSpec | null = null;
@@ -293,6 +294,10 @@ export class ZhiluWujieScene {
       createModel: state => createRealtimeActorModel(state),
     });
     this.scene.add(this.realtimeObjectsGroup);
+    this.realtimeTrajectoryGroup = new THREE.Group();
+    this.realtimeTrajectoryGroup.name = 'realtime-trajectories';
+    this.realtimeTrajectoryGroup.visible = false;
+    this.scene.add(this.realtimeTrajectoryGroup);
 
     /* camera */
     this.camera = new THREE.PerspectiveCamera(realistic ? 50 : 45, w / h, 1, 500);
@@ -1551,6 +1556,7 @@ export class ZhiluWujieScene {
     for (const object of payload.objects || []) {
       this.realtimePool.upsert(payload.node_id || 'unknown', object, receivedAt);
     }
+    this.renderRealtimeTrajectories();
     this.realtimeScenarioId = payload.scenario_id || payload.scenario || this.realtimeScenarioId;
     this.realtimeRunId = payload.run_id || this.realtimeRunId;
     this.realtimeLastMessageAt = receivedAt;
@@ -1628,10 +1634,12 @@ export class ZhiluWujieScene {
     if (mode === 'fallback') {
       this.clearDynamicObjects();
       this.realtimeObjectsGroup.visible = false;
+      this.realtimeTrajectoryGroup.visible = false;
       this.truck.visible = true;
       this.pedestrian.visible = true;
     } else {
       this.realtimeObjectsGroup.visible = true;
+      this.realtimeTrajectoryGroup.visible = true;
       this.truck.visible = false;
       this.pedestrian.visible = false;
     }
@@ -1639,6 +1647,54 @@ export class ZhiluWujieScene {
 
   clearDynamicObjects(): void {
     this.realtimePool?.clear();
+    this.clearRealtimeTrajectories();
+  }
+
+  private confidenceColor(confidence: number | undefined): THREE.Color {
+    const normalized = Math.max(0, Math.min(1, Number(confidence ?? 0)));
+    return new THREE.Color(0xef4444).lerp(new THREE.Color(0x22c55e), normalized);
+  }
+
+  private clearRealtimeTrajectories(): void {
+    if (!this.realtimeTrajectoryGroup) return;
+    for (const child of [...this.realtimeTrajectoryGroup.children]) {
+      this.realtimeTrajectoryGroup.remove(child);
+      const line = child as THREE.Line;
+      line.geometry?.dispose();
+      const material = line.material;
+      if (Array.isArray(material)) material.forEach(item => item.dispose());
+      else material?.dispose();
+    }
+  }
+
+  private renderRealtimeTrajectories(): void {
+    if (!this.realtimeTrajectoryGroup || !this.realtimePool) return;
+    this.clearRealtimeTrajectories();
+    for (const state of this.realtimePool.snapshot()) {
+      const color = this.confidenceColor(state.predictionConfidence ?? state.confidence);
+      if (state.historyTrajectory.length >= 2) {
+        const history = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(
+            state.historyTrajectory.map(point => new THREE.Vector3(point.x, 0.22, point.z)),
+          ),
+          new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.78 }),
+        );
+        history.name = `history-${state.key}`;
+        this.realtimeTrajectoryGroup.add(history);
+      }
+      if (state.predictedTrajectory.length >= 1) {
+        const prediction = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(state.position.x, 0.3, state.position.z),
+            ...state.predictedTrajectory.map(point => new THREE.Vector3(point.x, 0.3, point.z)),
+          ]),
+          new THREE.LineDashedMaterial({ color, dashSize: 0.6, gapSize: 0.35, transparent: true, opacity: 0.95 }),
+        );
+        prediction.computeLineDistances();
+        prediction.name = `prediction-${state.key}`;
+        this.realtimeTrajectoryGroup.add(prediction);
+      }
+    }
   }
 
   getRealtimeObjects(): PooledObjectState[] {

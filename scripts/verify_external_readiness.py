@@ -1,4 +1,4 @@
-"""Summarize external environment readiness for GOAL.md remaining gates."""
+"""Summarize external environment readiness for current deployment gates."""
 
 from __future__ import annotations
 
@@ -140,7 +140,7 @@ def build_external_readiness_report(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Summarize external readiness for remaining GOAL.md gates")
+    parser = argparse.ArgumentParser(description="Summarize external readiness for current deployment gates")
     parser.add_argument("--search-root", action="append", default=None, help="Directory to scan for DAIR-V2X data")
     parser.add_argument("--dair-root", default=None, help="Specific DAIR-V2X root to validate")
     parser.add_argument("--mqtt-host", default="127.0.0.1", help="External MQTT Broker host")

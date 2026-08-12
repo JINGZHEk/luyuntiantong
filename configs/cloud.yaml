@@ -23,7 +23,10 @@ prediction:
   enabled: false
   backend: stgnn
   model_path:
-  history_length: 8
-  predict_steps: 30
+  history_length: 20
+  predict_steps: 20
   fps: 10
   min_history: 2
+  batch_size: 8
+  device: auto
+  push_hz: 10

@@ -57,7 +57,7 @@ class WebSocketService {
         this.notifyConnection();
         this.reconnectAttempts = 0;
         console.log('[WS] Connected to cloud API');
-        this.ws?.send(JSON.stringify({ action: 'subscribe', topics: ['perception', 'decision', 'event', 'vehicle_status', 'heartbeat'] }));
+        this.ws?.send(JSON.stringify({ action: 'subscribe', topics: ['perception', 'prediction', 'decision', 'event', 'vehicle_status', 'heartbeat'] }));
       };
 
       this.ws.onmessage = (event) => {
@@ -222,6 +222,7 @@ export function toMonitorMessage(type: string, data: RealtimePayload): MonitorMe
     decision: 'v2x/vehicle/decision',
     vehicle_status: 'v2x/vehicle/state',
     event: 'v2x/cloud/event',
+    prediction: 'v2x/cloud/prediction',
     heartbeat: 'v2x/roadside/heartbeat',
   };
   return {

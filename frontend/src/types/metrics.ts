@@ -14,6 +14,7 @@ export interface ModelMetrics {
   f1Score: number;
   ade: number;
   fde: number;
+  missRate?: number;
   occAde?: number;
   occAcc?: number;
   avgLatency: number;

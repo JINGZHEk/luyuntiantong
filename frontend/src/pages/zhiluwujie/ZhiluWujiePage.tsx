@@ -6,7 +6,7 @@ import { SCENARIO_CATALOG, findScenario } from './scenarioCatalog';
 import { demoApi } from '@/services/demoApi';
 import { DEFAULT_SCENE_STYLE } from './sceneVisuals';
 import { wsService } from '@/services/websocketService';
-import { buildWebSocketUrl } from '@/services/runtimeConfig';
+import { buildApiUrl, buildWebSocketUrl } from '@/services/runtimeConfig';
 import type {
   CloudEventPayload,
   DataMode,
@@ -95,7 +95,8 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
   const [signals, setSignals] = useState<{ name: string; phase: string }[]>([]);
   const [logs, setLogs] = useState<{ time: string; msg: string; type: string }[]>([]);
   const [scenarioTime, setScenarioTime] = useState(0);
-  const [perf, setPerf] = useState({ inferMs: 28, gpuUtil: 62, decisionMs: 5, lossRate: 0.2 });
+  const [perf, setPerf] = useState({ inferMs: null as number | null, gpuMemoryMb: null as number | null });
+  const [predictionMetrics, setPredictionMetrics] = useState({ ade: null as number | null, fde: null as number | null });
   const [bloom, setBloom] = useState<number>(DEFAULT_SCENE_STYLE.bloomStrength);
   const [fusionW, setFusionW] = useState(1.0);
   const [throughputBars, setThroughputBars] = useState<number[]>(INITIAL_THROUGHPUT_BARS);
@@ -202,6 +203,10 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
               objectCount: realtime.objects.length,
               predictionStatus: realtime.prediction?.status || 'unknown',
             });
+            setPredictionMetrics({
+              ade: realtime.predictionMetrics.ade,
+              fde: realtime.predictionMetrics.fde,
+            });
             setScenarioTime(
               realtime.dataMode === 'fallback' || realtime.lastFrameId === null
                 ? sc.scenarioTime
@@ -216,7 +221,6 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
         setRsuData(sc.rsuData.map(r => ({ ...r })));
         setSignals(sc.getTrafficSignalData());
         if (!realtimeAdapterRef.current) setScenarioTime(sc.scenarioTime);
-        setPerf({ inferMs: sc.metrics.inferMs, gpuUtil: sc.metrics.gpuUtil, decisionMs: sc.metrics.decisionMs, lossRate: sc.metrics.lossRate });
         const history = sc.trafficMetrics.flowHistory;
         const flowSample = history.length > 0 ? history[history.length - 1] : sc.metrics.fps;
         setThroughputBars(prev => [
@@ -228,6 +232,37 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
+  }, [booted]);
+
+  useEffect(() => {
+    if (!booted) return;
+    let active = true;
+    const refreshHealth = async () => {
+      try {
+        const response = await fetch(buildApiUrl('/health'));
+        if (!response.ok) return;
+        const health = await response.json() as {
+          recent_infer_ms?: number | null;
+          gpu?: { available?: boolean; allocated_mb?: number };
+        };
+        if (active) {
+          const inferMs = health.recent_infer_ms == null ? Number.NaN : Number(health.recent_infer_ms);
+          const gpuMemoryMb = Number(health.gpu?.allocated_mb);
+          setPerf({
+            inferMs: Number.isFinite(inferMs) ? inferMs : null,
+            gpuMemoryMb: health.gpu?.available && Number.isFinite(gpuMemoryMb) ? gpuMemoryMb : null,
+          });
+        }
+      } catch {
+        // Preserve the last real sample while the health endpoint reconnects.
+      }
+    };
+    void refreshHealth();
+    const timer = window.setInterval(refreshHealth, 1000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, [booted]);
 
   /* ---- Flow chart ---- */
@@ -632,10 +667,10 @@ export default function ZhiluWujiePage({ scenePreset, autoEnter = false }: Zhilu
                   <div className={styles.sectionDivider}>
                     <p className={styles.trafficLabel}>实时性能指标</p>
                     <div className={styles.perfGrid}>
-                      <div className={styles.perfCell}><span className={styles.perfLabel}>推理耗时:</span> <span className={styles.perfVal}>{perf.inferMs.toFixed(0)} ms</span></div>
-                      <div className={styles.perfCell}><span className={styles.perfLabel}>GPU利用率:</span> <span className={styles.perfVal}>{perf.gpuUtil.toFixed(0)}%</span></div>
-                      <div className={styles.perfCell}><span className={styles.perfLabel}>决策耗时:</span> <span className={styles.perfVal}>{perf.decisionMs.toFixed(0)} ms</span></div>
-                      <div className={styles.perfCell}><span className={styles.perfLabel}>消息丢失率:</span> <span className={styles.perfVal}>{perf.lossRate.toFixed(1)}%</span></div>
+                      <div className={styles.perfCell}><span className={styles.perfLabel}>推理耗时:</span> <span className={styles.perfVal}>{perf.inferMs === null ? '--' : `${perf.inferMs.toFixed(0)} ms`}</span></div>
+                      <div className={styles.perfCell}><span className={styles.perfLabel}>GPU显存:</span> <span className={styles.perfVal}>{perf.gpuMemoryMb === null ? '--' : `${perf.gpuMemoryMb.toFixed(0)} MB`}</span></div>
+                      <div className={styles.perfCell}><span className={styles.perfLabel}>ADE:</span> <span className={styles.perfVal}>{predictionMetrics.ade === null ? '--' : predictionMetrics.ade.toFixed(2)} m</span></div>
+                      <div className={styles.perfCell}><span className={styles.perfLabel}>FDE:</span> <span className={styles.perfVal}>{predictionMetrics.fde === null ? '--' : predictionMetrics.fde.toFixed(2)} m</span></div>
                     </div>
                   </div>
                   <button className={styles.applyBtn}>应用到仿真引擎</button>

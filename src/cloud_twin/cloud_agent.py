@@ -15,6 +15,7 @@ from src.communication.mqtt_config import apply_mqtt_env_overrides
 from src.cloud_twin.data_store import DataStore
 from src.cloud_twin.api import app, broadcast_to_clients, store as _store_ref
 from src.cloud_twin.stgnn_service import CloudSTGNNService
+from src.cloud_twin.prediction_writer import PredictionWriter
 
 
 def apply_api_overrides(config: dict, host: str = None, port: int = None) -> dict:
@@ -46,6 +47,7 @@ class CloudAgent:
         # Database
         db_path = self.config.get("database", {}).get("path", "data/v2x_cloud.db")
         self.store = DataStore(db_path)
+        self.prediction_writer = PredictionWriter(self.store)
 
         # Event detection config
         evt_config = self.config.get("event_detection", {})
@@ -60,11 +62,17 @@ class CloudAgent:
             enabled=prediction_config.get("enabled", True),
             backend=prediction_config.get("backend", "stgnn"),
             model_path=prediction_config.get("model_path"),
-            history_length=prediction_config.get("history_length", 8),
-            predict_steps=prediction_config.get("predict_steps", 30),
+            history_length=prediction_config.get("history_length", 20),
+            predict_steps=prediction_config.get("predict_steps", 20),
             fps=prediction_config.get("fps", 10),
             min_history=prediction_config.get("min_history", 2),
+            batch_size=prediction_config.get("batch_size", 8),
+            device=prediction_config.get("device", "auto"),
+            batch_callback=self.prediction_writer.enqueue_inference_log,
         )
+        push_hz = float(prediction_config.get("push_hz", 10))
+        self._prediction_push_interval = 1.0 / max(push_hz, 0.1)
+        self._last_prediction_push = 0.0
 
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
@@ -96,8 +104,46 @@ class CloudAgent:
             perception=enriched_payload,
             run_id=run_id,
         )
+        prediction_rows = []
+        writer = getattr(self, "prediction_writer", None)
+        for obj in enriched_payload.get("objects", []):
+            future_traj = obj.get("future_traj") or []
+            if future_traj and obj.get("track_id") is not None:
+                confidence = obj.get("prediction_confidence", obj.get("confidence", 0.0))
+                if writer is not None:
+                    writer.enqueue_predictions(
+                        obj["track_id"], timestamp, future_traj, confidence,
+                        prefix=f"{run_id}:{node_id}:{obj['track_id']}",
+                    )
+                prediction_rows.append(
+                    {
+                        "track_id": obj["track_id"],
+                        "future_traj": future_traj,
+                        "confidence": confidence,
+                    }
+                )
+            if obj.get("prediction_anomaly"):
+                if writer is not None:
+                    writer.enqueue_anomaly(
+                        obj["track_id"], timestamp, obj["prediction_anomaly"],
+                        {"frame_id": frame_id, "node_id": node_id},
+                    )
 
         self._broadcast("perception", enriched_payload)
+        now = time.monotonic()
+        last_prediction_push = getattr(self, "_last_prediction_push", 0.0)
+        push_interval = getattr(self, "_prediction_push_interval", 0.1)
+        if writer is not None and prediction_rows and now - last_prediction_push >= push_interval:
+            self._last_prediction_push = now
+            self._broadcast(
+                "prediction",
+                {
+                    "timestamp": timestamp,
+                    "node_id": node_id,
+                    "run_id": run_id,
+                    "predictions": prediction_rows,
+                },
+            )
 
     def _on_vehicle_status(self, topic: str, payload: dict):
         frame_id = payload.get("frame_id", int(time.time() * 10) % 100000)
@@ -205,6 +251,9 @@ class CloudAgent:
 
     def stop(self):
         self.mqtt.disconnect()
+        writer = getattr(self, "prediction_writer", None)
+        if writer is not None:
+            writer.close()
         self.logger.info("Cloud agent stopped")
 
 
@@ -215,6 +264,7 @@ def run_api_server(cloud_agent: CloudAgent):
 
     # Share the datastore with the API
     api_module.store = cloud_agent.store
+    api_module.prediction_service = cloud_agent.stgnn_service
 
     config = cloud_agent.config.get("api", {})
     host = config.get("host", "0.0.0.0")

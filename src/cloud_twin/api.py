@@ -1,11 +1,15 @@
 import asyncio
 import json
 import math
+import os
 import time
 from dataclasses import asdict
+from pathlib import Path
 from typing import Set
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from src.utils import load_config, get_config_path, setup_logger
@@ -21,7 +25,10 @@ store: DataStore = None
 demo_engine: DemoEngine = None
 config_store: RuntimeConfigStore = None
 scenario_repository: ScenarioRepository = None
+prediction_service = None
 ws_clients: Set[WebSocket] = set()
+_client_queues: dict[WebSocket, asyncio.Queue[str]] = {}
+_client_topics: dict[WebSocket, set[str] | None] = {}
 _recent_messages: list = []
 _message_buffer_size = 200
 
@@ -41,7 +48,10 @@ async def lifespan(app: FastAPI):
     global store, demo_engine, config_store, scenario_repository
     config = load_config(get_config_path("cloud.yaml"))
     if store is None:
-        db_path = config.get("database", {}).get("path", "data/v2x_cloud.db")
+        db_path = os.getenv(
+            "V2X_DATABASE_PATH",
+            config.get("database", {}).get("path", "data/v2x_cloud.db"),
+        )
         store = DataStore(db_path)
     if config_store is None:
         runtime_config_path = config.get("runtime_config", {}).get("path", "data/runtime_config.json")
@@ -55,6 +65,14 @@ async def lifespan(app: FastAPI):
         scene_id=config.get("scene_id", "scene_001"),
         scenario_repository=scenario_repository,
     )
+    if os.getenv("V2X_AUTO_DEMO", "false").lower() in {"1", "true", "yes", "on"}:
+        await demo_engine.start(
+            fps=float(os.getenv("V2X_DEMO_FPS", "10")),
+            scenario=os.getenv("V2X_DEMO_SCENARIO", "moderate"),
+            scenario_id=os.getenv("V2X_DEMO_SCENARIO_ID") or None,
+            loop=True,
+        )
+        logger.info("Online demo loop started automatically")
     logger.info("Cloud API started")
     yield
     if demo_engine:
@@ -84,16 +102,36 @@ app.add_middleware(
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
     ws_clients.add(ws)
+    _client_queues[ws] = asyncio.Queue(maxsize=256)
+    _client_topics[ws] = None
+    sender_task = asyncio.create_task(_send_client_queue(ws))
     logger.info(f"WebSocket client connected, total: {len(ws_clients)}")
     try:
         while True:
             data = await ws.receive_text()
             msg = json.loads(data)
             if msg.get("action") == "subscribe":
-                pass  # All clients receive all messages for now
+                topics = msg.get("topics")
+                _client_topics[ws] = set(str(topic) for topic in topics) if isinstance(topics, list) else None
     except WebSocketDisconnect:
         ws_clients.discard(ws)
         logger.info(f"WebSocket client disconnected, total: {len(ws_clients)}")
+    except Exception:
+        ws_clients.discard(ws)
+    finally:
+        _client_queues.pop(ws, None)
+        _client_topics.pop(ws, None)
+        sender_task.cancel()
+
+
+async def _send_client_queue(ws: WebSocket) -> None:
+    queue = _client_queues[ws]
+    try:
+        while True:
+            await ws.send_text(await queue.get())
+            queue.task_done()
+    except asyncio.CancelledError:
+        return
     except Exception:
         ws_clients.discard(ws)
 
@@ -112,7 +150,16 @@ async def broadcast_to_clients(msg_type: str, data: dict):
     disconnected = set()
     for ws in ws_clients:
         try:
-            await ws.send_text(message)
+            topics = _client_topics.get(ws)
+            if topics is not None and msg_type not in topics:
+                continue
+            queue = _client_queues.get(ws)
+            if queue is None:
+                continue
+            if queue.full():
+                queue.get_nowait()
+                queue.task_done()
+            queue.put_nowait(message)
         except Exception:
             disconnected.add(ws)
     ws_clients.difference_update(disconnected)
@@ -121,8 +168,22 @@ async def broadcast_to_clients(msg_type: str, data: dict):
 # ─── REST APIs ──────────────────────────────────────────────
 
 @app.get("/api/v1/health")
+@app.get("/health")
 async def health():
-    return {"status": "ok", "timestamp": int(time.time() * 1000), "clients": len(ws_clients)}
+    inference = {}
+    if prediction_service is not None:
+        inference = prediction_service.health()
+    sqlite_ok = bool(store and store.health_check())
+    return {
+        "status": "ok" if sqlite_ok else "degraded",
+        "timestamp": int(time.time() * 1000),
+        "clients": len(ws_clients),
+        "model": inference,
+        "model_loaded": inference.get("model_loaded", False),
+        "recent_infer_ms": inference.get("last_infer_ms"),
+        "gpu": inference.get("gpu", {"available": False}),
+        "sqlite": {"connected": sqlite_ok},
+    }
 
 
 @app.get("/api/v1/frames/{frame_id}")
@@ -164,11 +225,14 @@ async def get_event_detail(event_id: str):
 
 @app.get("/api/v1/metrics")
 async def get_metrics():
+    recent = store.get_prediction_logs(limit=100) if store else {"logs": [], "anomalies": []}
+    logs = recent.get("logs", [])
+    average_infer = round(sum(float(row["infer_ms"]) for row in logs) / len(logs), 2) if logs else None
     return {
         "roadside": {
-            "avg_fps": 10.0,
-            "avg_inference_ms": 35.0,
-            "avg_gpu_util": 45.0,
+            "avg_fps": 1000.0 / average_infer if average_infer and average_infer > 0 else None,
+            "avg_inference_ms": average_infer,
+            "avg_gpu_util": None,
         },
         "communication": {
             "avg_latency_ms": 25.0,
@@ -182,6 +246,29 @@ async def get_metrics():
             "fallback_count": 0,
         },
     }
+
+
+@app.get("/api/v1/logs/prediction")
+@app.get("/api/logs/prediction")
+async def get_prediction_logs(
+    start_ts: int = Query(default=0, ge=0),
+    end_ts: int = Query(default=0, ge=0),
+    limit: int = Query(default=200, ge=1, le=2000),
+):
+    if store is None:
+        return {"logs": [], "anomalies": []}
+    return store.get_prediction_logs(start_ts=start_ts, end_ts=end_ts, limit=limit)
+
+
+@app.post("/api/v1/model/reload")
+async def reload_prediction_model():
+    if prediction_service is None:
+        raise HTTPException(status_code=503, detail="Prediction service is not attached")
+    loaded = prediction_service.reload_model()
+    health_state = prediction_service.health()
+    if not loaded:
+        raise HTTPException(status_code=503, detail=health_state.get("model_reason") or "Model reload failed")
+    return health_state
 
 
 @app.get("/api/v1/scenarios")
@@ -261,3 +348,19 @@ async def step_demo(
 @app.get("/api/v1/demo/status")
 async def demo_status():
     return demo_engine.status()
+
+
+# Static frontend must be mounted after API and WebSocket routes so it cannot
+# shadow the service contract. Missing SPA paths fall back to index.html.
+FRONTEND_DIST = Path(os.getenv("V2X_FRONTEND_DIST", "frontend/dist")).resolve()
+if FRONTEND_DIST.is_dir():
+    assets_dir = FRONTEND_DIST / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="frontend-assets")
+
+    @app.get("/{frontend_path:path}", include_in_schema=False)
+    async def frontend_spa(frontend_path: str):
+        requested = (FRONTEND_DIST / frontend_path).resolve()
+        if FRONTEND_DIST in requested.parents and requested.is_file():
+            return FileResponse(requested)
+        return FileResponse(FRONTEND_DIST / "index.html")

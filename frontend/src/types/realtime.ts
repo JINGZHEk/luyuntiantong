@@ -41,9 +41,11 @@ export interface PooledObjectState {
   heading: number;
   velocity: NumericPair;
   confidence?: number;
+  predictionConfidence?: number;
   lastSeenAt: number;
   occlusionLevel: number;
   predictedTrajectory: Array<{ x: number; y: number; z: number }>;
+  historyTrajectory: Array<{ x: number; y: number; z: number }>;
 }
 
 export type CoordinateStatus = 'valid' | 'invalid' | 'unknown';
@@ -67,6 +69,27 @@ export interface PredictionMeta {
   reason?: string | null;
 }
 
+export interface FutureTrajectoryPoint {
+  x: number;
+  y: number;
+  t: number;
+  vx?: number;
+  vy?: number;
+}
+
+export interface PredictionTrackPayload {
+  track_id: string | number;
+  future_traj: FutureTrajectoryPoint[];
+  confidence: number;
+}
+
+export interface PredictionPayload {
+  timestamp?: number | string;
+  node_id?: string;
+  run_id?: string;
+  predictions?: PredictionTrackPayload[];
+}
+
 export interface CloudObjectPayload {
   track_id?: string | number;
   class?: string;
@@ -82,6 +105,9 @@ export interface CloudObjectPayload {
   prediction_status?: PredictionStatus | string;
   prediction_reason?: string | null;
   predicted_traj?: NumericPair[];
+  future_traj?: FutureTrajectoryPoint[];
+  prediction_confidence?: number;
+  prediction_anomaly?: string | null;
 }
 
 export interface TargetObjectPayload {
@@ -171,4 +197,5 @@ export type RealtimePayload =
   | DecisionPayload
   | VehicleStatusPayload
   | CloudEventPayload
+  | PredictionPayload
   | Record<string, unknown>;

@@ -64,10 +64,14 @@ def discover_dair_datasets(search_roots: list[Path], max_depth: int = 5) -> list
 
         for item in roots_to_check:
             root = item.parent if item.name == "infrastructure-side" else item
-            root = root.resolve()
-            if root in seen or not root.is_dir():
+            # Keep the caller's path spelling in the report (important for
+            # Windows 8.3 paths and readable CLI output), while normalizing
+            # only the deduplication key.
+            root = root.absolute()
+            root_key = root.resolve()
+            if root_key in seen or not root.is_dir():
                 continue
-            seen.add(root)
+            seen.add(root_key)
             candidate = _dataset_candidate(root)
             if candidate is not None:
                 candidates.append(candidate)

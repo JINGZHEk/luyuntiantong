@@ -1,7 +1,11 @@
 import logging
 import sys
 from pathlib import Path
-from pythonjsonlogger import jsonlogger
+
+try:
+    from pythonjsonlogger import jsonlogger
+except ImportError:  # Training-only environments do not need structured file logs.
+    jsonlogger = None
 
 
 def setup_logger(name: str, level: str = "INFO", log_dir: str = None) -> logging.Logger:
@@ -21,7 +25,7 @@ def setup_logger(name: str, level: str = "INFO", log_dir: str = None) -> logging
         log_path = Path(log_dir)
         log_path.mkdir(parents=True, exist_ok=True)
         file_handler = logging.FileHandler(log_path / f"{name}.log", encoding='utf-8')
-        json_formatter = jsonlogger.JsonFormatter(fmt)
+        json_formatter = jsonlogger.JsonFormatter(fmt) if jsonlogger else logging.Formatter(fmt)
         file_handler.setFormatter(json_formatter)
         logger.addHandler(file_handler)
 

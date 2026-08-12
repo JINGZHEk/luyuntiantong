@@ -1,329 +1,125 @@
-# 数据集与模型设计文档
+# 数据与模型
 
-> 版本：v0.1 | 日期：2026-04-14
+> 最后更新：2026-08-12
 
----
+## 统一轨迹格式
 
-## 1. 数据集
-
-### 1.1 DAIR-V2X 数据集
-
-**来源**: https://thudair.baai.ac.cn/index
-**用途**: 模型训练与离线评估
-
-#### 数据结构
-```
-DAIR-V2X/
-├── cooperative/           # 协同数据（路侧+车端配对）
-│   ├── image/            # 图像数据
-│   ├── velodyne/         # 点云数据
-│   ├── label/            # 3D标注 (json)
-│   └── calib/            # 标定参数
-├── infrastructure-side/   # 路侧独立数据
-│   ├── image/
-│   ├── velodyne/
-│   ├── label/
-│   └── calib/
-└── vehicle-side/          # 车端独立数据
-    ├── image/
-    ├── velodyne/
-    ├── label/
-    └── calib/
-```
-
-#### 标注格式
-```json
-{
-  "type": "Pedestrian",
-  "truncated_state": 0,
-  "occluded_state": 2,
-  "alpha": -1.57,
-  "2d_box": {"xmin": 320, "ymin": 180, "xmax": 365, "ymax": 300},
-  "3d_dimensions": {"h": 1.73, "w": 0.65, "l": 0.45},
-  "3d_location": {"x": 12.5, "y": 3.2, "z": 0.0},
-  "rotation": 1.57
-}
-```
-
-#### 我们使用的字段
-| 字段 | 用途 | 映射到模型输入 |
-|------|------|---------------|
-| 2d_box | 检测框 | 图节点bbox特征 |
-| 3d_location | 世界坐标 | 图节点(x,y)位置 |
-| occluded_state | 遮挡标签 | 遮挡估计GT (0=无, 1=轻, 2=中, 3=重) |
-| type | 类别 | 节点类别特征 (one-hot) |
-| rotation | 朝向 | 速度方向估计辅助 |
-
-### 1.2 数据预处理流程
-
-```
-原始帧序列
-    ▼
-1. 时间同步对齐 (路侧-车端帧匹配)
-    ▼
-2. 坐标统一 (标定参数转换到统一世界坐标系)
-    ▼
-3. 目标追踪关联 (匈牙利算法, IoU匹配)
-    ▼
-4. 轨迹提取 (滑窗: 观测N帧→预测T帧)
-    ▼
-5. 遮挡标签生成 (基于occluded_state + 可见面积比)
-    ▼
-6. 图数据构建 (PyG Data格式)
-    ▼
-7. 训练/验证/测试集划分 (7:1.5:1.5)
-```
-
-### 1.3 数据增强策略
-
-| 策略 | 参数 | 目的 |
-|------|------|------|
-| 随机遮挡模拟 | drop_prob=0.3 | 增强遮挡鲁棒性 |
-| 轨迹噪声 | σ=0.1m | 增强定位噪声鲁棒性 |
-| 时序抖动 | ±1帧 | 增强时间同步误差鲁棒性 |
-| 节点随机丢失 | drop_prob=0.1 | 模拟检测漏检 |
-
-### 1.4 无硬件场景回放数据源
-
-当前演示不需要真实车辆、摄像头或边缘开发板。`src/scenario_library` 将道路参与者的时间戳、世界坐标、速度、航向、置信度和遮挡等级保存为 SQLite 关键帧，再编译成与真实感知结果相同的 MQTT payload。
-
-数据源标识为 `source.device_type=scenario_replay`、`source.input_type=sqlite`、`source.simulation=true`。payload 不携带原始图片字段，只携带算法和大屏所需的结构化目标数据。未来接入 Jetson Orin Nano 或 Huawei Atlas 200 DK 时，替换的是采集/推理数据源适配器；坐标系、`run_id + frame_id`、Cloud STGNN、WebSocket 和 Three.js 数据契约保持一致。
-
-## 2. SQLite 16 场景库
-
-场景库由四张核心表组成：
-
-| 表 | 内容 |
-|------|------|
-| `scenario_templates` | 场景名称、类别、时长、道路布局、环境和预期结果 |
-| `scenario_actors` | 自车、遮挡物、行人、非机动车和冲突车辆 |
-| `scenario_keyframes` | 每个参与者在 `t_ms` 的位置、速度、航向、可见性和遮挡等级 |
-| `scenario_events` | 场景事件时间点、严重度、参与者和期望决策 |
-
-当前种子数据覆盖：
-
-| 类别 | 场景 ID | 场景数量 |
-|------|---------|---------:|
-| 鬼探头 | `GP-01`～`GP-08` | 8 |
-| 非机动车横穿 | `NM-01`～`NM-04` | 4 |
-| 路口车辆冲突 | `IC-01`～`IC-04` | 4 |
-
-每个场景至少包含自车、目标/冲突对象、遮挡或背景对象、4 个以上事件规则和 3 个以上关键帧。编译器使用真实世界 `road_xy` 米制坐标，输出 `perception.objects[].world_pos`、`velocity`、`occlusion_level` 和 `track_id`，由前端坐标转换层映射到 Three.js 场景。
-
-初始化与验证：
-
-```powershell
-python scripts\seed_scenario_library.py --database data\scenario_demo.db
-python scripts\seed_scenario_library.py --database data\scenario_demo.db --check
-python scripts\verify_scenario_library.py --database data\scenario_demo.db --frames-per-scenario 15
-```
-
-验证脚本会对全部 16 个场景各抽取 15 个时间点，检查时间戳单调、坐标有限、帧内 `track_id` 唯一、事件可激活以及原始图片字段为 0；预期 `frames_checked=240`。
-
----
-
-## 2. 模型设计
-
-### 2.1 模型概览
-
-| 属性 | 值 |
-|------|-----|
-| 模型名称 | OccAware-STGNN |
-| 输入 | 连续 N=8 帧时空图序列 |
-| 输出 | 未来 T=30 步轨迹 + 遮挡等级 |
-| 参数量 | ~2.5M |
-| 推理时间 | <50ms (RTX 3060) |
-| 目标设备 | Jetson Orin / PC GPU |
-
-当前工程状态：
-
-- `src/roadside_perception/stgnn_predictor.py` 已提供 OccAware-STGNN 接入适配器和 Roadside Agent 配置入口。
-- `src/roadside_perception/stgnn_model.py` 已提供可导出的 PyTorch 模型骨架，包含密集图注意力、时序 GRU、轨迹预测头和遮挡分类头。
-- `src/dataset/stgnn_training_data.py` 和 `scripts/build_stgnn_training_data.py` 已能从 replay clip 导出监督训练样本。
-- `scripts/train_stgnn.py --dry-run` 可在轻量环境中校验样本形状、训练参数和 checkpoint 输出路径；在健康 torch 环境中可执行监督训练并导出 TorchScript checkpoint。
-- `scripts/evaluate_stgnn_checkpoint.py --dry-run` 可在轻量环境中校验 checkpoint 评估报告结构；在健康 torch 环境中可加载训练后 TorchScript checkpoint 并输出 ADE、FDE、Occ-ADE、Occ-Acc、FPS 和延迟指标。
-- `scripts/verify_algorithm_pipeline.py` 可将 M2 样例生成、ST-GNN 样本导出、checkpoint dry-run 或真实小样本训练评估串成统一验收入口。
-- `scripts/export_stgnn_checkpoint.py --describe` 可查看模型规格；在健康的 Python 3.10/3.11 算法环境中，可用该脚本导出 TorchScript checkpoint。
-- 适配器会从轨迹历史构建节点特征 `[cx, cy, w, h, vx, vy, cls, occ_score]`，并在配置 `prediction.model_path` 后尝试加载 TorchScript checkpoint。
-- 未配置或未成功加载 checkpoint 时，系统明确回落到常速度 baseline；该 fallback 只证明工程链路可运行，不代表 OccAware-STGNN 指标。
-- 完整真实 DAIR-V2X 训练、训练后 checkpoint 和指标复核仍是后续工作；随机初始化 checkpoint 仅用于集成测试。
-
-当前训练样本 JSONL 格式：
+每个观测点包含：
 
 ```json
 {
-  "sample_id": "scene_000012_1",
-  "scene_id": "scene",
-  "frame_id": 12,
-  "track_id": 1,
-  "class": "person",
-  "history_length": 8,
-  "predict_steps": 30,
-  "input_features": [[0.0, 0.0, 30.0, 40.0, 0.0, 0.0, 1.0, 0.667]],
-  "target_trajectory": [[1.0, 0.5]],
-  "occlusion_label": 2
+  "track_id": 7,
+  "class": "car",
+  "x": 12.4,
+  "y": 3.1,
+  "vx": 4.0,
+  "vy": 0.0,
+  "timestamp": 1710000000000,
+  "confidence": 0.92
 }
 ```
 
-其中 `input_features` 的每一行固定为 `[cx, cy, w, h, vx, vy, class_id, occ_score]`，`target_trajectory` 为当前帧之后的未来世界坐标序列。
+字段约束：
 
-训练入口：
+| 字段 | 约束 |
+|---|---|
+| `track_id` | 同一数据源内稳定；多场景导出时加场景前缀 |
+| `class` | 字符串类别，未知类别使用 `unknown` |
+| `x/y` | `road_xy` 米制坐标，必须有限且绝对值不超过 200m |
+| `vx/vy` | m/s；缺失时由相邻有效位置估计 |
+| `timestamp` | Unix milliseconds 或场景相对 milliseconds |
+| `confidence` | `[0,1]`，低于 0.3 丢弃 |
 
-```powershell
-python scripts\train_stgnn.py --samples data\stgnn_training\samples.jsonl --output models\occaware_stgnn.ts --dry-run
-python scripts\train_stgnn.py --samples data\stgnn_training\samples.jsonl --output models\occaware_stgnn.ts --epochs 50 --batch-size 32
-```
+## 清洗与重采样
 
-第一条命令用于当前轻量环境的配置验证；第二条命令需要 `environment-algorithm.yml` 对应的算法环境。
+`TrajectoryDataset` 支持 JSON、JSONL、Cloud `frames` SQLite 和场景库 SQLite。
 
-checkpoint 评估入口：
+处理顺序：
 
-```powershell
-python scripts\evaluate_stgnn_checkpoint.py --samples data\stgnn_training\samples.jsonl --checkpoint models\occaware_stgnn.ts --output data\mini_split\stgnn_evaluation.json --dry-run
-python scripts\evaluate_stgnn_checkpoint.py --samples data\stgnn_training\samples.jsonl --checkpoint models\occaware_stgnn.ts --output data\mini_split\stgnn_evaluation.json --batch-size 32
-```
+1. 无法解析、低置信度、非有限坐标和越界坐标丢弃。
+2. `(track_id, timestamp)` 重复时保留 confidence 最高点。
+3. 对真实感知序列按 10Hz 对齐；连续缺失不超过 3 帧线性插值。
+4. 超过 3 帧的感知缺失切断轨迹，不跨长空洞生成训练样本。
+5. 场景库 `scenario_keyframes` 是编排控制点，不是传感器丢帧；先按 10Hz 展开控制点，再进入统一清洗。
 
-第一条命令只验证报告结构和输入路径，不导入 torch，`targetStatus` 中模型指标保持 `unknown`；第二条命令需要真实可加载的训练后 checkpoint。生成 `data/mini_split/stgnn_evaluation.json` 后，后端可通过 `/api/v1/evaluation?report=stgnn_checkpoint` 读取，前端评估页也可通过报告选择器切换到该数据源。
+监督样本默认是 20 帧观察 + 20 帧真值，即 2 秒历史预测未来 2 秒。
 
-统一算法流水线验收：
+## 模型输入输出
 
-```powershell
-python scripts\verify_algorithm_pipeline.py --work-dir data\algorithm_validation --frames 60 --horizon 30
-python scripts\verify_algorithm_pipeline.py --work-dir data\algorithm_validation_pipeline --frames 32 --horizon 5 --real-stgnn --python D:\Anaconda\envs\v2x-ghost-algorithm\python.exe --epochs 8 --batch-size 4 --hidden-dim 32
-```
+当前 TorchScript 模型输入：`[batch, history=20, feature=8]`。
 
-第二条命令会执行真实 ST-GNN 小样本训练和 TorchScript checkpoint 评估，可证明算法环境与工程接口打通；若 ADE/FDE 未达标，应视为烟测结果，不作为研究指标结论。
-
-### 2.2 模型结构细节
-
-```
-Input: graph_seq = [G_{t-7}, G_{t-6}, ..., G_t]
-       每个 G_t = Data(x, edge_index, edge_attr)
-       x.shape = (N_nodes, 8)  # [cx, cy, w, h, vx, vy, cls, occ_score]
-       edge_attr.shape = (N_edges, 3)  # [dist, angle, dt]
-
-Layer 1: Spatial Encoding (per frame)
-  ├── GATConv(8 → 32, heads=4, concat=True)  → (N, 128)
-  ├── BatchNorm(128) + ELU
-  ├── GATConv(128 → 64, heads=4, concat=False) → (N, 64)
-  ├── BatchNorm(64) + ELU
-  └── Linear(64 → 128) → spatial_feat: (N, 128)
-
-Layer 2: Temporal Encoding (per node across frames)
-  ├── Reshape: (N, 8_frames, 128)
-  ├── GRU(128, 128, num_layers=1, batch_first=True)
-  └── 取最后时刻输出 → temporal_feat: (N, 128)
-
-Layer 3: Task Heads
-  ├── Occlusion Head:
-  │   ├── Linear(128 → 64) + ReLU
-  │   └── Linear(64 → 4) → occlusion_logits: (N, 4)
-  │
-  └── Trajectory Head:
-      ├── Linear(128 → 64) + ReLU
-      └── Linear(64 → 60) → reshape → traj_pred: (N, 30, 2)
-
-Output: (traj_pred, occlusion_logits, temporal_feat)
-```
-
-### 2.3 训练配置
-
-```yaml
-# 优化器
-optimizer: AdamW
-learning_rate: 0.001
-weight_decay: 0.0001
-scheduler: CosineAnnealingLR
-T_max: 100
-min_lr: 0.00001
-
-# 训练
-epochs: 100
-batch_size: 32
-observation_length: 8   # 观测帧数
-prediction_length: 30   # 预测步数 (3s @ 10Hz)
-gradient_clip: 1.0
-
-# 损失权重
-loss_traj_weight: 1.0
-loss_occlusion_weight: 0.5
-loss_consistency_weight: 0.1
-occlusion_penalty_gamma: 2.0   # 重遮挡惩罚系数
-
-# 图构建
-spatial_distance_threshold: 15.0  # 米
-max_neighbors: 10
-temporal_window: 8  # 帧
-```
-
-### 2.4 评估指标
-
-| 指标 | 全称 | 计算方式 | MVP目标 |
-|------|------|---------|---------|
-| ADE | Average Displacement Error | 预测轨迹与GT的平均L2距离 | < 1.0m |
-| FDE | Final Displacement Error | 最终预测点与GT的L2距离 | < 2.0m |
-| Occ-ADE | Occluded ADE | 仅计算遮挡目标的ADE | < 1.5m |
-| Occ-Acc | Occlusion Classification Accuracy | 遮挡等级分类准确率 | ≥ 70% |
-| FPS | Frames Per Second | 每秒推理帧数 | ≥ 10 |
-| E2E-Lat | End-to-End Latency | 感知到决策总延迟 | < 100ms |
-| Lead-Time | Early Warning Lead Time | 路侧首次遮挡预警到目标暴露/事件触发的提前量 | ≥ 1.5s |
-
-### 2.5 Baseline 对比
-
-| 方法 | 类型 | 用途 |
-|------|------|------|
-| Constant Velocity | 物理模型 | 下界baseline |
-| Social-LSTM | 深度学习 | 经典序列预测 |
-| Social-STGCNN | 图网络 | 对标方法 |
-| **OccAware-STGNN (Ours)** | 图网络+遮挡感知 | 主方法 |
-
----
-
-## 3. 模型部署
-
-### 3.1 TensorRT 导出流程
-
-```
-PyTorch 模型 (.pt)
-    ▼
-ONNX 导出 (torch.onnx.export, opset=17)
-    ▼
-TensorRT 优化 (trtexec, FP16)
-    ▼
-TensorRT Engine (.engine)
-    ▼
-部署到 Jetson
-```
-
-### 3.2 推理优化策略
-
-| 策略 | 预期加速 | MVP阶段 |
-|------|---------|---------|
-| FP16 量化 | 1.5-2x | 是 |
-| 动态 batch | 1.2x | 是 |
-| 图稀疏化 | 1.3x | 否 |
-| INT8 量化 | 2-3x | 否 |
-
----
-
-## 4. PC-first 感知数据边界与开发板迁移
-
-当前无硬件闭环的数据边界为：
+单帧特征：
 
 ```text
-FrameSource → YOLO → DeepSORT → bbox 底边中心单应性映射
-           → road_xy 轨迹 MQTT → CloudSTGNNService → SQLite/WebSocket
+[x, y, bbox_width, bbox_height, vx, vy, class_id, occlusion_score]
 ```
 
-`world_pos` 是 Cloud STGNN 的必要输入。标定文件缺失、单应性结果非有限或越出道路范围时，对象仍可上传，但必须标记 `coordinate_status=invalid` 和 `prediction_status=invalid_coordinate`；`[0, 0]` 不能作为缺省真实位置。
+输出：
 
-PC 模式使用 `configs/roadside.pc.yaml` 和 `configs/cloud.pc.yaml`：
+- 轨迹头：`[batch, future=20, 2]`。
+- 遮挡分类头：`[batch, 4]`。
 
-- PC 端负责视频/图片序列、YOLO、DeepSORT、坐标转换和 MQTT 发布。
-- Cloud Agent 负责维护 `(node_id, track_id)` 历史并调用 TorchScript OccAware-STGNN。
-- 前端展示 `YOLO + DeepSORT`、`STGNN Cloud`、`Fallback`、`坐标无效` 等状态。
-- `configs/roadside.yaml` 的旧 annotations/constant-velocity 路径继续保留，用于回放、CI 和 baseline 对照。
+当前在线服务按目标构建序列，并通过微批提高吞吐。模型代码保留 dense attention 和 GRU 结构，但当前标准训练样本是单目标序列；若比赛要求严格的多目标交互 STGNN，需要把样本升级为同帧多节点图并补充邻接/边特征，不能仅凭模型名称宣称已完成社会交互建模。
 
-Jetson Orin Nano 与华为 Atlas 200 DK 后续都只替换板端输入和推理后端，不改变上述 MQTT 数据结构。Jetson 可沿 CUDA/TensorRT 路线导出 YOLO；Atlas 必须沿 CANN/ACL 和 OM 模型路线单独转换、验证，不能把 `.engine`、PyTorch checkpoint 或 Jetson 测试结果直接视为 Atlas 可部署结果。
+## 训练
 
-真实道路标定、真实视频、板端 FPS/温度/功耗和 ADE/FDE 指标需要分别记录；当前 `data/algorithm_validation_pipeline` 产物属于工程 smoke 验证，不代表最终研究指标。
+`scripts/train_stgnn.py`：
+
+- 优化器：Adam。
+- 损失：轨迹 MSE + 遮挡交叉熵 + 显式 L2。
+- 增强：平移、旋转、高斯位置噪声，并同步旋转速度向量。
+- 默认 100 epoch，每 10 epoch 验证一次。
+- 指标：ADE、FDE、Miss Rate（FDE > 2m）。
+- 导出：`torch.jit.script`，避免 trace 把 GRU hidden state 固化到 CPU。
+- 设备：`--device auto` 自动选择 CUDA 或 CPU。
+- 实验：可写入 SQLite `experiments`。
+
+当前脚本使用固定随机种子的样本级训练/验证切分。它适合工程回归，但比赛成绩必须改用按路口、场景或采集时段分组的 held-out 切分，避免同轨迹窗口泄漏。
+
+## 评估口径
+
+| 指标 | 定义 |
+|---|---|
+| ADE | 所有预测时间步与 GT 的欧氏距离均值 |
+| FDE | 最后预测时间步与 GT 的欧氏距离 |
+| Miss Rate | `FDE > 2m` 的样本比例 |
+| infer_ms | 单批 TorchScript 前向耗时，不包含 MQTT 和前端 |
+
+没有检测标注时，precision/recall/F1 必须为 `null`；没有遮挡标签时，Occ-ADE/Occ-Acc 必须为 `null`，不可用 0 或 1 冒充有效成绩。
+
+2026-08-11 的场景库链路验证结果：
+
+| 项目 | 结果 |
+|---|---:|
+| 样本数 | 4,774 |
+| 序列 | 20/20 @ 10Hz |
+| GPU | RTX 4060 Laptop GPU |
+| 训练验证 ADE | 0.368m |
+| 训练验证 FDE | 0.598m |
+| 训练验证 Miss Rate | 2.09% |
+| 全样本 checkpoint ADE | 0.35m |
+| 全样本 checkpoint FDE | 0.52m |
+
+这些数值来自同一场景库生成数据，且全样本评估包含训练数据，只能作为工程链路和回归基线，不是比赛泛化成绩。
+
+## 数据来源
+
+### 场景库
+
+SQLite 场景库包含 16 个 GP/NM/IC 场景：鬼探头、非机动车横穿和路口车辆冲突。它适合确定性回放、协议测试和 smoke 训练。
+
+### DAIR-V2X
+
+DAIR-V2X 用于后续真实路侧/车端协同训练和跨路口评估。必须保留标定、坐标系、场景 ID 和采集时段，并按场景划分 train/validation/test。
+
+### 真实 PC/板端数据
+
+真实采集应同时记录标定版本、帧率、跟踪 ID switch、坐标有效率、光照、天气和硬件信息。原始视频不通过 MQTT 感知 topic 传输。
+
+## 模型产物
+
+- TorchScript：`data/algorithm_validation_pipeline/models/occaware_stgnn.ts`
+- 评估报告：`data/algorithm_validation_pipeline/stgnn_evaluation.json`
+- 实验记录：`data/v2x_cloud.db` 的 `experiments`
+
+TorchScript 是 Cloud PyTorch 部署产物。Jetson TensorRT 与 Atlas OM 需要分别转换和复测，不能复用对方的性能结论。

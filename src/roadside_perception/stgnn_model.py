@@ -102,7 +102,6 @@ def export_torchscript_checkpoint(
     torch.manual_seed(seed)
     model = OccAwareSTGNN(hidden_dim=hidden_dim, predict_steps=predict_steps)
     model.eval()
-    example = torch.zeros(1, history_length, 8, dtype=torch.float32)
-    traced = torch.jit.trace(model, example)
-    traced.save(str(output))
+    scripted = torch.jit.script(model)
+    scripted.save(str(output))
     return output

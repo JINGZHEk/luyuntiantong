@@ -49,6 +49,7 @@ class DataStore:
     def _get_conn(self):
         """Thread-safe connection context manager."""
         conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.row_factory = sqlite3.Row
         try:
             yield conn
             conn.commit()
@@ -141,6 +142,40 @@ class DataStore:
             "    metric_type TEXT NOT NULL,"
             "    data TEXT NOT NULL"
             ");",
+            "CREATE TABLE IF NOT EXISTS predictions ("
+            "    prediction_id TEXT PRIMARY KEY,"
+            "    track_id TEXT NOT NULL,"
+            "    timestamp INTEGER NOT NULL,"
+            "    pred_x REAL NOT NULL,"
+            "    pred_y REAL NOT NULL,"
+            "    pred_vx REAL NOT NULL DEFAULT 0,"
+            "    pred_vy REAL NOT NULL DEFAULT 0,"
+            "    confidence REAL NOT NULL,"
+            "    created_at INTEGER NOT NULL"
+            ");",
+            "CREATE TABLE IF NOT EXISTS inference_log ("
+            "    log_id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "    batch_size INTEGER NOT NULL,"
+            "    infer_ms REAL NOT NULL,"
+            "    track_count INTEGER NOT NULL,"
+            "    timestamp INTEGER NOT NULL,"
+            "    slow_alert INTEGER NOT NULL DEFAULT 0"
+            ");",
+            "CREATE TABLE IF NOT EXISTS prediction_anomalies ("
+            "    anomaly_id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "    track_id TEXT NOT NULL,"
+            "    timestamp INTEGER NOT NULL,"
+            "    anomaly_type TEXT NOT NULL,"
+            "    details TEXT"
+            ");",
+            "CREATE TABLE IF NOT EXISTS experiments ("
+            "    experiment_id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "    name TEXT NOT NULL,"
+            "    hyperparameters TEXT NOT NULL,"
+            "    metrics TEXT NOT NULL,"
+            "    model_path TEXT,"
+            "    created_at INTEGER NOT NULL"
+            ");",
         ]
         index_ddl = [
             "CREATE INDEX IF NOT EXISTS idx_frames_ts ON frames(timestamp);",
@@ -149,6 +184,9 @@ class DataStore:
             "CREATE INDEX IF NOT EXISTS idx_events_ts ON events(timestamp);",
             "CREATE INDEX IF NOT EXISTS idx_events_run_ts ON events(run_id, timestamp);",
             "CREATE INDEX IF NOT EXISTS idx_events_severity ON events(severity);",
+            "CREATE INDEX IF NOT EXISTS idx_predictions_track_ts ON predictions(track_id, timestamp);",
+            "CREATE INDEX IF NOT EXISTS idx_inference_log_ts ON inference_log(timestamp);",
+            "CREATE INDEX IF NOT EXISTS idx_prediction_anomalies_ts ON prediction_anomalies(timestamp);",
         ]
 
         with self._get_conn() as conn:
@@ -325,6 +363,111 @@ class DataStore:
                     event.get("replay_end_frame"),
                 ),
             )
+
+    def store_predictions(
+        self,
+        track_id: int | str,
+        timestamp: int,
+        future_traj: list[dict[str, float]] | list[list[float]],
+        confidence: float,
+        prediction_id_prefix: str | None = None,
+    ) -> int:
+        created_at = int(time.time() * 1000)
+        rows = []
+        for index, point in enumerate(future_traj):
+            if isinstance(point, dict):
+                x, y = point.get("x"), point.get("y")
+                point_timestamp = point.get("t", index + 1)
+                point_vx, point_vy = point.get("vx", 0.0), point.get("vy", 0.0)
+            else:
+                x, y = point[0], point[1]
+                point_timestamp = index + 1
+                point_vx, point_vy = 0.0, 0.0
+            prediction_id = f"{prediction_id_prefix or track_id}:{timestamp}:{index}"
+            rows.append(
+                (
+                    prediction_id,
+                    str(track_id),
+                    int(timestamp + float(point_timestamp) * 1000) if float(point_timestamp) < 100 else int(point_timestamp),
+                    float(x),
+                    float(y),
+                    float(point_vx),
+                    float(point_vy),
+                    max(0.0, min(1.0, float(confidence))),
+                    created_at,
+                )
+            )
+        if not rows:
+            return 0
+        with self._get_conn() as conn:
+            conn.executemany(
+                "INSERT OR REPLACE INTO predictions "
+                "(prediction_id, track_id, timestamp, pred_x, pred_y, pred_vx, pred_vy, confidence, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                rows,
+            )
+        return len(rows)
+
+    def store_inference_log(self, record: dict) -> None:
+        with self._get_conn() as conn:
+            conn.execute(
+                "INSERT INTO inference_log (batch_size, infer_ms, track_count, timestamp, slow_alert) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (
+                    int(record.get("batch_size", 0)),
+                    float(record.get("infer_ms", 0.0)),
+                    int(record.get("track_count", record.get("batch_size", 0))),
+                    int(record.get("timestamp", int(time.time() * 1000))),
+                    int(bool(record.get("alert") or record.get("slow_alert"))),
+                ),
+            )
+
+    def store_prediction_anomaly(self, track_id: int | str, timestamp: int, anomaly_type: str, details: dict | None = None) -> None:
+        with self._get_conn() as conn:
+            conn.execute(
+                "INSERT INTO prediction_anomalies (track_id, timestamp, anomaly_type, details) VALUES (?, ?, ?, ?)",
+                (str(track_id), int(timestamp), anomaly_type, json.dumps(details or {}, ensure_ascii=False)),
+            )
+
+    def get_prediction_logs(self, start_ts: int = 0, end_ts: int = 0, limit: int = 200) -> dict:
+        end_ts = end_ts or int(time.time() * 1000)
+        with self._get_conn() as conn:
+            logs = conn.execute(
+                "SELECT log_id, batch_size, infer_ms, track_count, timestamp, slow_alert "
+                "FROM inference_log WHERE timestamp BETWEEN ? AND ? ORDER BY timestamp DESC LIMIT ?",
+                (int(start_ts), int(end_ts), min(int(limit), 2000)),
+            ).fetchall()
+            anomalies = conn.execute(
+                "SELECT anomaly_id, track_id, timestamp, anomaly_type, details "
+                "FROM prediction_anomalies WHERE timestamp BETWEEN ? AND ? ORDER BY timestamp DESC LIMIT ?",
+                (int(start_ts), int(end_ts), min(int(limit), 2000)),
+            ).fetchall()
+        return {
+            "logs": [dict(row) for row in logs],
+            "anomalies": [
+                {
+                    **dict(row),
+                    "details": json.loads(row["details"] or "{}"),
+                }
+                for row in anomalies
+            ],
+        }
+
+    def record_experiment(self, name: str, hyperparameters: dict, metrics: dict, model_path: str | None = None) -> int:
+        with self._get_conn() as conn:
+            cursor = conn.execute(
+                "INSERT INTO experiments (name, hyperparameters, metrics, model_path, created_at) VALUES (?, ?, ?, ?, ?)",
+                (name, json.dumps(hyperparameters, ensure_ascii=False), json.dumps(metrics, ensure_ascii=False), model_path, int(time.time() * 1000)),
+            )
+            return int(cursor.lastrowid)
+
+    def health_check(self) -> bool:
+        try:
+            with self._get_conn() as conn:
+                conn.execute("SELECT 1").fetchone()
+            return True
+        except sqlite3.Error:
+            return False
 
     def get_frame(self, frame_id: int, run_id: str = LEGACY_RUN_ID) -> Optional[dict]:
         with self._get_conn() as conn:

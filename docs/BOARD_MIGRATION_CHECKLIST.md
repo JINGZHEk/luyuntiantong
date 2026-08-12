@@ -1,5 +1,7 @@
 # Jetson Orin Nano / Atlas 200 DK 迁移清单
 
+> 最后更新：2026-08-12
+
 本文档描述 PC-first 闭环完成后的板端迁移边界。当前阶段不宣称已经完成任一开发板部署；只有清单中的板端实测证据齐全后，才进入硬件验收。
 
 ## 1. 共用协议和职责
@@ -29,6 +31,7 @@ Cloud Agent 职责不变：按 `(node_id, track_id)` 维护历史，调用 Cloud
 - [ ] `coordinate_status=valid` 的比例和无效原因已记录。
 - [ ] 同一目标的 `track_id` 在遮挡前后稳定性已记录。
 - [ ] Cloud Agent 的 `model_loaded`、预测延迟和 fallback 原因已记录。
+- [ ] Cloud `device: auto` 已正确选择目标 GPU，warm-up 后 batch 8 推理满足延迟预算。
 - [ ] SQLite、WebSocket 和前端显示的是同一份 enriched perception。
 
 ## 3. Jetson Orin Nano 路线

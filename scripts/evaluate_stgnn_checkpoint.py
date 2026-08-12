@@ -16,6 +16,8 @@ def main() -> None:
     parser.add_argument("--checkpoint", default="models/occaware_stgnn.ts", help="TorchScript checkpoint path")
     parser.add_argument("--output", default="data/mini_split/stgnn_evaluation.json", help="Evaluation report output path")
     parser.add_argument("--batch-size", type=int, default=16, help="Inference batch size")
+    parser.add_argument("--device", default="auto", help="Evaluation device: auto, cpu, cuda, or cuda:N")
+    parser.add_argument("--miss-threshold", type=float, default=2.0, help="FDE threshold counted as a miss")
     parser.add_argument(
         "--occlusion-threshold",
         type=int,
@@ -37,6 +39,8 @@ def main() -> None:
             checkpoint_path=args.checkpoint,
             batch_size=args.batch_size,
             occlusion_threshold=args.occlusion_threshold,
+            miss_threshold=args.miss_threshold,
+            device=args.device,
         )
 
     output = Path(args.output)

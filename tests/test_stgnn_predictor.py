@@ -31,6 +31,15 @@ class STGNNPredictorTest(unittest.TestCase):
         self.assertEqual(predictor.backend_status["mode"], "fallback_constant_velocity")
         self.assertFalse(predictor.backend_status["model_loaded"])
 
+    def test_batch_fallback_marks_large_single_step_displacement(self):
+        predictor = OccAwareSTGNNPredictor(history_length=2, predict_steps=2, fps=10.0)
+        predictor.update(7, [0.0, 0.0])
+        predictor.update(7, [10.0, 0.0])
+
+        result = predictor.predict_many([(7, 0)])[7]
+
+        self.assertEqual(result["anomaly"], "single_step_displacement_gt_5m")
+
     def test_predictor_exposes_velocity_and_stale_cleanup_for_roadside_agent(self):
         predictor = OccAwareSTGNNPredictor(history_length=4, predict_steps=3, fps=10.0)
         predictor.update(1, [0.0, 0.0])

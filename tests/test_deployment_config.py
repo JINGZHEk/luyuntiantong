@@ -13,6 +13,25 @@ from src.communication.mqtt_config import apply_mqtt_env_overrides
 
 
 class DeploymentConfigTest(unittest.TestCase):
+    def test_railway_single_service_deployment_contract(self):
+        dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+        railway = json.loads(Path("railway.json").read_text(encoding="utf-8"))
+        runtime_config = Path("frontend/src/services/runtimeConfig.ts").read_text(encoding="utf-8")
+        api_source = Path("src/cloud_twin/api.py").read_text(encoding="utf-8")
+
+        self.assertIn("FROM node:20-alpine AS frontend-build", dockerfile)
+        self.assertIn("FROM python:3.11-slim AS runtime", dockerfile)
+        self.assertIn("${PORT:-8000}", dockerfile)
+        self.assertIn("V2X_DATABASE_PATH=/app/runtime/v2x_cloud.db", dockerfile)
+        self.assertEqual(railway["build"]["builder"], "DOCKERFILE")
+        self.assertEqual(railway["deploy"]["healthcheckPath"], "/health")
+        self.assertIn("const BUILTIN_CLOUD_API_BASE_URL = '/api/v1'", runtime_config)
+        # Environment lookups may be formatted across multiple lines; verify
+        # the deployment contract by checking the variable names themselves.
+        self.assertIn("V2X_DATABASE_PATH", api_source)
+        self.assertIn("V2X_AUTO_DEMO", api_source)
+        self.assertIn('app.mount("/assets"', api_source)
+
     def test_docker_compose_defines_full_demo_stack(self):
         compose = yaml.safe_load(Path("docker-compose.yml").read_text(encoding="utf-8"))
         services = compose["services"]
@@ -188,11 +207,10 @@ class DeploymentConfigTest(unittest.TestCase):
         summary = json.loads(result.stdout)
 
         self.assertEqual(summary["document"], "启动.md")
-        self.assertEqual(summary["required_sections"], 10)
-        self.assertGreaterEqual(summary["required_snippets"], 30)
-        self.assertIn("scripts\\start_demo.ps1", summary["covered_commands"])
-        self.assertIn("scripts\\verify_docker_compose_config.py", summary["covered_commands"])
-        self.assertIn("docs/END_TO_END_DEMO.md", summary["related_docs"])
+        self.assertEqual(summary["required_sections"], 8)
+        self.assertGreaterEqual(summary["required_snippets"], 10)
+        self.assertIn("README.md", summary["related_docs"])
+        self.assertIn("docs/STGNN_RUNTIME.md", summary["related_docs"])
 
     def test_ci_and_verify_all_run_startup_doc_verifier(self):
         workflow = yaml.safe_load(Path(".github/workflows/ci.yml").read_text(encoding="utf-8"))

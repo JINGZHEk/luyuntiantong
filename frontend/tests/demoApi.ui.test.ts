@@ -27,7 +27,7 @@ describe('demoApi scenario endpoints', () => {
 
     expect(result.total).toBe(16);
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8011/api/v1/scenarios',
+      '/api/v1/scenarios',
       undefined,
     );
   });
@@ -36,7 +36,7 @@ describe('demoApi scenario endpoints', () => {
     await demoApi.start('GP-08', 12, true);
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('http://localhost:8011/api/v1/demo/start?scenario_id=GP-08&fps=12&loop=true');
+    expect(url).toBe('/api/v1/demo/start?scenario_id=GP-08&fps=12&loop=true');
     expect(init.method).toBe('POST');
   });
 

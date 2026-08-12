@@ -1,363 +1,102 @@
-# 系统技术架构文档
+# 系统架构
 
-> 项目：分布式多智能体车路协同遮挡感知平台
-> 版本：v0.1
-> 日期：2026-04-14
+> 最后更新：2026-08-12
 
----
+## 总览
 
-## 1. 架构总览
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        云端孪生智能体 (Cloud)                        │
-│  ┌─────────────┐  ┌──────────────┐  ┌────────────────────────────┐ │
-│  │  FastAPI     │  │  InfluxDB    │  │  Three.js 3D Visualization │ │
-│  │  Backend     │  │  TimeSeries  │  │  (Vite + WebSocket)        │ │
-│  └──────┬───── ┘  └──────┬───────┘  └────────────┬───────────────┘ │
-│         └────────────────┼───────────────────────┘                  │
-└─────────────────────────┬───────────────────────────────────────────┘
-                          │ MQTT / WebSocket
-            ┌─────────────┴─────────────┐
-            │     MQTT Broker            │
-            │     (Mosquitto)            │
-            └─────┬───────────────┬─────┘
-                  │               │
-    ──────────────┼───────────────┼──────────────────
-                  │               │
-  ┌───────────────┴───┐   ┌──────┴────────────────────┐
-  │  路侧感知智能体    │   │   车端决策智能体            │
-  │  (Roadside Agent)  │   │   (Vehicle Agent)          │
-  │                    │   │                            │
-  │  ┌──────────────┐  │   │  ┌───────────────────────┐ │
-  │  │ Camera Input  │  │   │  │ MQTT Subscriber       │ │
-  │  └──────┬───────┘  │   │  └───────┬───────────────┘ │
-  │  ┌──────▼───────┐  │   │  ┌───────▼───────────────┐ │
-  │  │ YOLOv8 Det.  │  │   │  │ Feature Fusion        │ │
-  │  └──────┬───────┘  │   │  └───────┬───────────────┘ │
-  │  ┌──────▼───────┐  │   │  ┌───────▼───────────────┐ │
-  │  │ Graph Builder │  │   │  │ Risk Assessment       │ │
-  │  └──────┬───────┘  │   │  │ (TTC + Collision Prob) │ │
-  │  ┌──────▼───────┐  │   │  └───────┬───────────────┘ │
-  │  │ ST-GNN Model │  │   │  ┌───────▼───────────────┐ │
-  │  │ (Spatial+     │  │   │  │ Brake Controller      │ │
-  │  │  Temporal)    │  │   │  │ (Graded Braking)      │ │
-  │  └──────┬───────┘  │   │  └───────┬───────────────┘ │
-  │  ┌──────▼───────┐  │   │  ┌───────▼───────────────┐ │
-  │  │ Occlusion    │  │   │  │ Vehicle Actuator      │ │
-  │  │ Estimator    │  │   │  │ (Huawei Smart Car)    │ │
-  │  └──────┬───────┘  │   │  └───────────────────────┘ │
-  │  ┌──────▼───────┐  │   │                            │
-  │  │ Traj. Pred.  │  │   │  ┌───────────────────────┐ │
-  │  └──────┬───────┘  │   │  │ Fallback Manager      │ │
-  │  ┌──────▼───────┐  │   │  │ (Graceful Degrade)    │ │
-  │  │ MQTT Publish  │  │   │  └───────────────────────┘ │
-  │  └──────────────┘  │   │                            │
-  │                    │   │                            │
-  │  [Jetson/PC GPU]   │   │  [Huawei Smart Car]       │
-  └────────────────────┘   └────────────────────────────┘
+```text
+┌──────────────── Roadside / PC ────────────────┐
+│ FrameSource -> YOLO -> DeepSORT -> Homography │
+│                    -> MQTT perception 10Hz    │
+└──────────────────────────┬────────────────────┘
+                           v
+┌──────────────────── Cloud Agent ──────────────┐
+│ MQTT subscription                             │
+│ CloudSTGNNService -> InferenceEngine          │
+│       |                  |                     │
+│       |                  +-> TorchScript/GPU  │
+│       +-> PredictionWriter -> SQLite          │
+│       +-> WebSocket queues -> Frontend        │
+│       +-> event detection / REST API          │
+└──────────────────────────┬────────────────────┘
+                           v
+┌──────────────── Vehicle / Frontend ───────────┐
+│ TTC and braking decision | Three.js dashboard │
+│ fallback                 | replay/evaluation  │
+└───────────────────────────────────────────────┘
 ```
 
-## 2. 模块详细设计
+## 运行模式
 
-### 2.1 路侧感知智能体
+### 内置 Demo
 
-#### 2.1.1 数据流
+FastAPI 的 `DemoEngine` 从 SQLite 场景库生成 10Hz 感知、车辆状态、决策和事件消息，不依赖 MQTT、YOLO、PyTorch 或硬件。该模式验证 API、数据库、回放和前端链路。
 
-```
-视频帧 (H×W×3, 10FPS)
-    │
-    ▼
-目标检测 (YOLOv8s)
-    │ → [bbox, class, confidence, track_id]
-    ▼
-时空图构建 (GraphBuilder)
-    │ → PyG Data(x, edge_index, edge_attr)
-    │   节点特征: [x, y, w, h, vx, vy, class, occlusion_score] (dim=8)
-    │   边特征: [distance, angle, temporal_gap] (dim=3)
-    ▼
-ST-GNN 编码器
-    │ → 空间: GATConv (2层, heads=4, hidden=64)
-    │ → 时序: GRU (1层, hidden=128)
-    │ → 输出: node_embedding (dim=128)
-    ▼
-遮挡状态估计
-    │ → occlusion_level: {NONE, LIGHT, MODERATE, HEAVY}
-    ▼
-轨迹预测头
-    │ → MLP: 128 → 64 → T×2
-    │ → 输出: future_traj [(x1,y1), ..., (xT,yT)], T=30 (3s@10Hz)
-    ▼
-特征压缩 & MQTT发布
-    → MessagePack 序列化, <10KB/帧
-```
+### PC-first
 
-#### 2.1.2 ST-GNN 模型架构
+`run_pc_perception.py` 使用 `configs/roadside.pc.yaml` 读取视频，执行 YOLO、DeepSORT 和道路坐标转换，通过 MQTT 发布感知结果。Cloud Agent 使用 `configs/cloud.pc.yaml` 运行 STGNN，板端不加载轨迹模型。
 
-```python
-class STGNN(nn.Module):
-    """
-    输入: 时空图序列 [G_t-N, ..., G_t]
-    输出: 各节点未来T步轨迹预测
-    """
-    # 空间编码
-    spatial_conv_1: GATConv(8, 32, heads=4)    # → 128
-    spatial_conv_2: GATConv(128, 64, heads=4)  # → 256 → linear → 128
+### 目标硬件
 
-    # 时序编码
-    temporal_gru: GRU(128, 128, num_layers=1)
+Jetson 或 Atlas 只替换路侧采集与检测后端，保持 MQTT、`road_xy`、Cloud STGNN、SQLite 和 WebSocket 协议不变。Jetson 使用 CUDA/TensorRT；Atlas 使用 CANN/ACL/OM，两者的模型产物不可混用。
 
-    # 遮挡感知
-    occlusion_head: MLP(128 → 64 → 4)  # 4-class classification
+## 核心模块
 
-    # 轨迹预测
-    traj_head: MLP(128 → 64 → T*2)  # T future steps, 2D coords
-```
+### `src/roadside_perception`
 
-#### 2.1.3 遮挡感知损失函数
+- `frame_source.py`：视频、图片序列和回放输入。
+- `detector.py` / YOLO adapter：目标检测。
+- `tracker.py` / DeepSORT adapter：稳定 `track_id`。
+- `coordinate_mapper.py`：bbox 底边中心到 `road_xy`。
+- `stgnn_predictor.py`：TorchScript 适配和常速 fallback。
+- `roadside_agent.py`：路侧编排和 MQTT 发布。
 
-```
-L_total = L_traj + α · L_occlusion + β · L_consistency
+### `src/cloud_twin`
 
-其中：
-- L_traj = Σ_i w_i · ||pred_i - gt_i||²
-  w_i = 1 + γ · occlusion_level_i  (γ=2.0, 重度遮挡惩罚加权)
-- L_occlusion = CrossEntropy(pred_occ, gt_occ)
-- L_consistency = ||traj_t - traj_{t-1}||² (时序平滑约束)
-- α=0.5, β=0.1 (超参数)
-```
+- `cloud_agent.py`：MQTT 订阅、消息编排、事件检测和广播桥接。
+- `stgnn_service.py`：按 `(node_id, track_id)` 维护历史并组批预测。
+- `inference_engine.py`：进程单例、有界微批队列、CUDA warm-up、热更新和性能统计。
+- `prediction_writer.py`：后台有界队列写 SQLite，避免阻塞推理回调。
+- `data_store.py`：帧、事件、预测、推理日志、异常和实验记录。
+- `api.py`：REST、WebSocket、Demo 和健康接口。
 
-### 2.2 车端决策智能体
+### `src/dataset`
 
-#### 2.2.1 决策流程
+- `trajectory_dataset.py`：统一轨迹输入、清洗、重采样和监督窗口。
+- `stgnn_training_data.py`：旧 replay clip 与新 20/20 数据导出。
+- `stgnn_checkpoint_evaluator.py`：真实 TorchScript 轨迹评估。
 
-```
-路侧特征 (MQTT接收)     自车状态 (传感器)
-    │                        │
-    ▼                        ▼
-┌─────────────────────────────────┐
-│       Feature Fusion            │
-│  concat([roadside_feat,         │
-│          ego_state])            │
-│  → MLP fusion → fused_feat     │
-└──────────────┬──────────────────┘
-               ▼
-┌──────────────────────────────────┐
-│       Risk Assessment            │
-│                                  │
-│  TTC = distance / relative_speed │
-│  collision_prob = f(TTC, traj)   │
-│                                  │
-│  Risk Level:                     │
-│    SAFE:      TTC > 5s           │
-│    WARNING:   3s < TTC ≤ 5s      │
-│    DANGER:    1.5s < TTC ≤ 3s    │
-│    EMERGENCY: TTC ≤ 1.5s         │
-└──────────────┬───────────────────┘
-               ▼
-┌──────────────────────────────────┐
-│       Brake Controller           │
-│                                  │
-│  SAFE:      No action            │
-│  WARNING:   Decel = 2 m/s²       │
-│  DANGER:    Decel = 5 m/s²       │
-│  EMERGENCY: Decel = 8 m/s² (AEB) │
-└──────────────────────────────────┘
-```
+### `src/vehicle_decision`
 
-#### 2.2.2 平滑退化机制
+融合路侧目标与自车状态，计算 TTC、碰撞风险和制动指令。路侧消息超时时进入 fallback，不把 Cloud 或网络故障变成无保护状态。
 
-```
-正常模式 (协同感知)
-    │
-    │ ← 心跳超时 500ms
-    ▼
-降级模式 (纯自车感知)
-    │
-    │ ← 心跳恢复
-    ▼
-恢复模式 (渐进融合, 3s过渡)
-    fusion_weight = min(1.0, (t - t_recover) / 3.0)
-```
+### `frontend`
 
-### 2.3 通信架构
+React Router 提供 `/`、`/monitor`、`/replay`、`/evaluation`、`/settings`、`/presentation` 和 `/zhiluwujie`。WebSocket 客户端订阅感知、预测、决策、事件、车辆状态和心跳；Three.js 场景绘制历史轨迹实线和预测虚线。
 
-#### 2.3.1 MQTT Topic 设计
+## 时序与背压
 
-```
-v2x/{scene_id}/roadside/{node_id}/perception   # 路侧感知结果
-v2x/{scene_id}/roadside/{node_id}/heartbeat     # 路侧心跳
-v2x/{scene_id}/vehicle/{vehicle_id}/status       # 车辆状态
-v2x/{scene_id}/vehicle/{vehicle_id}/decision     # 决策结果
-v2x/{scene_id}/cloud/command                     # 云端指令
-v2x/{scene_id}/cloud/event                       # 高危事件
-```
+1. 路侧以 10Hz 发布感知帧。
+2. Cloud Service 更新同节点轨迹历史，并把同帧可预测目标提交到 `InferenceEngine`。
+3. 引擎在短等待窗口内合并并发请求，最多按配置 batch size 分批。
+4. 推理结果立即回到 enriched perception；SQLite 写入和 WebSocket 发送分别由有界队列缓冲。
+5. prediction topic 按 `push_hz=10` 限频；慢客户端只丢弃其队列中最旧消息，不阻塞推理。
 
-#### 2.3.2 消息格式 (MessagePack)
+## 降级与异常
 
-```python
-# 路侧感知消息
-{
-    "timestamp": 1713100800.123,       # Unix timestamp (ms精度)
-    "frame_id": 12345,
-    "node_id": "roadside_001",
-    "objects": [
-        {
-            "track_id": 1,
-            "class": "pedestrian",
-            "bbox": [x, y, w, h],
-            "confidence": 0.92,
-            "occlusion_level": 2,       # 0-3
-            "predicted_traj": [[x1,y1], [x2,y2], ...],  # 30 steps
-            "feature_vector": [...]     # 压缩后的128维特征
-        }
-    ],
-    "scene_graph_edges": [[0,1], [1,2]]  # 场景关系图
-}
-```
+- 坐标非有限或超过 ±200m：`invalid_coordinate`，不进入模型。
+- 历史不足：`deferred`。
+- checkpoint 缺失/加载失败：常速 fallback，并明确记录原因。
+- 推理超过 50ms：warning；连续 5 批超过 100ms：慢推理告警。
+- 预测单步位移超过 5m：写入 `prediction_anomalies`。
+- SQLite 写入队列满：丢弃新任务并累计 dropped，不阻塞主推理路径。
 
-### 2.4 云端孪生智能体
+## 配置边界
 
-#### 2.4.1 前端架构
+`configs/cloud.yaml` 默认关闭 STGNN，适合无模型 Demo。`configs/cloud.pc.yaml` 开启 STGNN，使用 20 帧历史、20 步预测、10Hz、batch 8 和 `device: auto`。
 
-```
-Three.js Scene
-├── Road Layer (道路网络, 静态)
-├── Building Layer (建筑/遮挡物, 静态)
-├── Vehicle Layer (车辆模型, 动态)
-├── Pedestrian Layer (行人模型, 动态)
-├── Trajectory Layer (预测轨迹, 动态)
-├── Risk Layer (风险区域热力图, 动态)
-└── UI Overlay
-    ├── Timeline Slider (时间轴)
-    ├── Layer Controls (图层开关)
-    ├── Camera Controls (视角切换)
-    └── Event List (高危事件列表)
-```
+配置模型路径后，Cloud Agent 启动时预加载并 warm-up；运行期间根据文件 mtime 或 `/api/v1/model/reload` 热更新。
 
-#### 2.4.2 后端架构
+## 验收边界
 
-```
-FastAPI Server
-├── /api/v1/realtime/ws          # WebSocket 实时数据推送
-├── /api/v1/replay/{scene_id}    # 历史回放查询
-├── /api/v1/events               # 高危事件 CRUD
-├── /api/v1/metrics              # 系统指标查询
-└── /api/v1/config               # 场景配置
-
-InfluxDB
-├── measurement: perception_data  # 感知数据时序
-├── measurement: decision_data    # 决策数据时序
-├── measurement: system_metrics   # 系统性能指标
-└── measurement: events           # 事件记录
-```
-
-## 3. 部署架构
-
-### 3.1 MVP 部署（单机开发）
-
-```
-Docker Compose
-├── mosquitto (MQTT Broker, port 1883)
-├── influxdb (时序数据库, port 8086)
-├── cloud-backend (FastAPI, port 8000)
-├── cloud-frontend (Vite dev server, port 5173)
-├── roadside-agent (Python, 连接GPU)
-└── vehicle-agent (Python)
-```
-
-### 3.2 目标部署（分布式）
-
-```
-路侧: Jetson Orin (roadside-agent + TensorRT)
-车端: 华为网联小车 (vehicle-agent)
-云端: 服务器 (cloud-backend + cloud-frontend + influxdb + mosquitto)
-```
-
-## 4. 目录结构
-
-```
-V2X-Project/
-├── docs/                          # 项目文档
-│   ├── WEEKLY_PLAN.md            # 一周计划
-│   ├── MVP_REQUIREMENTS.md       # MVP需求
-│   ├── ARCHITECTURE.md           # 本文档
-│   ├── API_SPEC.md               # API规范
-│   └── DATA_MODEL.md             # 数据与模型设计
-├── src/
-│   ├── roadside_perception/       # 路侧感知
-│   │   ├── __init__.py
-│   │   ├── detector.py           # 目标检测封装
-│   │   ├── graph_builder.py      # 时空图构建
-│   │   ├── spatial_conv.py       # 空间图卷积
-│   │   ├── temporal_encoder.py   # 时序编码
-│   │   ├── occlusion_estimator.py # 遮挡估计
-│   │   ├── trajectory_predictor.py # 轨迹预测
-│   │   ├── stgnn_model.py        # 完整模型
-│   │   └── losses.py             # 损失函数
-│   ├── vehicle_decision/          # 车端决策
-│   │   ├── __init__.py
-│   │   ├── feature_fusion.py     # 特征融合
-│   │   ├── risk_assessor.py      # 风险评估
-│   │   ├── brake_controller.py   # 制动控制
-│   │   └── fallback_manager.py   # 退化管理
-│   ├── communication/             # 通信模块
-│   │   ├── __init__.py
-│   │   ├── protocol.py           # 消息协议
-│   │   ├── roadside_publisher.py # 路侧发布
-│   │   ├── vehicle_subscriber.py # 车端订阅
-│   │   └── fallback.py           # 通信降级
-│   ├── cloud_twin/                # 云端孪生
-│   │   ├── backend/
-│   │   │   ├── main.py           # FastAPI入口
-│   │   │   ├── data_writer.py    # 数据写入
-│   │   │   ├── replay_api.py     # 回放API
-│   │   │   └── ws_handler.py     # WebSocket
-│   │   └── frontend/
-│   │       ├── src/
-│   │       ├── index.html
-│   │       └── package.json
-│   └── utils/                     # 公共工具
-│       ├── __init__.py
-│       ├── data_loader.py        # 数据加载
-│       ├── config.py             # 配置管理
-│       └── logger.py             # 日志
-├── configs/                       # 配置文件
-│   ├── default.yaml              # 默认配置
-│   ├── roadside.yaml             # 路侧配置
-│   ├── vehicle.yaml              # 车端配置
-│   └── cloud.yaml                # 云端配置
-├── scripts/                       # 脚本
-│   ├── train_stgnn.py            # 训练脚本
-│   ├── eval_stgnn.py             # 评估脚本
-│   ├── data_eda.py               # 数据探索
-│   └── latency_test.py           # 延迟测试
-├── tests/                         # 测试
-│   ├── unit/
-│   └── integration/
-├── deployment/                    # 部署
-│   └── docker-compose.yml
-├── requirements.txt
-└── README.md
-```
-
----
-
-## 6. 当前 PC-first 闭环与两类开发板迁移
-
-本阶段推荐先在同一无线局域网内固定以下链路：
-
-```mermaid
-flowchart LR
-  A[PC 视频回放] --> B[YOLO 检测]
-  B --> C[DeepSORT 跟踪]
-  C --> D[道路坐标映射]
-  D --> E[MQTT Broker<br/>TCP 1883]
-  E --> F[Cloud Agent]
-  F --> G[Cloud STGNN]
-  G --> H[SQLite + WebSocket + 前端]
-```
-
-PC、Jetson Orin Nano 和 Atlas 200 DK 发布相同的 `v2x/{scene_id}/roadside/{node_id}/perception` 消息。板端不需要加载 STGNN；替换 PC 的 `FrameSource` 和 `DetectorBackend` 即可迁移到摄像头输入。Cloud Agent 的历史维护、模型调用、SQLite 落库和 WebSocket 广播保持不变。
-
-Jetson Orin Nano 的适配边界是摄像头采集、YOLO TensorRT/CUDA 推理、DeepSORT 关联和道路坐标发布；Atlas 200 DK 的适配边界是摄像头采集、YOLO 到 OM 的 CANN/ACL 推理、CPU/Ascend 后处理边界、DeepSORT 关联和道路坐标发布。两条边界分别验收，不能共用未经转换的模型文件。
+工程链路通过不代表模型泛化通过。比赛验收必须按路口/场景隔离数据集，单独报告 held-out ADE、FDE、Miss Rate、p50/p95/p99 延迟、fallback 比例和硬件资源。场景库训练结果只能作为 pipeline smoke 和回归基线。

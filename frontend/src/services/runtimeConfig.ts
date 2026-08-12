@@ -1,4 +1,4 @@
-const BUILTIN_CLOUD_API_BASE_URL = 'http://localhost:8011/api/v1';
+const BUILTIN_CLOUD_API_BASE_URL = '/api/v1';
 const SETTINGS_STORAGE_KEY = 'v2x-settings';
 
 function trimTrailingSlash(value: string): string {
@@ -46,10 +46,13 @@ export function buildApiUrl(path: string, baseUrl?: string | null): string {
 
 export function buildWebSocketUrl(baseUrl?: string | null): string {
   const normalized = normalizeApiBaseUrl(baseUrl ?? getCloudApiBaseUrl());
-  const wsBase = normalized
-    .replace(/^https:\/\//i, 'wss://')
-    .replace(/^http:\/\//i, 'ws://');
-  return `${wsBase}/realtime/ws`;
+  const browserOrigin = typeof window === 'undefined'
+    ? 'http://localhost:8000'
+    : window.location.origin;
+  const url = new URL(normalized, browserOrigin);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  url.pathname = `${url.pathname.replace(/\/+$/, '')}/realtime/ws`;
+  return url.toString();
 }
 
 export function getCloudApiBaseUrl(): string {

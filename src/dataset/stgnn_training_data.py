@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from src.roadside_perception.stgnn_predictor import build_node_feature_sequence
+from src.dataset.trajectory_dataset import TrajectoryDataset
 
 
 def _read_json(path: str | Path) -> Any:
@@ -156,5 +157,96 @@ def export_stgnn_training_data(
     (output / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),
         encoding="utf-8",
+    )
+    return manifest
+
+
+def build_standardized_stgnn_samples(
+    dataset: TrajectoryDataset,
+    input_steps: int = 20,
+    future_steps: int = 20,
+    stride: int = 1,
+) -> list[dict[str, Any]]:
+    samples = []
+    for sample in dataset.to_supervised_samples(input_steps, future_steps, stride):
+        input_seq = sample["input_seq"]
+        gt_seq = sample["gt_seq"]
+        obj_class = sample.get("class", "unknown")
+        positions = [[float(point["x"]), float(point["y"])] for point in input_seq]
+        features = build_node_feature_sequence(
+            history=positions,
+            obj_class=obj_class,
+            fps=dataset.sample_hz,
+            history_length=input_steps,
+        )
+        for index, point in enumerate(input_seq):
+            features[index][4] = round(float(point["vx"]), 3)
+            features[index][5] = round(float(point["vy"]), 3)
+        samples.append(
+            {
+                **sample,
+                "history_length": input_steps,
+                "predict_steps": future_steps,
+                "input_features": features,
+                "target_trajectory": [[float(point["x"]), float(point["y"])] for point in gt_seq],
+                "source_timestamp": input_seq[-1]["timestamp"],
+                "occlusion_label": 0,
+            }
+        )
+    return samples
+
+
+def export_standardized_stgnn_training_data(
+    source_path: str | Path,
+    output_dir: str | Path,
+    *,
+    source_type: str = "auto",
+    scenario_id: str | None = None,
+    input_steps: int = 20,
+    future_steps: int = 20,
+    stride: int = 1,
+    confidence_threshold: float = 0.3,
+    coordinate_bound: float = 200.0,
+    sample_hz: float = 10.0,
+) -> dict[str, Any]:
+    source = Path(source_path)
+    resolved_type = source_type
+    if resolved_type == "auto":
+        resolved_type = "sqlite" if source.suffix.lower() in {".db", ".sqlite", ".sqlite3"} else "json"
+    dataset_kwargs = {
+        "confidence_threshold": confidence_threshold,
+        "coordinate_bound": coordinate_bound,
+        "sample_hz": sample_hz,
+    }
+    if resolved_type == "sqlite":
+        dataset = TrajectoryDataset.from_sqlite(source, scenario_id=scenario_id, **dataset_kwargs)
+    elif resolved_type == "json":
+        dataset = TrajectoryDataset.from_json(source, **dataset_kwargs)
+    else:
+        raise ValueError(f"Unsupported source_type: {source_type}")
+
+    samples = build_standardized_stgnn_samples(dataset, input_steps, future_steps, stride)
+    output = Path(output_dir)
+    output.mkdir(parents=True, exist_ok=True)
+    samples_path = output / "samples.jsonl"
+    with samples_path.open("w", encoding="utf-8") as handle:
+        for sample in samples:
+            handle.write(json.dumps(sample, ensure_ascii=False) + "\n")
+    manifest = {
+        "source": str(source),
+        "source_type": resolved_type,
+        "scenario_id": scenario_id,
+        "sample_count": len(samples),
+        "trajectory_segment_count": len(dataset),
+        "point_count": len(dataset.points),
+        "history_length": input_steps,
+        "predict_steps": future_steps,
+        "fps": sample_hz,
+        "confidence_threshold": confidence_threshold,
+        "coordinate_bound": coordinate_bound,
+        "samples_path": str(samples_path),
+    }
+    (output / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     return manifest

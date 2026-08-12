@@ -67,6 +67,7 @@ def _empty_metrics() -> dict[str, Any]:
         "f1Score": None,
         "ade": None,
         "fde": None,
+        "missRate": None,
         "occAde": None,
         "occAcc": None,
         "avgLatency": None,
@@ -140,6 +141,8 @@ def evaluate_stgnn_checkpoint(
     checkpoint_path: str | Path,
     batch_size: int = 16,
     occlusion_threshold: int = 1,
+    miss_threshold: float = 2.0,
+    device: str = "auto",
 ) -> dict[str, Any]:
     samples = _read_jsonl(samples_path)
     report = _base_report(samples, samples_path, checkpoint_path, batch_size=batch_size, dry_run=False)
@@ -149,11 +152,17 @@ def evaluate_stgnn_checkpoint(
 
     import torch
 
+    resolved_device = torch.device(
+        "cuda" if device == "auto" and torch.cuda.is_available() else "cpu" if device == "auto" else device
+    )
+    if resolved_device.type == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError(f"CUDA device requested but unavailable: {device}")
+
     features = torch.tensor([sample["input_features"] for sample in samples], dtype=torch.float32)
     targets = [sample["target_trajectory"] for sample in samples]
     occlusion_labels = [int(sample.get("occlusion_label", 0)) for sample in samples]
 
-    model = torch.jit.load(str(checkpoint), map_location="cpu")
+    model = torch.jit.load(str(checkpoint), map_location=resolved_device)
     model.eval()
 
     all_errors: list[float] = []
@@ -162,11 +171,13 @@ def evaluate_stgnn_checkpoint(
     occlusion_matches = 0
     occlusion_total = 0
 
+    if resolved_device.type == "cuda":
+        torch.cuda.synchronize(resolved_device)
     started = time.perf_counter()
     with torch.no_grad():
         for start in range(0, len(samples), batch_size):
             end = min(start + batch_size, len(samples))
-            batch = features[start:end]
+            batch = features[start:end].to(resolved_device, non_blocking=True)
             output = model(batch)
             if isinstance(output, (tuple, list)):
                 pred_trajectory, pred_occlusion = output[0], output[1] if len(output) > 1 else None
@@ -195,20 +206,21 @@ def evaluate_stgnn_checkpoint(
                     occlusion_total += 1
                     if int(occ_predictions[offset]) == label:
                         occlusion_matches += 1
+    if resolved_device.type == "cuda":
+        torch.cuda.synchronize(resolved_device)
     elapsed = max(time.perf_counter() - started, 1e-9)
 
     fps = len(samples) / elapsed
     latency_ms = (elapsed / len(samples)) * 1000.0
-    precision = 1.0 if samples else 0.0
-    recall = 1.0 if samples else 0.0
     metrics = {
-        "precision": round(precision, 3),
-        "recall": round(recall, 3),
-        "f1Score": 1.0 if samples else 0.0,
+        "precision": None,
+        "recall": None,
+        "f1Score": None,
         "ade": round(_safe_mean(all_errors), 2),
         "fde": round(_safe_mean(final_errors), 2),
-        "occAde": round(_safe_mean(occluded_errors), 2),
-        "occAcc": round(occlusion_matches / occlusion_total, 3) if occlusion_total else 0.0,
+        "missRate": round(sum(error > miss_threshold for error in final_errors) / len(final_errors), 3) if final_errors else 0.0,
+        "occAde": round(_safe_mean(occluded_errors), 2) if occluded_errors else None,
+        "occAcc": round(occlusion_matches / occlusion_total, 3) if occlusion_total else None,
         "avgLatency": round(latency_ms, 2),
         "e2eLatency": round(latency_ms, 2),
         "leadTime": None,
@@ -218,6 +230,8 @@ def evaluate_stgnn_checkpoint(
     report.update(
         {
             "model_loaded": True,
+            "device": str(resolved_device),
+            "gpu_name": torch.cuda.get_device_name(resolved_device) if resolved_device.type == "cuda" else None,
             "metrics": metrics,
             "targetStatus": build_target_status(metrics),
             "baselines": [
@@ -225,7 +239,7 @@ def evaluate_stgnn_checkpoint(
                     "model": "OccAware-STGNN Checkpoint",
                     "precision": metrics["precision"],
                     "recall": metrics["recall"],
-                    "f1Score": metrics["f1Score"],
+                    "f1Score": None,
                     "ade": metrics["ade"],
                     "fde": metrics["fde"],
                     "latency": metrics["avgLatency"],
@@ -234,14 +248,14 @@ def evaluate_stgnn_checkpoint(
             "ablations": [
                 {
                     "variant": "OccAware-STGNN",
-                    "f1Score": metrics["f1Score"],
+                    "f1Score": None,
                     "ade": metrics["ade"],
                     "fde": metrics["fde"],
                     "description": "TorchScript ST-GNN checkpoint 对监督样本的离线评估结果",
                 },
                 {
                     "variant": "Occluded Samples",
-                    "f1Score": metrics["f1Score"],
+                    "f1Score": None,
                     "ade": metrics["occAde"],
                     "fde": metrics["fde"],
                     "description": "仅统计遮挡样本后的轨迹误差视图",

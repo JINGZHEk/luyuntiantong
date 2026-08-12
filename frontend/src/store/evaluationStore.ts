@@ -40,6 +40,7 @@ const normalizeMetrics = (metrics: Partial<ModelMetrics>): ModelMetrics => ({
   f1Score: toNumber(metrics.f1Score),
   ade: toNumber(metrics.ade),
   fde: toNumber(metrics.fde),
+  missRate: typeof metrics.missRate === 'number' ? metrics.missRate : undefined,
   occAde: typeof metrics.occAde === 'number' ? metrics.occAde : undefined,
   occAcc: typeof metrics.occAcc === 'number' ? metrics.occAcc : undefined,
   avgLatency: toNumber(metrics.avgLatency),

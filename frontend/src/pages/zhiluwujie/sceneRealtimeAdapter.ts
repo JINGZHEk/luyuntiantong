@@ -3,6 +3,7 @@ import {
   DataMode,
   DecisionPayload,
   PerceptionPayload,
+  PredictionPayload,
   PooledObjectState,
   PredictionMeta,
   RealtimePayload,
@@ -25,6 +26,14 @@ export interface SceneRealtimeSnapshot {
   scenarioId: string | null;
   runId: string | null;
   prediction: PredictionMeta | null;
+  predictionMetrics: PredictionMetricSnapshot;
+}
+
+export interface PredictionMetricSnapshot {
+  ade: number | null;
+  fde: number | null;
+  adeHistory: number[];
+  fdeHistory: number[];
 }
 
 export interface SceneRealtimeAdapter {
@@ -78,6 +87,46 @@ export function createSceneRealtimeAdapter(
   let scenarioId: string | null = null;
   let runId: string | null = null;
   let prediction: PredictionMeta | null = null;
+  const pendingPredictions = new Map<string, { createdAt: number; points: Array<{ x: number; y: number; t: number }>; errors: number[] }>();
+  const adeHistory: number[] = [];
+  const fdeHistory: number[] = [];
+
+  const pushMetric = (target: number[], value: number) => {
+    if (!Number.isFinite(value)) return;
+    target.push(value);
+    if (target.length > 100) target.shift();
+  };
+
+  const updatePredictionMetrics = (payload: PerceptionPayload, receivedAt: number) => {
+    const timestamp = Number(payload.timestamp);
+    const actualTimestamp = Number.isFinite(timestamp) ? timestamp : receivedAt;
+    for (const object of payload.objects || []) {
+      const trackId = object.track_id;
+      if (trackId === undefined || !object.world_pos || object.world_pos.length < 2) continue;
+      const nodeId = payload.node_id || 'unknown';
+      const pending = pendingPredictions.get(`${nodeId}:${String(trackId)}`);
+      if (!pending) continue;
+      const step = Math.round((actualTimestamp - pending.createdAt) / 100) - 1;
+      if (step < 0 || step >= pending.points.length) continue;
+      const target = pending.points[step];
+      const dx = Number(object.world_pos[0]) - target.x;
+      const dy = Number(object.world_pos[1]) - target.y;
+      const error = Math.hypot(dx, dy);
+      pending.errors[step] = error;
+      pushMetric(adeHistory, error);
+      if (step === pending.points.length - 1) {
+        pushMetric(fdeHistory, error);
+        pendingPredictions.delete(`${nodeId}:${String(trackId)}`);
+      }
+    }
+  };
+
+  const predictionMetricSnapshot = (): PredictionMetricSnapshot => ({
+    ade: adeHistory.length ? adeHistory.reduce((sum, value) => sum + value, 0) / adeHistory.length : null,
+    fde: fdeHistory.length ? fdeHistory.reduce((sum, value) => sum + value, 0) / fdeHistory.length : null,
+    adeHistory: [...adeHistory],
+    fdeHistory: [...fdeHistory],
+  });
 
   const acceptFrame = (data: RealtimePayload): boolean => {
     const incomingRunId = stringOrNull((data as { run_id?: unknown }).run_id);
@@ -104,6 +153,22 @@ export function createSceneRealtimeAdapter(
 
   const onMessage = (type: string, data: RealtimePayload): void => {
     if (!data || typeof data !== 'object') return;
+    if (type === 'prediction') {
+      const payload = data as PredictionPayload;
+      const timestamp = Number(payload.timestamp);
+      const createdAt = Number.isFinite(timestamp) ? timestamp : now();
+      const nodeId = payload.node_id || 'unknown';
+      for (const item of payload.predictions || []) {
+        pendingPredictions.set(`${nodeId}:${String(item.track_id)}`, {
+          createdAt,
+          points: item.future_traj || [],
+          errors: [],
+        });
+      }
+      lastMessageAt = now();
+      dataMode = 'live';
+      return;
+    }
     if (!['perception', 'vehicle_status', 'decision', 'event'].includes(type)) return;
     if (!acceptFrame(data)) return;
 
@@ -115,6 +180,7 @@ export function createSceneRealtimeAdapter(
       for (const object of payload.objects || []) {
         pool.upsert(nodeId, object, lastMessageAt || now());
       }
+      updatePredictionMetrics(payload, lastMessageAt || now());
       scenarioId = stringOrNull(payload.scenario_id || payload.scenario);
       runId = stringOrNull(payload.run_id);
       prediction = clonePayload(payload.prediction || null);
@@ -173,6 +239,7 @@ export function createSceneRealtimeAdapter(
         scenarioId,
         runId,
         prediction: clonePayload(prediction),
+        predictionMetrics: predictionMetricSnapshot(),
       };
     },
 
@@ -186,6 +253,9 @@ export function createSceneRealtimeAdapter(
       scenarioId = null;
       runId = null;
       prediction = null;
+      pendingPredictions.clear();
+      adeHistory.length = 0;
+      fdeHistory.length = 0;
       dataMode = 'fallback';
     },
   };

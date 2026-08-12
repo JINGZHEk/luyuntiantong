@@ -26,6 +26,9 @@ class CloudSTGNNService:
         predict_steps: int = 30,
         fps: float = 10.0,
         min_history: int = 2,
+        batch_size: int = 8,
+        device: str = "auto",
+        batch_callback: Callable[[dict[str, Any]], None] | None = None,
         predictor_factory: Callable[..., Any] | None = None,
     ):
         if history_length < 1 or predict_steps < 1 or min_history < 1:
@@ -41,6 +44,17 @@ class CloudSTGNNService:
         self.fps = float(fps)
         self.min_history = int(min_history)
         self.predictor_factory = predictor_factory or _default_predictor_factory
+        self.inference_engine = None
+        if predictor_factory is None and self.enabled and self.backend == "stgnn" and model_path:
+            from src.cloud_twin.inference_engine import InferenceEngine
+
+            self.inference_engine = InferenceEngine(
+                model_path=model_path,
+                batch_size=batch_size,
+                device=device,
+                history_length=self.history_length,
+                batch_callback=batch_callback,
+            )
         self._predictors: dict[str, Any] = {}
         self._history_lengths: defaultdict[tuple[str, str], int] = defaultdict(int)
 
@@ -51,6 +65,7 @@ class CloudSTGNNService:
                 predict_steps=self.predict_steps,
                 fps=self.fps,
                 model_path=self.model_path,
+                inference_engine=self.inference_engine,
             )
         return self._predictors[node_id]
 
@@ -64,6 +79,7 @@ class CloudSTGNNService:
         active_ids: set[str] = set()
         active_predictor_ids: set[Any] = set()
         predictor = None
+        pending: list[tuple[dict[str, Any], Any, int]] = []
 
         for obj in objects:
             track_id = obj.get("track_id")
@@ -105,16 +121,49 @@ class CloudSTGNNService:
                 reasons.append(obj["prediction_reason"])
                 continue
 
-            started = time.perf_counter()
+            pending.append((obj, track_id, int(obj.get("occlusion_level", 0))))
+
+        prediction_results: dict[Any, dict[str, Any]] = {}
+        if predictor is not None and pending:
             try:
-                predicted = predictor.predict(track_id, obj.get("occlusion_level", 0))
+                if hasattr(predictor, "predict_many"):
+                    prediction_results = predictor.predict_many(
+                        [(track_id, occlusion) for _obj, track_id, occlusion in pending]
+                    )
+                else:
+                    for _obj, track_id, occlusion in pending:
+                        started = time.perf_counter()
+                        trajectory = predictor.predict(track_id, occlusion)
+                        prediction_results[track_id] = {
+                            "trajectory": trajectory,
+                            "confidence": 1.0 if trajectory else 0.0,
+                            "infer_ms": round((time.perf_counter() - started) * 1000.0, 3),
+                            "anomaly": None,
+                        }
             except Exception as exc:
-                predicted = []
                 reasons.append(f"STGNN inference failed: {exc}")
-            latency_ms = round((time.perf_counter() - started) * 1000.0, 3)
-            latencies.append(latency_ms)
+
+        prediction_confidences = []
+        anomalies = []
+        for obj, track_id, _occlusion in pending:
+            result = prediction_results.get(track_id, {})
+            predicted = list(result.get("trajectory") or [])[: self.predict_steps]
+            latency_ms = result.get("infer_ms")
+            if isinstance(latency_ms, (int, float)):
+                latencies.append(float(latency_ms))
+            confidence = float(result.get("confidence", obj.get("confidence", 0.0)))
+            anomaly = result.get("anomaly")
+            if anomaly:
+                anomalies.append({"track_id": track_id, "type": anomaly})
+            prediction_confidences.append(confidence)
             status = self._status_from_predictor(predictor, predicted)
-            obj["predicted_traj"] = list(predicted or [])[: self.predict_steps]
+            obj["predicted_traj"] = predicted
+            obj["future_traj"] = [
+                {"x": point[0], "y": point[1], "t": round((index + 1) / self.fps, 3)}
+                for index, point in enumerate(predicted)
+            ]
+            obj["prediction_confidence"] = round(confidence, 4)
+            obj["prediction_anomaly"] = anomaly
             obj["prediction_status"] = status
             obj["prediction_reason"] = self._predictor_reason(predictor, status)
             if obj.get("velocity") in (None, [], [0.0, 0.0]):
@@ -135,6 +184,8 @@ class CloudSTGNNService:
             "status": self._aggregate_status(statuses),
             "model_path": self.model_path,
             "latency_ms": round(max(latencies), 3) if latencies else None,
+            "confidence": round(sum(prediction_confidences) / len(prediction_confidences), 4) if prediction_confidences else 0.0,
+            "anomalies": anomalies,
             "reason": reasons[0] if reasons else None,
         }
         return enriched
@@ -144,7 +195,10 @@ class CloudSTGNNService:
         if not isinstance(world_pos, (list, tuple)) or len(world_pos) != 2:
             return False
         try:
-            return all(float(value) == float(value) for value in world_pos)
+            return all(
+                float(value) == float(value) and abs(float(value)) <= 200.0
+                for value in world_pos
+            )
         except (TypeError, ValueError):
             return False
 
@@ -178,3 +232,17 @@ class CloudSTGNNService:
             if status in statuses:
                 return status
         return "deferred"
+
+    def reload_model(self) -> bool:
+        return bool(self.inference_engine and self.inference_engine.reload_model())
+
+    def health(self) -> dict[str, Any]:
+        if self.inference_engine is None:
+            return {
+                "model_loaded": False,
+                "model_path": self.model_path,
+                "model_reason": "inference engine is disabled",
+                "last_infer_ms": None,
+                "gpu": {"available": False, "allocated_mb": 0.0, "reserved_mb": 0.0},
+            }
+        return self.inference_engine.health()

@@ -13,11 +13,11 @@ function assertEqual(actual: string, expected: string): void {
   }
 }
 
-assertEqual(DEFAULT_CLOUD_API_BASE_URL, 'http://localhost:8011/api/v1');
+assertEqual(DEFAULT_CLOUD_API_BASE_URL, '/api/v1');
 
 assertEqual(
   buildWebSocketUrl(),
-  'ws://localhost:8011/api/v1/realtime/ws',
+  'ws://localhost:8000/api/v1/realtime/ws',
 );
 
 assertEqual(
@@ -27,7 +27,7 @@ assertEqual(
 
 assertEqual(
   resolveDefaultCloudApiBaseUrl(''),
-  'http://localhost:8011/api/v1',
+  '/api/v1',
 );
 
 const configuredFallback = 'https://cloud.example.com/api/v1';

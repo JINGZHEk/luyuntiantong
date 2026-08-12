@@ -77,6 +77,10 @@ export class SceneObjectPool {
     const worldPoint: [number, number] = [Number(object.world_pos[0]), Number(object.world_pos[1])];
     const roadPoint = mapRoadPoint(worldPoint, this.coordinateConfig);
     const velocity = mapRoadVector(finitePair(object.velocity), this.coordinateConfig);
+    const previousState = this.states.get(key);
+    const historyTrajectory = previousState
+      ? [...previousState.historyTrajectory, previousState.position].slice(-100)
+      : [roadPoint];
     const state: PooledObjectState = {
       key,
       trackId,
@@ -88,14 +92,15 @@ export class SceneObjectPool {
       heading: mapRoadHeading(Number(object.heading || 0), this.coordinateConfig.rotationDeg),
       velocity,
       confidence: object.confidence,
+      predictionConfidence: object.prediction_confidence,
       lastSeenAt: receivedAt,
       occlusionLevel: Number.isFinite(Number(object.occlusion_level)) ? Number(object.occlusion_level) : 0,
       predictedTrajectory: (object.predicted_traj || [])
         .filter(isFiniteRoadPoint)
         .map((point) => mapRoadPoint([Number(point[0]), Number(point[1])], this.coordinateConfig)),
+      historyTrajectory,
     };
 
-    const previousState = this.states.get(key);
     this.states.set(key, state);
     let model = this.models.get(key);
     if (model && previousState && (
@@ -246,6 +251,7 @@ export class SceneObjectPool {
       position: { ...state.position },
       velocity: [...state.velocity],
       predictedTrajectory: state.predictedTrajectory.map((point) => ({ ...point })),
+      historyTrajectory: state.historyTrajectory.map((point) => ({ ...point })),
     };
   }
 }

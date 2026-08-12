@@ -15,6 +15,9 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ metrics }) => {
     { label: 'F1 Score', value: metrics.f1Score, decimals: 3, colorClass: styles.f1 },
     { label: 'ADE (m)', value: metrics.ade, decimals: 2, colorClass: styles.ade },
     { label: 'FDE (m)', value: metrics.fde, decimals: 2, colorClass: styles.fde },
+    ...(typeof metrics.missRate === 'number'
+      ? [{ label: 'Miss Rate', value: metrics.missRate, decimals: 3, colorClass: styles.fde }]
+      : []),
     ...(typeof metrics.occAde === 'number'
       ? [{ label: 'Occ-ADE (m)', value: metrics.occAde, decimals: 2, colorClass: styles.occAde }]
       : []),

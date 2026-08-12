@@ -67,12 +67,14 @@ class OccAwareSTGNNPredictor:
         predict_steps: int = 30,
         fps: float = 10.0,
         model_path: str | None = None,
+        inference_engine: Any = None,
     ):
         self.history_length = history_length
         self.predict_steps = predict_steps
         self.fps = fps
         self.dt = 1.0 / fps
         self.model_path = model_path
+        self.inference_engine = inference_engine
         self.logger = setup_logger("roadside.stgnn_predictor")
         self._histories: dict[int, deque] = {}
         self._metadata: dict[int, dict[str, Any]] = {}
@@ -83,8 +85,19 @@ class OccAwareSTGNNPredictor:
             "model_path": model_path,
             "reason": "no checkpoint configured",
         }
-        if model_path:
+        if inference_engine is not None:
+            self._sync_engine_status()
+        elif model_path:
             self._load_model(model_path)
+
+    def _sync_engine_status(self) -> None:
+        health = self.inference_engine.health()
+        self.backend_status = {
+            "mode": "torchscript_stgnn" if health["model_loaded"] else "fallback_constant_velocity",
+            "model_loaded": health["model_loaded"],
+            "model_path": health["model_path"],
+            "reason": health["model_reason"],
+        }
 
     def _load_model(self, model_path: str) -> None:
         path = Path(model_path)
@@ -129,12 +142,60 @@ class OccAwareSTGNNPredictor:
         if len(history) < 2:
             return []
 
-        if self.model is not None:
+        if self.inference_engine is not None:
+            result = self.predict_many([(track_id, occlusion_level)]).get(track_id)
+            if result and result["trajectory"]:
+                return result["trajectory"]
+        elif self.model is not None:
             predicted = self._predict_with_model(track_id, history, occlusion_level)
             if predicted:
                 return predicted
 
         return self._predict_constant_velocity(history)
+
+    def predict_many(self, requests: list[tuple[int, int]]) -> dict[int, dict[str, Any]]:
+        prepared_ids = []
+        feature_batches = []
+        results: dict[int, dict[str, Any]] = {}
+        for track_id, occlusion_level in requests:
+            history = list(self._histories.get(track_id, []))
+            if len(history) < 2:
+                results[track_id] = {"trajectory": [], "confidence": 0.0, "infer_ms": None, "anomaly": None}
+                continue
+            metadata = self._metadata.get(track_id, {})
+            features = build_node_feature_sequence(
+                history=history,
+                bbox=metadata.get("bbox"),
+                obj_class=metadata.get("class", "unknown"),
+                occlusion_level=occlusion_level,
+                fps=self.fps,
+                history_length=self.history_length,
+            )
+            prepared_ids.append(track_id)
+            feature_batches.append(features)
+
+        if self.inference_engine is not None and feature_batches:
+            engine_results = self.inference_engine.predict_batch(feature_batches)
+            self._sync_engine_status()
+            for track_id, result in zip(prepared_ids, engine_results):
+                result["trajectory"] = result["trajectory"][: self.predict_steps]
+                if not result["trajectory"]:
+                    result["trajectory"] = self._predict_constant_velocity(list(self._histories[track_id]))
+                if result.get("anomaly") is None:
+                    result["anomaly"] = self._trajectory_anomaly(result["trajectory"])
+                results[track_id] = result
+            return results
+
+        for track_id, occlusion_level in requests:
+            started = __import__("time").perf_counter()
+            trajectory = self.predict(track_id, occlusion_level)
+            results[track_id] = {
+                "trajectory": trajectory,
+                "confidence": 1.0 if trajectory else 0.0,
+                "infer_ms": round((__import__("time").perf_counter() - started) * 1000.0, 3),
+                "anomaly": self._trajectory_anomaly(trajectory),
+            }
+        return results
 
     def _predict_with_model(self, track_id: int, history: list[list[float]], occlusion_level: int) -> list:
         try:
@@ -202,3 +263,10 @@ class OccAwareSTGNNPredictor:
         prev_x, prev_y = history[-2]
         last_x, last_y = history[-1]
         return (last_x - prev_x) / self.dt, (last_y - prev_y) / self.dt
+
+    @staticmethod
+    def _trajectory_anomaly(trajectory: list[list[float]]) -> str | None:
+        for left, right in zip(trajectory, trajectory[1:]):
+            if ((float(right[0]) - float(left[0])) ** 2 + (float(right[1]) - float(left[1])) ** 2) ** 0.5 > 5.0:
+                return "single_step_displacement_gt_5m"
+        return None

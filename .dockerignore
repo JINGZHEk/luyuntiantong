@@ -1,0 +1,17 @@
+.git
+.github
+.idea
+.vscode
+__pycache__
+*.pyc
+*.pyo
+*.db
+*.db-*
+*.log
+data
+logs
+frontend/node_modules
+frontend/dist
+frontend/.tmp-tests
+tests
+_*
