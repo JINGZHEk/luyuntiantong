@@ -21,6 +21,7 @@ class DeploymentConfigTest(unittest.TestCase):
 
         self.assertIn("FROM node:20-alpine AS frontend-build", dockerfile)
         self.assertIn("FROM python:3.11-slim AS runtime", dockerfile)
+        self.assertIn("RUN npm ci --legacy-peer-deps", dockerfile)
         self.assertIn("${PORT:-8000}", dockerfile)
         self.assertIn("V2X_DATABASE_PATH=/app/runtime/v2x_cloud.db", dockerfile)
         self.assertEqual(railway["build"]["builder"], "DOCKERFILE")
