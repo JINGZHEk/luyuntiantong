@@ -986,7 +986,10 @@ function updateMockData(delta) {
 // ============================================================
 function connectWS() {
     const baseUrl = localStorage.getItem('v2x-settings');
-    let wsUrl = 'ws://localhost:8011/api/v1/realtime/ws';
+    // Use the deployed origin by default.  Hard-coding localhost makes the
+    // browser try to connect to the viewer's own machine when this static
+    // page is served from Render.
+    let wsUrl = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/api/v1/realtime/ws`;
     try {
         if(baseUrl) {
             const parsed = JSON.parse(baseUrl);
