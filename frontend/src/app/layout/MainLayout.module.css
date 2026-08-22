@@ -281,6 +281,31 @@
   gap: 18px;
 }
 
+.userChip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.userAvatar {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 9%, transparent);
+}
+
+.userName {
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .sourceBadge {
   gap: 7px;
   font-family: var(--font-display);
@@ -369,7 +394,8 @@
   }
 
   .headerPageDescription,
-  .connectionText {
+  .connectionText,
+  .userName {
     display: none;
   }
 }

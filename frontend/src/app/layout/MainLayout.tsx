@@ -12,6 +12,8 @@ import {
   RocketOutlined,
   SettingOutlined,
   SunOutlined,
+  LogoutOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Breadcrumbs } from './Breadcrumbs';
@@ -21,6 +23,7 @@ import { useMonitorStore } from '@/store/monitorStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { NAV_ITEMS, ROUTE_META } from '@/constants/config';
 import styles from './MainLayout.module.css';
+import { getAuthSession, signOut } from '@/services/auth';
 
 const { Header, Sider, Content } = Layout;
 
@@ -97,6 +100,7 @@ export const MainLayout: React.FC = () => {
   const setTheme = useSettingsStore((state) => state.setTheme);
   const connection = useMonitorStore((state) => state.connection);
   const source = useDashboardStore((state) => state.source);
+  const session = getAuthSession();
   const routeMeta = ROUTE_META[location.pathname as keyof typeof ROUTE_META] || fallbackRoute;
 
   useEffect(() => {
@@ -169,6 +173,23 @@ export const MainLayout: React.FC = () => {
               text={<span className={styles.connectionText}>{connection.connected ? 'WebSocket 已连接' : 'WebSocket 已断开'}</span>}
             />
             <LiveClock />
+            <div className={styles.userChip} title={session?.username || '已登录'}>
+              <span className={styles.userAvatar}><UserOutlined /></span>
+              <span className={styles.userName}>{session?.username || 'operator'}</span>
+            </div>
+            <Tooltip title="退出登录">
+              <button
+                type="button"
+                className={styles.themeButton}
+                aria-label="退出登录"
+                onClick={() => {
+                  signOut();
+                  navigate('/login', { replace: true });
+                }}
+              >
+                <LogoutOutlined />
+              </button>
+            </Tooltip>
             <Tooltip title={theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'}>
               <button
                 type="button"
